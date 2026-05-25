@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import toast from 'react-hot-toast';
@@ -14,40 +14,6 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const handleRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result) {
-          setLoading(true);
-          const user = result.user;
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          
-          if (!userDoc.exists()) {
-            await setDoc(userDocRef, {
-              uid: user.uid,
-              email: user.email,
-              name: user.displayName || user.email,
-              role: 'user',
-              badges: [],
-              createdAt: new Date().toISOString(),
-            });
-          }
-          
-          toast.success('Đăng ký bằng Google thành công!');
-          router.push('/dashboard');
-        }
-      } catch (error) {
-        toast.error('Đăng ký Google thất bại: ' + error.message);
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    handleRedirectResult();
-  }, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -81,13 +47,33 @@ export default function Signup() {
   };
 
   const handleGoogleSignup = async () => {
-    setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
+      // Gọi signInWithPopup ngay lập tức để tránh bị trình duyệt chặn popup
+      const userCredential = await signInWithPopup(auth, provider);
+      setLoading(true);
+      const user = userCredential.user;
+      
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (!userDoc.exists()) {
+        await setDoc(userDocRef, {
+          uid: user.uid,
+          email: user.email,
+          name: user.displayName || user.email,
+          role: 'user',
+          badges: [],
+          createdAt: new Date().toISOString(),
+        });
+      }
+      
+      toast.success('Đăng ký bằng Google thành công!');
+      router.push('/dashboard');
     } catch (error) {
       toast.error('Đăng ký Google thất bại: ' + error.message);
       console.error(error);
+    } finally {
       setLoading(false);
     }
   };
