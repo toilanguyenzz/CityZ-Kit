@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { addLocation } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
@@ -8,6 +8,9 @@ import useUserRole from '@/lib/useUserRole';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import toast from 'react-hot-toast';
+import dynamic from 'next/dynamic';
+
+const MapComponent = dynamic(() => import('@/components/MapComponent'), { ssr: false });
 
 export default function AddLocation() {
   const router = useRouter();
@@ -17,13 +20,89 @@ export default function AddLocation() {
     address: '',
     description: '',
   });
+  const [coords, setCoords] = useState({ lat: 10.7769, lng: 106.7009 }); // Mặc định TT TP.HCM
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
+  const [debounceTimeout, setDebounceTimeout] = useState(null);
+
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const { role, isAdmin } = useUserRole();
 
+  // Đóng danh sách gợi ý khi bấm ra ngoài
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      setShowSuggestions(false);
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleAddressChange = (e) => {
+    const value = e.target.value;
+    setFormData({ ...formData, address: value });
+    setShowSuggestions(true);
+
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+    }
+
+    setDebounceTimeout(
+      setTimeout(() => {
+        fetchAddressSuggestions(value);
+      }, 600)
+    );
+  };
+
+  const fetchAddressSuggestions = async (queryText) => {
+    if (!queryText || queryText.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(queryText)}&countrycodes=vn`);
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestions(data.map(item => ({
+          display_name: item.display_name,
+          lat: parseFloat(item.lat),
+          lon: parseFloat(item.lon)
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+    }
+  };
+
+  const handleSelectSuggestion = (suggestion) => {
+    setFormData({ ...formData, address: suggestion.display_name });
+    setCoords({ lat: suggestion.lat, lng: suggestion.lon });
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  const handleMapLocationChange = async (lat, lng) => {
+    setCoords({ lat, lng });
+    try {
+      setGeocoding(true);
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.display_name) {
+          setFormData(prev => ({ ...prev, address: data.display_name }));
+        }
+      }
+    } catch (error) {
+      console.error('Error reverse geocoding:', error);
+    } finally {
+      setGeocoding(false);
+    }
   };
 
   const handleImageChange = (e) => {
@@ -47,7 +126,11 @@ export default function AddLocation() {
     }
     setLoading(true);
     try {
-      await addLocation(formData, imageFile, user.uid, role);
+      await addLocation({
+        ...formData,
+        latitude: coords.lat,
+        longitude: coords.lng
+      }, imageFile, user.uid, role);
       toast.success(isAdmin ? 'Đã thêm địa điểm thành công!' : 'Đã gửi! Địa điểm đang chờ kiểm duyệt từ Admin.');
       router.push('/dashboard');
     } catch (error) {
@@ -144,11 +227,40 @@ export default function AddLocation() {
                           type="text"
                           name="address"
                           value={formData.address}
-                          onChange={handleChange}
+                          onChange={handleAddressChange}
+                          onFocus={() => setShowSuggestions(true)}
+                          onClick={(e) => e.stopPropagation()}
                           required
-                          placeholder="Nhập địa chỉ chi tiết"
+                          placeholder="Nhập địa chỉ hoặc ghim trên bản đồ"
                           className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none placeholder-gray-400"
                         />
+                        {geocoding && (
+                          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <circle className="opacity-75" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                            </svg>
+                          </div>
+                        )}
+                        
+                        {/* Address Autocomplete Dropdown */}
+                        {showSuggestions && suggestions.length > 0 && (
+                          <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl shadow-indigo-100/40 z-50 max-h-60 overflow-y-auto outline-none">
+                            {suggestions.map((s, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectSuggestion(s);
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-indigo-50/50 text-sm text-gray-700 border-b border-gray-50 last:border-0 truncate transition-colors outline-none"
+                              >
+                                📍 {s.display_name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -197,6 +309,18 @@ export default function AddLocation() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Map Section */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-gray-700 ml-1">
+                    Định vị trên bản đồ (Kéo ghim hoặc click trên bản đồ để chọn vị trí chính xác)
+                  </label>
+                  <MapComponent
+                    latitude={coords.lat}
+                    longitude={coords.lng}
+                    onChangeLocation={handleMapLocationChange}
+                  />
                 </div>
 
                 <div className="space-y-2">
