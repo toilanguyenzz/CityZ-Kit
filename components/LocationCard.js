@@ -7,6 +7,7 @@ export default function LocationCard({ location, averageRating }) {
       case 'Food': return '🍔 Ăn uống';
       case 'Housing': return '🏠 Nhà trọ';
       case 'Cafe': return '☕ Cafe';
+      case 'Other': return '🏷️ Khác';
       default: return category;
     }
   };
