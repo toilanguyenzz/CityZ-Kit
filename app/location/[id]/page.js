@@ -97,6 +97,31 @@ export default function LocationDetail() {
             </div>
           </div>
 
+          {/* ───── OpenStreetMap ───── */}
+          {location.address && (
+            <div className="db-map-section mt-8">
+              <h2 className="db-map-header">
+                <span>📍</span> Bản đồ vị trí
+              </h2>
+              <iframe
+                className="db-map-frame"
+                title="Bản đồ địa điểm"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=106.5,10.7,106.9,10.9&layer=mapnik&marker=10.8,106.7`}
+                loading="lazy"
+                style={{ width: '100%', height: '350px', border: 'none' }}
+              />
+              <div style={{ padding: '0.75rem 1.5rem 1rem', textAlign: 'right' }}>
+                <a
+                  href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(location.address + ', TP.HCM, Việt Nam')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  🗺️ Xem bản đồ lớn hơn →
+                </a>
+              </div>
+            </div>
+          )}
           <div className="mt-8 bg-white rounded-xl shadow-md p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Viết đánh giá</h2>
             <form onSubmit={handleSubmitReview} className="space-y-4">

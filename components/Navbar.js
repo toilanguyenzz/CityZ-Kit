@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { auth, onAuthStateChanged } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
+import useUserRole from '@/lib/useUserRole';
 import toast from 'react-hot-toast';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
+  const { isAdmin } = useUserRole();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -43,6 +45,9 @@ export default function Navbar() {
               <Link href="/blog" className="text-gray-700 hover:text-blue-600 transition">Blog</Link>
               <Link href="/recommend" className="text-gray-700 hover:text-blue-600 transition">Gợi ý AI</Link>
               <Link href="/profile" className="text-gray-700 hover:text-blue-600 transition">Hồ sơ</Link>
+              {isAdmin && (
+                <Link href="/admin" className="text-purple-600 hover:text-purple-800 transition font-semibold">🛡️ Quản trị</Link>
+              )}
               <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition">Đăng xuất</button>
             </div>
           )}
@@ -78,6 +83,9 @@ export default function Navbar() {
           <Link href="/blog" onClick={() => setIsOpen(false)} className="block py-2 text-gray-700 hover:text-blue-600 transition font-medium">Blog</Link>
           <Link href="/recommend" onClick={() => setIsOpen(false)} className="block py-2 text-gray-700 hover:text-blue-600 transition font-medium">Gợi ý AI</Link>
           <Link href="/profile" onClick={() => setIsOpen(false)} className="block py-2 text-gray-700 hover:text-blue-600 transition font-medium">Hồ sơ</Link>
+          {isAdmin && (
+            <Link href="/admin" onClick={() => setIsOpen(false)} className="block py-2 text-purple-600 hover:text-purple-800 transition font-semibold">🛡️ Quản trị</Link>
+          )}
           <button onClick={() => { handleLogout(); setIsOpen(false); }} className="w-full text-left bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition mt-2 font-medium">Đăng xuất</button>
         </div>
       )}

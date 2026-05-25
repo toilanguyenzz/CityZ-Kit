@@ -33,6 +33,7 @@ export default function Signup() {
         uid: userCredential.user.uid,
         email,
         name,
+        role: 'user',
         badges: [],
         createdAt: new Date().toISOString(),
       });
@@ -60,6 +61,7 @@ export default function Signup() {
           uid: user.uid,
           email: user.email,
           name: user.displayName || user.email,
+          role: 'user',
           badges: [],
           createdAt: new Date().toISOString(),
         });

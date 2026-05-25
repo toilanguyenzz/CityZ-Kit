@@ -38,6 +38,7 @@ export default function Home() {
               uid: user.uid,
               email: user.email,
               name: user.displayName || user.email,
+              role: 'user',
               badges: [],
               createdAt: new Date().toISOString(),
             });

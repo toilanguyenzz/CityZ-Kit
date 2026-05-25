@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { addLocation } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
+import useUserRole from '@/lib/useUserRole';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import toast from 'react-hot-toast';
@@ -18,6 +19,7 @@ export default function AddLocation() {
   });
   const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { role, isAdmin } = useUserRole();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -36,8 +38,8 @@ export default function AddLocation() {
     }
     setLoading(true);
     try {
-      await addLocation(formData, imageFile, user.uid);
-      toast.success('Đã thêm địa điểm thành công!');
+      await addLocation(formData, imageFile, user.uid, role);
+      toast.success(isAdmin ? 'Đã thêm địa điểm thành công!' : 'Đã gửi! Địa điểm đang chờ kiểm duyệt từ Admin.');
       router.push('/dashboard');
     } catch (error) {
       toast.error(error.message);
