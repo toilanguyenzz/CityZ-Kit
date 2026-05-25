@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import toast from 'react-hot-toast';
@@ -12,6 +12,40 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          setLoading(true);
+          const user = result.user;
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (!userDoc.exists()) {
+            await setDoc(userDocRef, {
+              uid: user.uid,
+              email: user.email,
+              name: user.displayName || user.email,
+              role: 'user',
+              badges: [],
+              createdAt: new Date().toISOString(),
+            });
+          }
+          
+          toast.success('Đăng nhập bằng Google thành công!');
+          router.push('/dashboard');
+        }
+      } catch (error) {
+        toast.error('Đăng nhập Google thất bại: ' + error.message);
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    handleRedirectResult();
+  }, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,33 +67,13 @@ export default function Login() {
   };
 
   const handleGoogleLogin = async () => {
+    setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      // Gọi signInWithPopup ngay lập tức để tránh bị trình duyệt chặn popup
-      const userCredential = await signInWithPopup(auth, provider);
-      setLoading(true);
-      const user = userCredential.user;
-      
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-      
-      if (!userDoc.exists()) {
-        await setDoc(userDocRef, {
-          uid: user.uid,
-          email: user.email,
-          name: user.displayName || user.email,
-          role: 'user',
-          badges: [],
-          createdAt: new Date().toISOString(),
-        });
-      }
-      
-      toast.success('Đăng nhập bằng Google thành công!');
-      router.push('/dashboard');
+      await signInWithRedirect(auth, provider);
     } catch (error) {
       toast.error('Đăng nhập Google thất bại: ' + error.message);
       console.error(error);
-    } finally {
       setLoading(false);
     }
   };
