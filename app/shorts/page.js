@@ -199,9 +199,36 @@ function TikTokShortItem({ location, isActive }) {
     return getVideoEmbedInfo(location.videoUrl);
   }, [location.videoUrl]);
 
+  const [resolvedInfo, setResolvedInfo] = useState(embedInfo);
+
+  // Attempt to resolve short TikTok URLs on mount / link change
+  useEffect(() => {
+    setResolvedInfo(embedInfo);
+
+    if (embedInfo.type === 'tiktok-link') {
+      let active = true;
+      fetch(`/api/resolve-tiktok?url=${encodeURIComponent(embedInfo.originalUrl)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (active && data.resolvedUrl) {
+            const newInfo = getVideoEmbedInfo(data.resolvedUrl);
+            if (newInfo.type === 'tiktok-embed') {
+              setResolvedInfo(newInfo);
+            }
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to resolve TikTok URL:', err);
+        });
+      return () => {
+        active = false;
+      };
+    }
+  }, [embedInfo]);
+
   // Auto play/pause video based on active item state (direct mp4 links only)
   useEffect(() => {
-    if (embedInfo.type !== 'direct') return;
+    if (resolvedInfo.type !== 'direct') return;
     const video = videoRef.current;
     if (!video) return;
 
@@ -214,11 +241,11 @@ function TikTokShortItem({ location, isActive }) {
     } else {
       video.pause();
     }
-  }, [isActive, embedInfo.type]);
+  }, [isActive, resolvedInfo.type]);
 
   // Video progress bar
   useEffect(() => {
-    if (embedInfo.type !== 'direct') return;
+    if (resolvedInfo.type !== 'direct') return;
     const video = videoRef.current;
     if (!video) return;
 
@@ -230,10 +257,10 @@ function TikTokShortItem({ location, isActive }) {
 
     video.addEventListener('timeupdate', updateProgress);
     return () => video.removeEventListener('timeupdate', updateProgress);
-  }, [embedInfo.type]);
+  }, [resolvedInfo.type]);
 
   const handleTap = () => {
-    if (embedInfo.type !== 'direct') return;
+    if (resolvedInfo.type !== 'direct') return;
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
       handleDoubleTap();
@@ -249,7 +276,7 @@ function TikTokShortItem({ location, isActive }) {
   };
 
   const togglePlay = () => {
-    if (embedInfo.type !== 'direct') return;
+    if (resolvedInfo.type !== 'direct') return;
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
@@ -295,27 +322,27 @@ function TikTokShortItem({ location, isActive }) {
     <div className="short-item">
       {/* 9:16 vertical TikTok Viewport */}
       <div className="tiktok-viewport">
-        {embedInfo.type === 'youtube' && (
+        {resolvedInfo.type === 'youtube' && (
           <iframe
             className="tiktok-video"
-            src={isActive ? embedInfo.embedUrl : 'about:blank'}
+            src={isActive ? resolvedInfo.embedUrl : 'about:blank'}
             style={{ border: 'none', width: '100%', height: '100%' }}
             allow="autoplay; encrypted-media; picture-in-picture"
             allowFullScreen
           />
         )}
 
-        {embedInfo.type === 'tiktok-embed' && (
+        {resolvedInfo.type === 'tiktok-embed' && (
           <iframe
             className="tiktok-video"
-            src={isActive ? embedInfo.embedUrl : 'about:blank'}
+            src={isActive ? resolvedInfo.embedUrl : 'about:blank'}
             style={{ border: 'none', width: '100%', height: '100%' }}
             allow="autoplay; encrypted-media"
             allowFullScreen
           />
         )}
 
-        {embedInfo.type === 'tiktok-link' && (
+        {resolvedInfo.type === 'tiktok-link' && (
           <div style={{
             position: 'relative', width: '100%', height: '100%',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -345,7 +372,7 @@ function TikTokShortItem({ location, isActive }) {
                 Trình duyệt không thể phát trực tiếp link chia sẻ TikTok. Bấm nút dưới để xem clip.
               </p>
               <a
-                href={embedInfo.originalUrl}
+                href={resolvedInfo.originalUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -365,11 +392,11 @@ function TikTokShortItem({ location, isActive }) {
           </div>
         )}
 
-        {embedInfo.type === 'direct' && !videoError && (
+        {resolvedInfo.type === 'direct' && !videoError && (
           <video
             ref={videoRef}
             className="tiktok-video"
-            src={embedInfo.url}
+            src={resolvedInfo.url}
             loop
             muted
             playsInline
@@ -380,7 +407,7 @@ function TikTokShortItem({ location, isActive }) {
           />
         )}
 
-        {embedInfo.type === 'direct' && videoError && (
+        {resolvedInfo.type === 'direct' && videoError && (
           <div style={{
             position: 'relative', width: '100%', height: '100%',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -409,7 +436,7 @@ function TikTokShortItem({ location, isActive }) {
                 Định dạng video không được hỗ trợ hoặc không thể truy cập.
               </p>
               <a
-                href={embedInfo.url}
+                href={resolvedInfo.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -509,7 +536,7 @@ function TikTokShortItem({ location, isActive }) {
         </div>
 
         {/* Video progress bar overlay */}
-        {embedInfo.type === 'direct' && (
+        {resolvedInfo.type === 'direct' && (
           <div className="short-progress" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10 }}>
             <div className="short-progress-bar" style={{ width: `${progress}%` }} />
           </div>
