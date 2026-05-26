@@ -267,8 +267,8 @@ export default function Home() {
       <footer className="landing-footer">
         <div className="footer-inner">
           <div className="footer-brand">
-            <h3>FreshStart <span>HCMC</span></h3>
-            <p>Nền tảng hỗ trợ tân sinh viên TP.HCM khám phá, kết nối và phát triển.</p>
+            <h3>CityZ <span>Kit</span></h3>
+            <p>Nền tảng hỗ trợ sinh viên TP.HCM khám phá, kết nối và phát triển.</p>
           </div>
           <div className="footer-links">
             <div>
@@ -285,7 +285,7 @@ export default function Home() {
             </div>
             <div>
               <h4>Hỗ trợ</h4>
-              <span>hotro.freshstart@gmail.com</span>
+              <span>hotro.cityzkit@gmail.com</span>
               <span>Cộng đồng sinh viên TP.HCM</span>
             </div>
           </div>

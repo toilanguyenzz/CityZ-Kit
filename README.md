@@ -21,7 +21,7 @@ CityZ Kit là nền tảng web giúp sinh viên mới tại TP.HCM:
 ## 📁 Cấu trúc thư mục
 
 ```
-freshstart-hcmc/
+cityz-kit/
 ├── app/
 │   ├── api/recommend/route.js    # API gọi Gemini
 │   ├── dashboard/                 # Trang chính (danh sách địa điểm)
@@ -59,7 +59,7 @@ freshstart-hcmc/
 
 ```bash
 git clone <your-repo-url>
-cd freshstart-hcmc
+cd cityz-kit
 ```
 
 ### 2. Cài đặt dependencies
