@@ -106,6 +106,60 @@ export default function AddLocation() {
     }
   };
 
+  const handleGetCurrentGPS = () => {
+    if (!navigator.geolocation) {
+      toast.error('Trình duyệt của bạn không hỗ trợ định vị GPS');
+      return;
+    }
+    
+    const toastId = toast.loading('Đang lấy vị trí GPS...');
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        toast.dismiss(toastId);
+        toast.success('Đã lấy vị trí GPS thành công!');
+        
+        // Cập nhật tọa độ
+        setCoords({ lat: latitude, lng: longitude });
+        
+        // Reverse geocode để lấy địa chỉ chữ
+        try {
+          setGeocoding(true);
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.display_name) {
+              setFormData(prev => ({ ...prev, address: data.display_name }));
+            }
+          }
+        } catch (error) {
+          console.error(error);
+        } finally {
+          setGeocoding(false);
+        }
+      },
+      (error) => {
+        toast.dismiss(toastId);
+        console.error(error);
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            toast.error('Bạn đã từ chối quyền truy cập vị trí GPS.');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            toast.error('Thông tin vị trí không khả dụng.');
+            break;
+          case error.TIMEOUT:
+            toast.error('Quá thời gian yêu cầu vị trí.');
+            break;
+          default:
+            toast.error('Lỗi khi lấy vị trí GPS.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -236,6 +290,13 @@ export default function AddLocation() {
                           placeholder="Nhập địa chỉ hoặc ghim trên bản đồ"
                           className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none placeholder-gray-400"
                         />
+                        <button
+                          type="button"
+                          onClick={handleGetCurrentGPS}
+                          className="mt-2.5 flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-semibold transition-colors outline-none"
+                        >
+                          🛰️ Lấy vị trí GPS hiện tại
+                        </button>
                         {geocoding && (
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
