@@ -40,7 +40,7 @@ export default function CreatePost() {
   const [loading, setLoading] = useState(false);
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [userProfile, setUserProfile] = useState({ name: '', avatarUrl: null });
+  const [userProfile, setUserProfile] = useState({ name: '', avatarUrl: null, badges: [] });
   const { role, isAdmin } = useUserRole();
 
   useEffect(() => {
@@ -53,12 +53,14 @@ export default function CreatePost() {
             const data = docSnap.data();
             setUserProfile({
               name: data.name || u.displayName || u.email?.split('@')[0] || 'User',
-              avatarUrl: data.avatarUrl || null
+              avatarUrl: data.avatarUrl || null,
+              badges: data.badges || []
             });
           } else {
             setUserProfile({
               name: u.displayName || u.email?.split('@')[0] || 'User',
-              avatarUrl: null
+              avatarUrl: null,
+              badges: []
             });
           }
         } catch (error) {
@@ -123,7 +125,8 @@ export default function CreatePost() {
         category,
         flair || null,
         isAnonymous,
-        userProfile.avatarUrl
+        userProfile.avatarUrl,
+        userProfile.badges
       );
 
       toast.success(isAdmin ? 'Đã đăng bài thành công!' : 'Đã gửi! Bài viết đang chờ kiểm duyệt từ Admin.');

@@ -190,6 +190,11 @@ export default function PostDetail() {
                   )}
                   <span className="pd-author">
                     {displayName(post.authorName)}
+                    {!post.isAnonymous && post.authorBadges && post.authorBadges.map((badge, idx) => (
+                      <span key={idx} title={badge.name} style={{ marginLeft: '0.25rem', fontSize: '0.9rem', cursor: 'help' }}>
+                        {badge.icon}
+                      </span>
+                    ))}
                     {post.isAnonymous && isAdmin && (
                       <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: '0.25rem' }}>
                         (Bởi: {post.realAuthorName || 'Chưa rõ'})
