@@ -8,6 +8,16 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata = {
   title: 'CityZ Kit - Cộng đồng sinh viên TP.HCM',
   description: 'Nền tảng hỗ trợ tân sinh viên TP.HCM: tìm chỗ ở, ẩm thực, gợi ý thông minh từ AI và kết nối cộng đồng',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'CityZ',
+  },
+};
+
+export const viewport = {
+  themeColor: '#4f46e5',
 };
 
 export default function RootLayout({ children }) {
@@ -16,6 +26,24 @@ export default function RootLayout({ children }) {
       <body className={`${inter.className} bg-gray-50`}>
         <ToastProvider />
         {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(
+                    function(reg) {
+                      console.log('Service Worker registered successfully:', reg.scope);
+                    },
+                    function(err) {
+                      console.warn('Service Worker registration failed:', err);
+                    }
+                  );
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
