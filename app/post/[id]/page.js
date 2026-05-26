@@ -115,25 +115,31 @@ export default function PostDetail() {
               {post.type === 'poll' ? (
                 <div className="space-y-4 mb-8 p-6 bg-blue-50 rounded-2xl border border-blue-100">
                   <p className="font-bold text-blue-900 mb-4">🗳️ Khảo sát: {post.pollData?.question}</p>
-                  {post.pollData?.options?.map((opt, idx) => {
-                    const totalVotes = post.pollData.options.reduce((sum, o) => sum + (o.votes || 0), 0);
-                    const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                  {(() => {
+                    const totalVotes = post.pollData?.options?.reduce((sum, o) => sum + (o.votes || 0), 0) || 0;
                     return (
-                      <div key={idx} className="relative w-full h-12 bg-white rounded-xl overflow-hidden border border-blue-200 cursor-pointer group" onClick={() => !voted && handleVote(idx)}>
-                        <div
-                          className="absolute left-0 top-0 h-full bg-blue-500/20 transition-all duration-500"
-                          style={{ width: `${percent}%` }}
-                        />
-                        <div className="absolute inset-0 flex items-center justify-between px-4 text-sm font-medium text-gray-700">
-                          <span>{opt.text}</span>
-                          <span className="font-bold text-blue-600">{percent}%</span>
-                        </div>
-                      </div>
+                      <>
+                        {post.pollData?.options?.map((opt, idx) => {
+                          const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                          return (
+                            <div key={idx} className="relative w-full h-12 bg-white rounded-xl overflow-hidden border border-blue-200 cursor-pointer group" onClick={() => !voted && handleVote(idx)}>
+                              <div
+                                className="absolute left-0 top-0 h-full bg-blue-500/20 transition-all duration-500"
+                                style={{ width: `${percent}%` }}
+                              />
+                              <div className="absolute inset-0 flex items-center justify-between px-4 text-sm font-medium text-gray-700">
+                                <span>{opt.text}</span>
+                                <span className="font-bold text-blue-600">{percent}%</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <p className="text-xs text-blue-500 italic text-center">
+                          {totalVotes > 0 ? `Tổng cộng ${totalVotes} lượt bình chọn` : 'Hãy bình chọn ngay!'}
+                        </p>
+                      </>
                     );
-                  })}
-                  <p className="text-xs text-blue-500 italic text-center">
-                    {totalVotes > 0 ? `Tổng cộng ${totalVotes} lượt bình chọn` : 'Hãy bình chọn ngay!'}
-                  </p>
+                  })()}
                 </div>
               ) : (
                 <div className="prose max-w-none text-gray-700 mb-8">
