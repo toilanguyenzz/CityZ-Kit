@@ -2,6 +2,8 @@ import './styles/globals.css';
 import 'leaflet/dist/leaflet.css';
 import { Inter } from 'next/font/google';
 import ToastProvider from '@/components/ToastProvider';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -26,6 +28,8 @@ export default function RootLayout({ children }) {
       <body className={`${inter.className} bg-gray-50`}>
         <ToastProvider />
         {children}
+        <Analytics />
+        <SpeedInsights />
         <script
           dangerouslySetInnerHTML={{
             __html: `
