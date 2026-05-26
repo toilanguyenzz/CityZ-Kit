@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import Link from 'next/link';
+import '@/app/styles/recommend.css';
 
 export default function RecommendPage() {
   const [budget, setBudget] = useState('');
@@ -46,96 +48,219 @@ export default function RecommendPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
+      <div className="recommend-root">
         <Navbar />
-        <main className="max-w-4xl mx-auto px-4 py-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Gợi ý thông minh</h1>
-          <p className="text-gray-600 mb-6">Chọn tiêu chí để nhận gợi ý địa điểm phù hợp nhất từ AI</p>
-          <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ngân sách (VND/tháng)</label>
-                <select
-                  value={budget}
-                  onChange={(e) => setBudget(e.target.value)}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">-- Chọn --</option>
-                  <option value="<2M">&lt; 2 triệu</option>
-                  <option value="2-4M">2 - 4 triệu</option>
-                  <option value=">4M">&gt; 4 triệu</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Loại ẩm thực yêu thích</label>
-                <select
-                  value={foodType}
-                  onChange={(e) => setFoodType(e.target.value)}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">-- Chọn --</option>
-                  <option value="Vietnamese">Việt Nam</option>
-                  <option value="Japanese">Nhật Bản</option>
-                  <option value="Fast Food">Fast Food</option>
-                  <option value="Seafood">Hải sản</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quận hiện tại</label>
-                <select
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">-- Chọn --</option>
-                  <option value="1">Quận 1</option>
-                  <option value="3">Quận 3</option>
-                  <option value="4">Quận 4</option>
-                  <option value="5">Quận 5</option>
-                  <option value="7">Quận 7</option>
-                  <option value="Binh Thanh">Bình Thạnh</option>
-                  <option value="Thu Duc">Thủ Đức</option>
-                </select>
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition disabled:opacity-50"
-              >
-                {loading ? 'AI đang suy nghĩ...' : 'Nhận gợi ý'}
-              </button>
-            </form>
+
+        {/* ───── Hero Section ───── */}
+        <section className="rc-hero">
+          {/* Floating particles */}
+          <div className="rc-particles">
+            <div className="rc-particle rc-particle--1"></div>
+            <div className="rc-particle rc-particle--2"></div>
+            <div className="rc-particle rc-particle--3"></div>
+            <div className="rc-particle rc-particle--4"></div>
+            <div className="rc-particle rc-particle--5"></div>
           </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              {error}
+          <div className="rc-hero-inner">
+            <div className="rc-hero-badge">
+              <span className="rc-badge-dot"></span>
+              AI-Powered Recommendations
+            </div>
+            <h1 className="rc-hero-title">
+              Gợi ý <span className="rc-gradient-text">thông minh</span> dành cho bạn
+            </h1>
+            <p className="rc-hero-desc">
+              Để AI phân tích ngân sách, sở thích và vị trí của bạn — 
+              tìm ra những địa điểm phù hợp nhất trong vài giây
+            </p>
+          </div>
+        </section>
+
+        <main className="rc-main">
+          {/* ───── Form Card ───── */}
+          <div className="rc-form-card">
+            <div className="rc-form-header">
+              <div className="rc-form-icon">🎯</div>
+              <div className="rc-form-header-text">
+                <h2>Chọn tiêu chí của bạn</h2>
+                <p>Điền thông tin để AI gợi ý 3 địa điểm tốt nhất</p>
+              </div>
+            </div>
+
+            <div className="rc-form-body">
+              <form onSubmit={handleSubmit}>
+                <div className="rc-form-grid">
+                  {/* Budget */}
+                  <div className="rc-field">
+                    <label className="rc-field-label">
+                      <span className="rc-label-icon">💰</span>
+                      Ngân sách (VND/tháng)
+                    </label>
+                    <div className="rc-select-wrap">
+                      <select
+                        value={budget}
+                        onChange={(e) => setBudget(e.target.value)}
+                        required
+                        className="rc-select"
+                      >
+                        <option value="">Chọn mức ngân sách</option>
+                        <option value="<2M">&lt; 2 triệu</option>
+                        <option value="2-4M">2 - 4 triệu</option>
+                        <option value=">4M">&gt; 4 triệu</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Food Type */}
+                  <div className="rc-field">
+                    <label className="rc-field-label">
+                      <span className="rc-label-icon">🍜</span>
+                      Loại ẩm thực yêu thích
+                    </label>
+                    <div className="rc-select-wrap">
+                      <select
+                        value={foodType}
+                        onChange={(e) => setFoodType(e.target.value)}
+                        required
+                        className="rc-select"
+                      >
+                        <option value="">Chọn loại ẩm thực</option>
+                        <option value="Vietnamese">Việt Nam</option>
+                        <option value="Japanese">Nhật Bản</option>
+                        <option value="Fast Food">Fast Food</option>
+                        <option value="Seafood">Hải sản</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* District */}
+                  <div className="rc-field">
+                    <label className="rc-field-label">
+                      <span className="rc-label-icon">📍</span>
+                      Quận hiện tại
+                    </label>
+                    <div className="rc-select-wrap">
+                      <select
+                        value={district}
+                        onChange={(e) => setDistrict(e.target.value)}
+                        required
+                        className="rc-select"
+                      >
+                        <option value="">Chọn quận</option>
+                        <option value="1">Quận 1</option>
+                        <option value="3">Quận 3</option>
+                        <option value="4">Quận 4</option>
+                        <option value="5">Quận 5</option>
+                        <option value="7">Quận 7</option>
+                        <option value="Binh Thanh">Bình Thạnh</option>
+                        <option value="Thu Duc">Thủ Đức</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rc-submit-btn"
+                >
+                  {loading ? (
+                    <span className="rc-btn-spinner">
+                      <span className="rc-spinner-dots">
+                        <span className="rc-spinner-dot"></span>
+                        <span className="rc-spinner-dot"></span>
+                        <span className="rc-spinner-dot"></span>
+                      </span>
+                      AI đang phân tích...
+                    </span>
+                  ) : (
+                    <>
+                      <span className="rc-btn-icon">✨</span>
+                      Nhận gợi ý từ AI
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Messages */}
+              {error && (
+                <div className="rc-message rc-message--error">
+                  <span className="rc-message-icon">❌</span>
+                  {error}
+                </div>
+              )}
+
+              {infoMessage && (
+                <div className="rc-message rc-message--info">
+                  <span className="rc-message-icon">💡</span>
+                  {infoMessage}
+                </div>
+              )}
+
+              {hasSearched && recommendations.length === 0 && !infoMessage && (
+                <div className="rc-message rc-message--warning">
+                  <span className="rc-message-icon">🔍</span>
+                  Không tìm thấy gợi ý nào phù hợp. Vui lòng thêm địa điểm mới vào hệ thống trước!
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ───── How it Works Steps ───── */}
+          {!hasSearched && (
+            <div className="rc-steps">
+              <div className="rc-step">
+                <div className="rc-step-num">1</div>
+                <div className="rc-step-text">
+                  <h4>Chọn tiêu chí</h4>
+                  <p>Điền ngân sách, ẩm thực yêu thích và khu vực của bạn</p>
+                </div>
+              </div>
+              <div className="rc-step">
+                <div className="rc-step-num">2</div>
+                <div className="rc-step-text">
+                  <h4>AI phân tích</h4>
+                  <p>Hệ thống AI sẽ so sánh và đánh giá các địa điểm phù hợp</p>
+                </div>
+              </div>
+              <div className="rc-step">
+                <div className="rc-step-num">3</div>
+                <div className="rc-step-text">
+                  <h4>Nhận gợi ý</h4>
+                  <p>Xem top 3 địa điểm tốt nhất kèm lý do chi tiết</p>
+                </div>
+              </div>
             </div>
           )}
 
-          {infoMessage && (
-            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-center font-medium">
-              {infoMessage}
-            </div>
-          )}
-
-          {hasSearched && recommendations.length === 0 && !infoMessage && (
-            <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-center font-medium">
-              Không tìm thấy gợi ý nào phù hợp. Vui lòng thêm địa điểm mới vào hệ thống trước!
-            </div>
-          )}
-
+          {/* ───── Results ───── */}
           {recommendations.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Gợi ý cho bạn</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="rc-results">
+              <div className="rc-results-header">
+                <div className="rc-results-icon">🎉</div>
+                <div>
+                  <div className="rc-results-title">Gợi ý dành cho bạn</div>
+                  <div className="rc-results-subtitle">
+                    AI đã phân tích và chọn ra {recommendations.length} địa điểm phù hợp nhất
+                  </div>
+                </div>
+              </div>
+
+              <div className="rc-results-grid">
                 {recommendations.map((rec, idx) => (
-                  <div key={idx} className="bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{rec.name}</h3>
-                    <p className="text-gray-600">{rec.reason}</p>
+                  <div key={idx} className="rc-result-card">
+                    <div className="rc-card-accent"></div>
+                    <div className="rc-card-body">
+                      <div className="rc-card-rank">#{idx + 1}</div>
+                      <h3 className="rc-card-name">{rec.name}</h3>
+                      <p className="rc-card-reason">{rec.reason}</p>
+                    </div>
+                    <div className="rc-card-footer">
+                      <span className="rc-card-tag">
+                        <span>🤖</span> AI Picked
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
