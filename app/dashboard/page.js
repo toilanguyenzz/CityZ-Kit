@@ -257,7 +257,7 @@ export default function Dashboard() {
               <div className="db-featured-label">
                 <span>🏆</span> Địa điểm nổi bật
               </div>
-              <div className="db-featured-card">
+              <Link href={`/location/${featured.id}`} className="db-featured-card">
                 <div className="db-featured-img">
                   {featured.imageUrl ? (
                     <img src={featured.imageUrl} alt={featured.name} />
@@ -280,12 +280,12 @@ export default function Dashboard() {
                     <span className="db-featured-reviews">
                       ({featured.reviewCount || 0} đánh giá)
                     </span>
-                    <Link href={`/location/${featured.id}`} className="db-featured-link">
+                    <span className="db-featured-link">
                       Xem chi tiết →
-                    </Link>
+                    </span>
                   </div>
                 </div>
-              </div>
+              </Link>
             </div>
           )}
 

@@ -30,7 +30,7 @@ export default function LocationCard({ location, averageRating }) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+    <Link href={`/location/${location.id}`} className="block bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 no-underline text-inherit">
       <div className="relative h-48 w-full bg-gray-200">
         {location.imageUrl ? (
           <Image
@@ -82,13 +82,12 @@ export default function LocationCard({ location, averageRating }) {
             </span>
           ) : null}
         </div>
-        <Link
-          href={`/location/${location.id}`}
+        <span
           className="mt-3 inline-block text-blue-600 hover:text-blue-800 text-sm font-medium"
         >
           Xem chi tiết →
-        </Link>
+        </span>
       </div>
-    </div>
+    </Link>
   );
 }
