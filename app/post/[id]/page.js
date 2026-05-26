@@ -35,6 +35,12 @@ function timeAgo(dateInput) {
   return date.toLocaleDateString('vi-VN');
 }
 
+function displayName(name) {
+  if (!name) return 'Ẩn danh';
+  if (name.includes('@')) return name.split('@')[0];
+  return name;
+}
+
 export default function PostDetail() {
   const { id } = useParams();
   const router = useRouter();
@@ -152,20 +158,18 @@ export default function PostDetail() {
                   onClick={handleUpvote}
                   disabled={voting}
                   className={`tc-vote-btn ${hasUpvoted ? 'tc-voted-up' : ''}`}
-                  style={{ fontSize: '1rem' }}
                 >
-                  ▲
+                  <svg width="24" height="16" viewBox="0 0 20 14" fill="currentColor"><path d="M10 0L20 14H0L10 0Z"/></svg>
                 </button>
-                <span className={`tc-score ${score > 0 ? 'tc-positive' : score < 0 ? 'tc-negative' : ''}`} style={{ fontSize: '1rem' }}>
+                <span className={`tc-score ${score > 0 ? 'tc-positive' : score < 0 ? 'tc-negative' : ''}`} style={{ fontSize: '1.1rem' }}>
                   {score}
                 </span>
                 <button
                   onClick={handleDownvote}
                   disabled={voting}
                   className={`tc-vote-btn ${hasDownvoted ? 'tc-voted-down' : ''}`}
-                  style={{ fontSize: '1rem' }}
                 >
-                  ▼
+                  <svg width="24" height="16" viewBox="0 0 20 14" fill="currentColor"><path d="M10 14L0 0H20L10 14Z"/></svg>
                 </button>
               </div>
 
@@ -176,7 +180,7 @@ export default function PostDetail() {
                   </span>
                   {post.flair && <FlairBadge flair={post.flair} />}
                   <span className="pd-dot">•</span>
-                  <span className="pd-author">u/{post.authorName || 'Ẩn danh'}</span>
+                  <span className="pd-author">{displayName(post.authorName)}</span>
                   <span className="pd-dot">•</span>
                   <span className="pd-time">{timeAgo(post.createdAt)}</span>
                 </div>

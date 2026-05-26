@@ -22,6 +22,12 @@ function timeAgo(dateInput) {
   return date.toLocaleDateString('vi-VN');
 }
 
+function displayName(name) {
+  if (!name) return 'Ẩn danh';
+  if (name.includes('@')) return name.split('@')[0];
+  return name;
+}
+
 const CATEGORY_MAP = {
   housing: { label: 'Nhà trọ', emoji: '🏠', color: '#3b82f6' },
   food: { label: 'Ẩm thực', emoji: '🍜', color: '#ef4444' },
@@ -80,7 +86,7 @@ export default function ThreadCard({ post, onVoteUpdate }) {
           disabled={voting}
           className={`tc-vote-btn ${hasUpvoted ? 'tc-voted-up' : ''}`}
         >
-          ▲
+          <svg width="20" height="14" viewBox="0 0 20 14" fill="currentColor"><path d="M10 0L20 14H0L10 0Z"/></svg>
         </button>
         <span className={`tc-score ${score > 0 ? 'tc-positive' : score < 0 ? 'tc-negative' : ''}`}>
           {score}
@@ -90,7 +96,7 @@ export default function ThreadCard({ post, onVoteUpdate }) {
           disabled={voting}
           className={`tc-vote-btn ${hasDownvoted ? 'tc-voted-down' : ''}`}
         >
-          ▼
+          <svg width="20" height="14" viewBox="0 0 20 14" fill="currentColor"><path d="M10 14L0 0H20L10 14Z"/></svg>
         </button>
       </div>
 
@@ -104,7 +110,7 @@ export default function ThreadCard({ post, onVoteUpdate }) {
           </span>
           {post.flair && <FlairBadge flair={post.flair} />}
           <span className="tc-dot">•</span>
-          <span className="tc-author">u/{post.authorName || 'Ẩn danh'}</span>
+          <span className="tc-author">{displayName(post.authorName)}</span>
           <span className="tc-dot">•</span>
           <span className="tc-time">{timeAgo(post.createdAt)}</span>
         </div>
@@ -132,14 +138,17 @@ export default function ThreadCard({ post, onVoteUpdate }) {
           </div>
         )}
 
-        {/* Footer stats */}
+        {/* Footer stats — hide zeros */}
         <div className="tc-footer">
-          <span className="tc-stat">
-            💬 {post.commentCount || 0} bình luận
-          </span>
-          <span className="tc-stat">
-            👁️ {post.viewCount || 0} lượt xem
-          </span>
+          {(post.commentCount || 0) > 0 && (
+            <span className="tc-stat">💬 {post.commentCount} bình luận</span>
+          )}
+          {(post.viewCount || 0) > 0 && (
+            <span className="tc-stat">👁️ {post.viewCount} lượt xem</span>
+          )}
+          {!(post.commentCount || 0) && !(post.viewCount || 0) && (
+            <span className="tc-stat tc-stat-new">✨ Mới đăng</span>
+          )}
         </div>
       </Link>
     </div>
