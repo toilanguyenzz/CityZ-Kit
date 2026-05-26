@@ -43,6 +43,7 @@ export default function Navbar() {
               <Link href="/dashboard" className="text-gray-700 hover:text-blue-600 transition">Khám phá</Link>
               <Link href="/add-location" className="text-gray-700 hover:text-blue-600 transition">+ Địa điểm</Link>
               <Link href="/blog" className="text-gray-700 hover:text-blue-600 transition">Blog</Link>
+              <Link href="/shorts" className="text-gray-700 hover:text-blue-600 transition">Shorts 🎬</Link>
               <Link href="/recommend" className="text-gray-700 hover:text-blue-600 transition">Gợi ý AI</Link>
               <Link href="/profile" className="text-gray-700 hover:text-blue-600 transition">Hồ sơ</Link>
               {isAdmin && (
@@ -81,6 +82,7 @@ export default function Navbar() {
           <Link href="/dashboard" onClick={() => setIsOpen(false)} className="block py-2 text-gray-700 hover:text-blue-600 transition font-medium">Khám phá</Link>
           <Link href="/add-location" onClick={() => setIsOpen(false)} className="block py-2 text-gray-700 hover:text-blue-600 transition font-medium">+ Địa điểm</Link>
           <Link href="/blog" onClick={() => setIsOpen(false)} className="block py-2 text-gray-700 hover:text-blue-600 transition font-medium">Blog</Link>
+          <Link href="/shorts" onClick={() => setIsOpen(false)} className="block py-2 text-gray-700 hover:text-blue-600 transition font-medium">Shorts 🎬</Link>
           <Link href="/recommend" onClick={() => setIsOpen(false)} className="block py-2 text-gray-700 hover:text-blue-600 transition font-medium">Gợi ý AI</Link>
           <Link href="/profile" onClick={() => setIsOpen(false)} className="block py-2 text-gray-700 hover:text-blue-600 transition font-medium">Hồ sơ</Link>
           {isAdmin && (

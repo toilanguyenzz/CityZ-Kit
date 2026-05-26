@@ -198,6 +198,22 @@ export default function Dashboard() {
             </Link>
           </div>
 
+          {/* ───── Shorts Banner ───── */}
+          <div className="db-ai-spotlight" style={{ marginBottom: '2rem', background: 'linear-gradient(135deg, #0f172a, #1e1b4b)' }}>
+            <div className="db-ai-info">
+              <div className="db-ai-title" style={{ color: '#fff' }}>
+                <span>🎬</span> CityZ Shorts
+                <span style={{ marginLeft: '0.5rem', background: '#ef4444', color: '#fff', fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '0.25rem', fontWeight: 700, animation: 'pulse 2s infinite' }}>HOT</span>
+              </div>
+              <p className="db-ai-desc" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                Xem clip ngắn về các quán ăn, nhà trọ, cafe — lướt dọc kiểu TikTok cực cuốn!
+              </p>
+            </div>
+            <Link href="/shorts" className="db-ai-btn" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', color: '#fff' }}>
+              🎬 Xem Shorts
+            </Link>
+          </div>
+
           {/* ───── Toolbar: Search + Sort ───── */}
           <div className="db-toolbar">
             <div className="db-search-wrap">

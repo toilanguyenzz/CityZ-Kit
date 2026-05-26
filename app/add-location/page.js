@@ -19,6 +19,7 @@ export default function AddLocation() {
     category: 'Food',
     address: '',
     description: '',
+    videoUrl: '',
   });
   const [coords, setCoords] = useState({ lat: 10.7769, lng: 106.7009 }); // Mặc định TT TP.HCM
   const [suggestions, setSuggestions] = useState([]);
@@ -337,6 +338,24 @@ export default function AddLocation() {
                     placeholder="Chia sẻ thêm về giá cả, chất lượng, lưu ý khi đến đây..."
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none placeholder-gray-400"
                   />
+                </div>
+
+                {/* Video URL */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                    Link video ngắn (tùy chọn) 🎬
+                  </label>
+                  <input
+                    type="url"
+                    name="videoUrl"
+                    value={formData.videoUrl}
+                    onChange={handleChange}
+                    placeholder="https://... (link video .mp4 hoặc YouTube Shorts)"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none placeholder-gray-400"
+                  />
+                  <p className="text-xs text-gray-400 ml-1">
+                    💡 Gắn video ngắn để địa điểm xuất hiện trên CityZ Shorts. Hỗ trợ link .mp4 trực tiếp.
+                  </p>
                 </div>
 
                 <div className="pt-6 flex items-center justify-between gap-4">

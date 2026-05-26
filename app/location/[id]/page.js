@@ -97,6 +97,22 @@ export default function LocationDetail() {
             </div>
           </div>
 
+          {/* ───── Video Short ───── */}
+          {location.videoUrl && (
+            <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+              <h2 className="text-lg font-bold text-gray-900 mb-3">🎬 Video ngắn</h2>
+              <div style={{ borderRadius: '0.75rem', overflow: 'hidden', background: '#000', maxHeight: '400px' }}>
+                <video
+                  src={location.videoUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  poster={location.imageUrl || undefined}
+                  style={{ width: '100%', maxHeight: '400px', objectFit: 'contain' }}
+                />
+              </div>
+            </div>
+          )}
           {/* ───── OpenStreetMap ───── */}
           {location.address && (
             <div className="db-map-section mt-8">
