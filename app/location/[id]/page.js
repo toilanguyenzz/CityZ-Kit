@@ -18,6 +18,7 @@ export default function LocationDetail() {
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
   useEffect(() => {
     fetchLocation();
@@ -72,13 +73,57 @@ export default function LocationDetail() {
         <Navbar />
         <main className="max-w-4xl mx-auto px-4 py-8">
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
-            <div className="relative h-72 w-full bg-gray-200">
-              {location.imageUrl ? (
-                <img src={location.imageUrl} alt={location.name} className="w-full h-full object-cover" unoptimized />
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-400">No image</div>
-              )}
-            </div>
+            {/* Media Gallery / Slideshow */}
+            {location.media && location.media.length > 0 ? (
+              <div className="pd-media-carousel">
+                <div className="pd-media-viewer" style={{ height: '320px' }}>
+                  <img
+                    src={location.media[activeMediaIndex].url}
+                    alt={`Media ${activeMediaIndex + 1}`}
+                    className="pd-media-main-img"
+                  />
+
+                  {location.media.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setActiveMediaIndex((prev) => (prev === 0 ? location.media.length - 1 : prev - 1))}
+                        className="pd-carousel-nav pd-carousel-prev"
+                        title="Ảnh trước"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        onClick={() => setActiveMediaIndex((prev) => (prev === location.media.length - 1 ? 0 : prev + 1))}
+                        className="pd-carousel-nav pd-carousel-next"
+                        title="Ảnh sau"
+                      >
+                        ›
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {location.media.length > 1 && (
+                  <div className="pd-media-thumbnails">
+                    {location.media.map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveMediaIndex(idx)}
+                        className={`pd-thumbnail-btn ${idx === activeMediaIndex ? 'active' : ''}`}
+                      >
+                        <img src={item.url} alt={`Thumbnail ${idx + 1}`} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : location.imageUrl ? (
+              <div className="relative h-72 w-full bg-gray-200">
+                <img src={location.imageUrl} alt={location.name} className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="relative h-72 w-full bg-gray-200 flex items-center justify-center text-gray-400">No image</div>
+            )}
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <h1 className="text-2xl font-bold text-gray-900">{location.name}</h1>

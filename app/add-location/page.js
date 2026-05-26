@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { addLocation } from '@/lib/firestore';
-import { auth } from '@/lib/firebase';
+import { auth, db, storage } from '@/lib/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { doc, getDoc } from 'firebase/firestore';
 import useUserRole from '@/lib/useUserRole';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
@@ -27,10 +29,21 @@ export default function AddLocation() {
   const [geocoding, setGeocoding] = useState(false);
   const [debounceTimeout, setDebounceTimeout] = useState(null);
 
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [uploadStatus, setUploadStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const { role, isAdmin } = useUserRole();
+
+  useEffect(() => {
+    return () => {
+      mediaFiles.forEach((item) => {
+        if (item.preview && item.preview.startsWith('blob:')) {
+          URL.revokeObjectURL(item.preview);
+        }
+      });
+    };
+  }, [mediaFiles]);
 
   // Đóng danh sách gợi ý khi bấm ra ngoài
   useEffect(() => {
@@ -160,16 +173,46 @@ export default function AddLocation() {
     );
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+  const handleMediaChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (mediaFiles.length + files.length > 9) {
+      toast.error('Chỉ được tải lên tối đa 9 hình ảnh (dưới 10 cái)!');
+      return;
     }
+
+    const newFiles = files.map((file) => ({
+      file,
+      type: 'image',
+      preview: URL.createObjectURL(file),
+    }));
+
+    setMediaFiles((prev) => [...prev, ...newFiles]);
+  };
+
+  const uploadLocationFile = (file, userId, onProgress) => {
+    return new Promise((resolve, reject) => {
+      const timestamp = Date.now();
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+      const storagePath = `locations/${userId}/${timestamp}_${cleanFileName}`;
+      const storageRef = ref(storage, storagePath);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          if (onProgress) onProgress(progress);
+        },
+        (error) => reject(error),
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve({
+            type: 'image',
+            url: downloadURL,
+          });
+        }
+      );
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -180,6 +223,7 @@ export default function AddLocation() {
       return;
     }
     setLoading(true);
+    setUploadStatus('Bắt đầu tải ảnh...');
     try {
       let creatorName = user.displayName || user.email?.split('@')[0] || 'User';
       let creatorAvatar = null;
@@ -196,19 +240,33 @@ export default function AddLocation() {
         console.error('Error fetching user info for location:', err);
       }
 
+      const uploadedMedia = [];
+      for (let i = 0; i < mediaFiles.length; i++) {
+        const item = mediaFiles[i];
+        setUploadStatus(`Tải ảnh ${i + 1}/${mediaFiles.length}...`);
+        const uploadedItem = await uploadLocationFile(item.file, user.uid, (progress) => {
+          setUploadProgress((prev) => ({ ...prev, [i]: Math.round(progress) }));
+        });
+        uploadedMedia.push(uploadedItem);
+      }
+
+      setUploadStatus('Đang tạo địa điểm...');
+
       await addLocation({
         ...formData,
         latitude: coords.lat,
         longitude: coords.lng,
         createdByName: creatorName,
         createdByAvatar: creatorAvatar,
-      }, imageFile, user.uid, role);
+      }, null, user.uid, role, uploadedMedia);
       toast.success(isAdmin ? 'Đã thêm địa điểm thành công!' : 'Đã gửi! Địa điểm đang chờ kiểm duyệt từ Admin.');
       router.push('/dashboard');
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message || 'Lỗi thêm địa điểm');
+      console.error(error);
     } finally {
       setLoading(false);
+      setUploadStatus('');
     }
   };
 
@@ -345,49 +403,54 @@ export default function AddLocation() {
                     </div>
                   </div>
 
-                  {/* Right Column: Image Upload */}
+                  {/* Right Column: Multi-Image Upload */}
                   <div className="space-y-6">
                     <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
-                      Hình ảnh minh họa
+                      Hình ảnh minh họa (tối đa 9 ảnh, dưới 10 cái)
                     </label>
                     <div className="relative group">
                       <input
                         type="file"
+                        multiple
                         accept="image/*"
-                        onChange={handleImageChange}
+                        onChange={handleMediaChange}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                       />
-                      <div className={`
-                        relative w-full h-64 border-2 border-dashed rounded-2xl transition-all flex flex-col items-center justify-center p-4 text-center
-                        ${imagePreview ? 'border-indigo-300 bg-indigo-50/30' : 'border-gray-300 bg-gray-50 group-hover:border-indigo-400 group-hover:bg-indigo-50/50'}
-                      `}>
-                        {imagePreview ? (
-                          <div className="relative w-full h-full">
-                            <img
-                              src={imagePreview}
-                              alt="Preview"
-                              className="w-full h-full object-cover rounded-xl shadow-sm"
-                            />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
-                              <p className="text-white font-medium text-sm">Thay đổi ảnh</p>
-                            </div>
+                      <div className="relative w-full h-36 border-2 border-dashed border-gray-300 bg-gray-50 rounded-2xl group-hover:border-indigo-400 group-hover:bg-indigo-50/30 transition-all flex flex-col items-center justify-center p-4 text-center">
+                        <div className="flex flex-col items-center justify-center space-y-1.5">
+                          <div className="p-2.5 bg-indigo-100 rounded-full text-indigo-600 group-hover:scale-110 transition-transform">
+                            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
+                            </svg>
                           </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center space-y-3">
-                            <div className="p-3 bg-indigo-100 rounded-full text-indigo-600 group-hover:scale-110 transition-transform">
-                              <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 12h.01M16 12h.01M12 16h.01M16 16h.01" />
-                              </svg>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold text-gray-700">Nhấp để tải ảnh lên</p>
-                              <p className="text-xs text-gray-500">PNG, JPG hoặc JPEG (Max. 5MB)</p>
-                            </div>
+                          <div>
+                            <p className="text-xs font-semibold text-gray-700">Chọn hoặc kéo thả nhiều ảnh tại đây</p>
+                            <p className="text-[10px] text-gray-400">PNG, JPG, JPEG (Tối đa 9 files)</p>
                           </div>
-                        )}
+                        </div>
                       </div>
                     </div>
+
+                    {/* Previews grid */}
+                    {mediaFiles.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2 mt-4">
+                        {mediaFiles.map((item, idx) => (
+                          <div key={idx} className="relative w-full aspect-square rounded-xl overflow-hidden border border-gray-200 bg-gray-100 group/item">
+                            <img src={item.preview} alt={`Location ${idx}`} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                URL.revokeObjectURL(item.preview);
+                                setMediaFiles((prev) => prev.filter((_, i) => i !== idx));
+                              }}
+                              className="absolute top-1.5 right-1.5 bg-red-500/90 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-sm hover:bg-red-600 transition-colors"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -455,7 +518,7 @@ export default function AddLocation() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <circle className="opacity-75" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                         </svg>
-                        Đang xử lý...
+                        {uploadStatus || 'Đang xử lý...'}
                       </span>
                     ) : 'Thêm địa điểm'}
                   </button>
