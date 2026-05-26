@@ -181,10 +181,27 @@ export default function AddLocation() {
     }
     setLoading(true);
     try {
+      let creatorName = user.displayName || user.email?.split('@')[0] || 'User';
+      let creatorAvatar = null;
+      
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const uData = userDocSnap.data();
+          creatorName = uData.name || creatorName;
+          creatorAvatar = uData.avatarUrl || null;
+        }
+      } catch (err) {
+        console.error('Error fetching user info for location:', err);
+      }
+
       await addLocation({
         ...formData,
         latitude: coords.lat,
-        longitude: coords.lng
+        longitude: coords.lng,
+        createdByName: creatorName,
+        createdByAvatar: creatorAvatar,
       }, imageFile, user.uid, role);
       toast.success(isAdmin ? 'Đã thêm địa điểm thành công!' : 'Đã gửi! Địa điểm đang chờ kiểm duyệt từ Admin.');
       router.push('/dashboard');
