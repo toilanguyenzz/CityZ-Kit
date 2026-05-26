@@ -3,13 +3,13 @@
 import '@/app/styles/blog.css';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth, db, onAuthStateChanged } from '@/lib/firebase';
+import { auth, db, storage, onAuthStateChanged } from '@/lib/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { doc, getDoc } from 'firebase/firestore';
 import { addPost } from '@/lib/firestore';
 import useUserRole from '@/lib/useUserRole';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
-import { compressAndToBase64 } from '@/lib/imageHelper';
 import toast from 'react-hot-toast';
 
 const CATEGORIES = [
@@ -35,13 +35,24 @@ export default function CreatePost() {
   const [category, setCategory] = useState('general');
   const [flair, setFlair] = useState('');
   const [postType, setPostType] = useState('discussion');
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [uploadStatus, setUploadStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [userProfile, setUserProfile] = useState({ name: '', avatarUrl: null, badges: [] });
   const { role, isAdmin } = useUserRole();
+
+  useEffect(() => {
+    return () => {
+      mediaFiles.forEach(item => {
+        if (item.preview && item.preview.startsWith('blob:')) {
+          URL.revokeObjectURL(item.preview);
+        }
+      });
+    };
+  }, [mediaFiles]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -71,14 +82,23 @@ export default function CreatePost() {
     return () => unsubscribe();
   }, []);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result);
-      reader.readAsDataURL(file);
+  const handleMediaChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (mediaFiles.length + files.length > 9) {
+      toast.error('Chỉ được tải lên tối đa 9 ảnh hoặc video (dưới 10 cái)!');
+      return;
     }
+
+    const newFiles = files.map((file) => {
+      const type = file.type.startsWith('video/') ? 'video' : 'image';
+      return {
+        file,
+        type,
+        preview: URL.createObjectURL(file),
+      };
+    });
+
+    setMediaFiles((prev) => [...prev, ...newFiles]);
   };
 
   const addOption = () => {
@@ -97,6 +117,32 @@ export default function CreatePost() {
     setPollOptions(newOpts);
   };
 
+  const uploadFile = (file, userId, onProgress) => {
+    return new Promise((resolve, reject) => {
+      const timestamp = Date.now();
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+      const storagePath = `posts/${userId}/${timestamp}_${cleanFileName}`;
+      const storageRef = ref(storage, storagePath);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          if (onProgress) onProgress(progress);
+        },
+        (error) => reject(error),
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve({
+            type: file.type.startsWith('video/') ? 'video' : 'image',
+            url: downloadURL,
+          });
+        }
+      );
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const user = auth.currentUser;
@@ -105,11 +151,19 @@ export default function CreatePost() {
       return;
     }
     setLoading(true);
+    setUploadStatus('Đang bắt đầu tải lên...');
     try {
-      let imageUrl = null;
-      if (imageFile) {
-        imageUrl = await compressAndToBase64(imageFile);
+      const uploadedMedia = [];
+      for (let i = 0; i < mediaFiles.length; i++) {
+        const item = mediaFiles[i];
+        setUploadStatus(`Tải file ${i + 1}/${mediaFiles.length}...`);
+        const uploadedItem = await uploadFile(item.file, user.uid, (progress) => {
+          setUploadProgress((prev) => ({ ...prev, [i]: Math.round(progress) }));
+        });
+        uploadedMedia.push(uploadedItem);
       }
+
+      setUploadStatus('Đang tạo bài viết...');
 
       // For poll type, store poll data in content as JSON
       const finalType = postType === 'poll' ? 'poll' : postType;
@@ -119,22 +173,25 @@ export default function CreatePost() {
         userProfile.name || user.displayName || user.email,
         title,
         postType === 'poll' ? JSON.stringify({ question: title, options: pollOptions.map(o => ({ text: o, votes: 0 })) }) : content,
-        imageUrl,
+        null,
         role,
         finalType,
         category,
         flair || null,
         isAnonymous,
         userProfile.avatarUrl,
-        userProfile.badges
+        userProfile.badges,
+        uploadedMedia
       );
 
       toast.success(isAdmin ? 'Đã đăng bài thành công!' : 'Đã gửi! Bài viết đang chờ kiểm duyệt từ Admin.');
       router.push('/blog');
     } catch (error) {
       toast.error(error.message || 'Lỗi đăng bài');
+      console.error(error);
     } finally {
       setLoading(false);
+      setUploadStatus('');
     }
   };
 
@@ -366,16 +423,17 @@ export default function CreatePost() {
               </div>
             )}
 
-            {/* Image upload */}
+            {/* Multi-Media Upload */}
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-                Hình ảnh (tùy chọn)
+                Hình ảnh & Video (tối đa 9 files, tùy chọn)
               </label>
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: 'relative', marginBottom: mediaFiles.length > 0 ? '0.75rem' : '0' }}>
                 <input
                   type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
+                  multiple
+                  accept="image/*,video/*"
+                  onChange={handleMediaChange}
                   style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 2 }}
                 />
                 <div style={{
@@ -385,17 +443,49 @@ export default function CreatePost() {
                   textAlign: 'center',
                   color: '#94a3b8',
                   fontSize: '0.85rem',
-                  background: imagePreview ? 'transparent' : '#f8fafc',
+                  background: '#f8fafc',
                   transition: 'all 0.2s',
                   position: 'relative',
                 }}>
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Preview" style={{ maxHeight: '200px', borderRadius: '0.5rem', objectFit: 'cover' }} />
-                  ) : (
-                    <p>📷 Nhấp để chọn ảnh hoặc kéo thả</p>
-                  )}
+                  <p>📸/🎥 Nhấp để chọn nhiều ảnh/video hoặc kéo thả</p>
+                  <p style={{ fontSize: '0.72rem', color: '#cbd5e1', marginTop: '0.25rem' }}>Định dạng hỗ trợ: JPG, PNG, GIF, MP4, WebM...</p>
                 </div>
               </div>
+
+              {/* Preview Grid */}
+              {mediaFiles.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.5rem', marginTop: '0.75rem' }}>
+                  {mediaFiles.map((item, idx) => (
+                    <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '0.5rem', overflow: 'hidden', border: '1.5px solid #e2e8f0', background: '#000' }}>
+                      {item.type === 'video' ? (
+                        <video src={item.preview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                      ) : (
+                        <img src={item.preview} alt={`Preview ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          URL.revokeObjectURL(item.preview);
+                          setMediaFiles((prev) => prev.filter((_, i) => i !== idx));
+                        }}
+                        style={{
+                          position: 'absolute', top: '2px', right: '2px', background: 'rgba(239, 68, 68, 0.85)',
+                          color: '#fff', border: 'none', borderRadius: '50%', width: '18px', height: '18px',
+                          display: 'flex', alignItems: 'center', justify: 'center', fontSize: '10px', cursor: 'pointer',
+                          fontWeight: 'bold', zIndex: 10
+                        }}
+                      >
+                        ✕
+                      </button>
+                      {item.type === 'video' && (
+                        <span style={{ position: 'absolute', bottom: '2px', left: '2px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '8px', padding: '1px 3px', borderRadius: '2px' }}>
+                          🎥 Video
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Anonymous Toggle */}
@@ -454,7 +544,7 @@ export default function CreatePost() {
                 boxShadow: '0 4px 12px rgba(59,130,246,0.3)',
               }}
             >
-              {loading ? 'Đang đăng bài...' : '🚀 Đăng lên Feed'}
+              {loading ? `${uploadStatus || 'Đang đăng bài...'}` : '🚀 Đăng lên Feed'}
             </button>
           </form>
         </main>

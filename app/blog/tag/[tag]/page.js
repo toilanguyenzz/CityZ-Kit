@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import ThreadCard from '@/components/ThreadCard';
 import { getPostsByTag } from '@/lib/firestore';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -61,41 +62,7 @@ export default function TagPage() {
           ) : (
             <div className="space-y-6">
               {posts.map((post) => (
-                <Link key={post.id} href={`/post/${post.id}`} className="block group">
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:border-blue-300 transition-all">
-                    <div className="p-4 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
-                        {post.authorName?.charAt(0).toUpperCase() || 'U'}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900 leading-tight">{post.authorName}</h3>
-                        <p className="text-xs text-gray-500">{formatDate(post.createdAt)}</p>
-                      </div>
-                    </div>
-                    {post.imageUrl && (
-                      <div className="relative aspect-video w-full bg-gray-100">
-                        <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300" />
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <h2 className="text-lg font-bold text-gray-900 mb-2">{post.title}</h2>
-                      <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 mb-4">
-                        {post.content}
-                      </p>
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-                        <div className="flex gap-4">
-                          <button className="flex items-center gap-1 text-gray-500 hover:text-red-500 transition text-sm font-medium">
-                            <span>❤️</span> Like
-                          </button>
-                          <button className="flex items-center gap-1 text-gray-500 hover:text-blue-500 transition text-sm font-medium">
-                            <span>💬</span> Bình luận
-                          </button>
-                        </div>
-                        <div className="text-blue-600 text-sm font-semibold group-hover:underline">Xem chi tiết →</div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
+                <ThreadCard key={post.id} post={post} onVoteUpdate={fetchPosts} />
               ))}
             </div>
           )}

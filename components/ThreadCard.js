@@ -151,12 +151,35 @@ export default function ThreadCard({ post, onVoteUpdate }) {
           </div>
         )}
 
-        {/* Image thumbnail */}
-        {post.imageUrl && (
+        {/* Media Gallery / Grid */}
+        {post.media && post.media.length > 0 ? (
+          <div className={`tc-media-grid tc-media-count-${Math.min(post.media.length, 4)}`}>
+            {post.media.slice(0, 4).map((item, idx) => {
+              const isMore = post.media.length > 4 && idx === 3;
+              return (
+                <div key={idx} className="tc-media-item">
+                  {item.type === 'video' ? (
+                    <div className="tc-media-video-wrapper">
+                      <video src={item.url} className="tc-media-video" muted playsInline />
+                      <div className="tc-media-video-badge">▶ Video</div>
+                    </div>
+                  ) : (
+                    <img src={item.url} alt={post.title} className="tc-media-img" />
+                  )}
+                  {isMore && (
+                    <div className="tc-media-more-overlay">
+                      <span>+{post.media.length - 3}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : post.imageUrl ? (
           <div className="tc-image-wrap">
             <img src={post.imageUrl} alt={post.title} className="tc-image" />
           </div>
-        )}
+        ) : null}
 
         {/* Footer stats — hide zeros */}
         <div className="tc-footer">

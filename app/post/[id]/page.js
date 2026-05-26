@@ -49,6 +49,7 @@ export default function PostDetail() {
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(false);
   const [voted, setVoted] = useState(false);
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
   useEffect(() => {
     fetchPost();
@@ -147,10 +148,72 @@ export default function PostDetail() {
 
           {/* Post card */}
           <div className="pd-card">
-            {/* Image */}
-            {post.imageUrl && (
+            {/* Media Gallery / Slideshow */}
+            {post.media && post.media.length > 0 ? (
+              <div className="pd-media-carousel">
+                <div className="pd-media-viewer">
+                  {post.media[activeMediaIndex].type === 'video' ? (
+                    <video
+                      key={activeMediaIndex}
+                      src={post.media[activeMediaIndex].url}
+                      className="pd-media-main-video"
+                      controls
+                      autoPlay={false}
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={post.media[activeMediaIndex].url}
+                      alt={`Media ${activeMediaIndex + 1}`}
+                      className="pd-media-main-img"
+                    />
+                  )}
+
+                  {post.media.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setActiveMediaIndex((prev) => (prev === 0 ? post.media.length - 1 : prev - 1))}
+                        className="pd-carousel-nav pd-carousel-prev"
+                        title="Ảnh trước"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        onClick={() => setActiveMediaIndex((prev) => (prev === post.media.length - 1 ? 0 : prev + 1))}
+                        className="pd-carousel-nav pd-carousel-next"
+                        title="Ảnh sau"
+                      >
+                        ›
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {post.media.length > 1 && (
+                  <div className="pd-media-thumbnails">
+                    {post.media.map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveMediaIndex(idx)}
+                        className={`pd-thumbnail-btn ${idx === activeMediaIndex ? 'active' : ''}`}
+                      >
+                        {item.type === 'video' ? (
+                          <div className="pd-thumbnail-video-wrap">
+                            <video src={item.url} muted playsInline />
+                            <span className="pd-thumbnail-video-icon">▶</span>
+                          </div>
+                        ) : (
+                          <img src={item.url} alt={`Thumbnail ${idx + 1}`} />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : post.imageUrl ? (
               <img src={post.imageUrl} alt={post.title} className="pd-image" />
-            )}
+            ) : null}
 
             {/* Header with vote + meta + title */}
             <div className="pd-header">
