@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { addLocation } from '@/lib/firestore';
-import { auth, db, storage } from '@/lib/firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { auth, db } from '@/lib/firebase';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import { doc, getDoc } from 'firebase/firestore';
 import useUserRole from '@/lib/useUserRole';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -274,29 +274,7 @@ export default function AddLocation() {
   };
 
   const uploadLocationFile = (file, userId, onProgress) => {
-    return new Promise((resolve, reject) => {
-      const timestamp = Date.now();
-      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-      const storagePath = `locations/${userId}/${timestamp}_${cleanFileName}`;
-      const storageRef = ref(storage, storagePath);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          if (onProgress) onProgress(progress);
-        },
-        (error) => reject(error),
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve({
-            type: 'image',
-            url: downloadURL,
-          });
-        }
-      );
-    });
+    return uploadToCloudinary(file, onProgress);
   };
 
   const handleSubmit = async (e) => {

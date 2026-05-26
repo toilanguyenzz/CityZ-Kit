@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { auth, db, storage } from '@/lib/firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { auth, db } from '@/lib/firebase';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import { addReview } from '@/lib/firestore';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
@@ -177,26 +177,7 @@ export default function LocationDetail() {
   };
 
   const uploadLocationFile = (file, userId) => {
-    return new Promise((resolve, reject) => {
-      const timestamp = Date.now();
-      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-      const storagePath = `locations/${userId}/${timestamp}_${cleanFileName}`;
-      const storageRef = ref(storage, storagePath);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on(
-        'state_changed',
-        null,
-        (error) => reject(error),
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve({
-            type: 'image',
-            url: downloadURL,
-          });
-        }
-      );
-    });
+    return uploadToCloudinary(file);
   };
 
   const handleUploadMoreImages = async () => {

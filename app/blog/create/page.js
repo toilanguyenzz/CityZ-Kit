@@ -3,8 +3,8 @@
 import '@/app/styles/blog.css';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth, db, storage, onAuthStateChanged } from '@/lib/firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { auth, db, onAuthStateChanged } from '@/lib/firebase';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import { doc, getDoc } from 'firebase/firestore';
 import { addPost } from '@/lib/firestore';
 import useUserRole from '@/lib/useUserRole';
@@ -202,29 +202,7 @@ export default function CreatePost() {
   };
 
   const uploadFile = (file, userId, onProgress) => {
-    return new Promise((resolve, reject) => {
-      const timestamp = Date.now();
-      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-      const storagePath = `posts/${userId}/${timestamp}_${cleanFileName}`;
-      const storageRef = ref(storage, storagePath);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          if (onProgress) onProgress(progress);
-        },
-        (error) => reject(error),
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve({
-            type: file.type.startsWith('video/') ? 'video' : 'image',
-            url: downloadURL,
-          });
-        }
-      );
-    });
+    return uploadToCloudinary(file, onProgress);
   };
 
   const handleSubmit = async (e) => {
