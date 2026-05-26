@@ -2,14 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { auth, db, storage } from '@/lib/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { addReview } from '@/lib/firestore';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import toast from 'react-hot-toast';
 import RatingStars from '@/components/RatingStars';
 import CommentSection from '@/components/CommentSection';
+import useUserRole from '@/lib/useUserRole';
 
 export default function LocationDetail() {
   const { id } = useParams();
@@ -19,6 +21,23 @@ export default function LocationDetail() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+
+  // States for uploading more images
+  const [showUploadPanel, setShowUploadPanel] = useState(false);
+  const [additionalFiles, setAdditionalFiles] = useState([]);
+  const [uploadingMore, setUploadingMore] = useState(false);
+
+  const { user, role, isAdmin } = useUserRole();
+
+  useEffect(() => {
+    return () => {
+      additionalFiles.forEach(item => {
+        if (item.preview && item.preview.startsWith('blob:')) {
+          URL.revokeObjectURL(item.preview);
+        }
+      });
+    };
+  }, [additionalFiles]);
 
   useEffect(() => {
     fetchLocation();
@@ -58,6 +77,81 @@ export default function LocationDetail() {
     }
   };
 
+  const handleUploadPanelFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    const currentMediaCount = location.media ? location.media.length : (location.imageUrl ? 1 : 0);
+    if (currentMediaCount + additionalFiles.length + files.length > 9) {
+      toast.error(`Tổng số lượng ảnh không được vượt quá 9! Hiện tại đã có ${currentMediaCount} ảnh.`);
+      return;
+    }
+
+    const newFiles = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+    setAdditionalFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const uploadLocationFile = (file, userId) => {
+    return new Promise((resolve, reject) => {
+      const timestamp = Date.now();
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+      const storagePath = `locations/${userId}/${timestamp}_${cleanFileName}`;
+      const storageRef = ref(storage, storagePath);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        'state_changed',
+        null,
+        (error) => reject(error),
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve({
+            type: 'image',
+            url: downloadURL,
+          });
+        }
+      );
+    });
+  };
+
+  const handleUploadMoreImages = async () => {
+    if (additionalFiles.length === 0) return;
+    setUploadingMore(true);
+    const toastId = toast.loading('Đang tải lên các ảnh mới...');
+    try {
+      const uploadedItems = [];
+      for (let i = 0; i < additionalFiles.length; i++) {
+        const item = additionalFiles[i];
+        const uploadedItem = await uploadLocationFile(item.file, user.uid);
+        uploadedItems.push(uploadedItem);
+      }
+
+      // Merge with existing media
+      let currentMedia = location.media || [];
+      if (currentMedia.length === 0 && location.imageUrl) {
+        currentMedia = [{ type: 'image', url: location.imageUrl }];
+      }
+
+      const updatedMedia = [...currentMedia, ...uploadedItems];
+      const locRef = doc(db, 'locations', id);
+      await updateDoc(locRef, {
+        media: updatedMedia,
+        imageUrl: updatedMedia[0].url // update main fallback as well
+      });
+
+      toast.success('Đã tải lên ảnh minh họa mới thành công!', { id: toastId });
+      setAdditionalFiles([]);
+      setShowUploadPanel(false);
+      await fetchLocation();
+    } catch (error) {
+      toast.error('Lỗi khi tải lên hình ảnh bổ sung: ' + error.message, { id: toastId });
+      console.error(error);
+    } finally {
+      setUploadingMore(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -66,6 +160,12 @@ export default function LocationDetail() {
       </div>
     );
   }
+
+  if (!location) return null;
+
+  const currentMediaCount = location.media ? location.media.length : (location.imageUrl ? 1 : 0);
+  const canEdit = user && location && (location.createdBy === user.uid || isAdmin);
+  const canAddMore = canEdit && currentMediaCount < 9;
 
   return (
     <ProtectedRoute>
@@ -139,6 +239,78 @@ export default function LocationDetail() {
                 <RatingStars rating={location.averageRating || 0} />
                 <span className="ml-2 text-gray-500">({location.reviewCount} nhận xét)</span>
               </div>
+
+              {/* Owner/Admin upload more images section */}
+              {canAddMore && (
+                <div className="mt-6 border-t border-gray-100 pt-6">
+                  {showUploadPanel ? (
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                      <h3 className="text-sm font-bold text-gray-700 mb-2">Thêm hình ảnh minh họa</h3>
+                      <p className="text-xs text-gray-500 mb-3">Bạn có thể đăng tải tối đa {9 - currentMediaCount} ảnh nữa (tối đa 9 ảnh cho mỗi địa điểm).</p>
+                      
+                      <div className="flex flex-col gap-3">
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleUploadPanelFileChange}
+                          className="text-xs text-gray-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 cursor-pointer"
+                        />
+                        
+                        {/* Preview grid */}
+                        {additionalFiles.length > 0 && (
+                          <div className="grid grid-cols-4 gap-2 mt-2">
+                            {additionalFiles.map((fileObj, idx) => (
+                              <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                                <img src={fileObj.preview} alt="preview" className="w-full h-full object-cover" />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    URL.revokeObjectURL(fileObj.preview);
+                                    setAdditionalFiles(prev => prev.filter((_, i) => i !== idx));
+                                  }}
+                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-bold shadow-sm"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex gap-2 justify-end mt-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowUploadPanel(false);
+                              setAdditionalFiles([]);
+                            }}
+                            className="px-3 py-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 transition"
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            type="button"
+                            disabled={uploadingMore || additionalFiles.length === 0}
+                            onClick={handleUploadMoreImages}
+                            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white text-xs font-bold rounded-xl shadow-sm transition"
+                          >
+                            {uploadingMore ? `Đang tải...` : 'Tải lên'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowUploadPanel(true)}
+                      className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition"
+                    >
+                      📷 Thêm hình ảnh minh họa địa điểm
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
