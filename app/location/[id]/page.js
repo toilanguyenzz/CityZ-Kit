@@ -15,60 +15,85 @@ import useUserRole from '@/lib/useUserRole';
 
 const compressImage = (file) => {
   return new Promise((resolve) => {
-    if (!file.type.startsWith('image/')) {
+    if (!file || !file.type.startsWith('image/')) {
       resolve(file);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
+    console.log(`[Compression] Starting for ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
 
-        const MAX_WIDTH = 1200;
-        const MAX_HEIGHT = 1200;
+            const MAX_WIDTH = 1200;
+            const MAX_HEIGHT = 1200;
 
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              resolve(file);
-              return;
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
             }
-            const compressedFile = new File([blob], file.name, {
-              type: 'image/jpeg',
-              lastModified: Date.now(),
-            });
-            resolve(compressedFile);
-          },
-          'image/jpeg',
-          0.75
-        );
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) {
+                  console.log("[Compression] Failed to generate blob, using original file");
+                  resolve(file);
+                  return;
+                }
+                try {
+                  const compressedFile = new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                  });
+                  console.log(`[Compression] Success: ${file.name} compressed from ${(file.size / 1024 / 1024).toFixed(2)} MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+                  resolve(compressedFile);
+                } catch (fileErr) {
+                  console.warn("[Compression] File constructor failed, using Blob fallback:", fileErr);
+                  blob.name = file.name;
+                  resolve(blob);
+                }
+              },
+              'image/jpeg',
+              0.75
+            );
+          } catch (canvasErr) {
+            console.error("[Compression] Canvas operations failed, using original file:", canvasErr);
+            resolve(file);
+          }
+        };
+        img.onerror = (imgErr) => {
+          console.error("[Compression] Image load failed, using original file:", imgErr);
+          resolve(file);
+        };
+        img.src = event.target.result;
       };
-      img.onerror = () => resolve(file);
-      img.src = event.target.result;
-    };
-    reader.onerror = () => resolve(file);
-    reader.readAsDataURL(file);
+      reader.onerror = (readerErr) => {
+        console.error("[Compression] FileReader failed, using original file:", readerErr);
+        resolve(file);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("[Compression] Unhandled exception, using original file:", err);
+      resolve(file);
+    }
   });
 };
 
