@@ -29,30 +29,34 @@ const CATEGORIES = [
 export default function BlogList() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [votedPosts, setVotedPosts] = useState({});
   const [userData, setUserData] = useState(null);
   const [featuredLocations, setFeaturedLocations] = useState([]);
+  const [sortBy, setSortBy] = useState('hot');
+  const [categoryFilter, setCategoryFilter] = useState(null);
+  const [user, setUser] = useState(null);
 
+  // Auth listener for user state
   useEffect(() => {
-    fetchPosts();
-
-    // Fetch user profile stats & badges
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      if (u) {
         try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          const userDoc = await getDoc(doc(db, 'users', u.uid));
           if (userDoc.exists()) {
             setUserData(userDoc.data());
           } else {
-            setUserData({ name: user.displayName || user.email, badges: [] });
+            setUserData({ name: u.displayName || u.email, badges: [] });
           }
         } catch (e) {
-          setUserData({ name: user.displayName || user.email, badges: [] });
+          setUserData({ name: u.displayName || u.email, badges: [] });
         }
       }
     });
+    return () => unsub();
+  }, []);
 
-    // Fetch featured locations for the sidebar
+  // Fetch featured locations for sidebar
+  useEffect(() => {
     const fetchFeatured = async () => {
       try {
         const q = query(
@@ -61,29 +65,15 @@ export default function BlogList() {
           limit(2)
         );
         const snapshot = await getDocs(q);
-        const locs = snapshot.docs.map(d => ({
-          id: d.id,
-          ...d.data(),
-        }));
-        setFeaturedLocations(locs);
+        setFeaturedLocations(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
       } catch (error) {
         console.error('Error fetching featured locations:', error);
       }
     };
-
     fetchFeatured();
-
-    return () => unsubscribe();
-  }, []);
-  const [sortBy, setSortBy] = useState('hot');
-  const [categoryFilter, setCategoryFilter] = useState(null);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
-    return () => unsub();
   }, []);
 
+  // Fetch posts when sort/category changes
   useEffect(() => {
     fetchPosts();
   }, [sortBy, categoryFilter]);
@@ -104,19 +94,6 @@ export default function BlogList() {
   const userInitial = user?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U';
   const userName = user?.displayName || user?.email?.split('@')[0] || 'Bạn';
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('vi-VN');
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>
-      </div>
-    );
-  }
-
   // Find featured post (most upvoted or pinned, with image preferred)
   const featuredPost = posts.find(p => p.isPinned && p.imageUrl)
     || posts.find(p => p.isPinned)
@@ -127,10 +104,39 @@ export default function BlogList() {
     <ProtectedRoute>
       <div className="blog-root">
         <Navbar />
+
+        {/* ───── Hero Banner ───── */}
+        <div className="blog-hero">
+          <div className="blog-hero-bg"></div>
+          <div className="blog-hero-content">
+            <div className="blog-hero-badge">💬 Cộng đồng sinh viên</div>
+            <h1 className="blog-hero-title">
+              Diễn đàn <span>CityZ</span>
+            </h1>
+            <p className="blog-hero-desc">
+              Nơi sinh viên chia sẻ kinh nghiệm, hỏi đáp và kết nối — từ review quán ăn đến tips thuê nhà trọ.
+            </p>
+            <div className="blog-hero-stats">
+              <div className="blog-hero-stat">
+                <span className="blog-hero-stat-num">{posts.length}</span>
+                <span className="blog-hero-stat-label">Bài viết</span>
+              </div>
+              <div className="blog-hero-stat">
+                <span className="blog-hero-stat-num">{posts.reduce((s, p) => s + (p.commentCount || 0), 0)}</span>
+                <span className="blog-hero-stat-label">Bình luận</span>
+              </div>
+              <div className="blog-hero-stat">
+                <span className="blog-hero-stat-num">{posts.reduce((s, p) => s + (p.upvotes || 0), 0)}</span>
+                <span className="blog-hero-stat-label">Upvotes</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <main className="max-w-7xl mx-auto px-4 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
-            {/* LEFT SIDEBAR: PROFILE & TRENDS */}
+
+            {/* ═══════ LEFT SIDEBAR ═══════ */}
             <aside className="lg:col-span-3 hidden lg:flex flex-col gap-6 sticky top-20">
               {/* User Profile Card */}
               {userData ? (
@@ -144,7 +150,7 @@ export default function BlogList() {
                       {userData.role === 'admin' ? '🛡️ Quản trị viên' : '🎓 Sinh viên'}
                     </p>
 
-                    {/* Badges Section */}
+                    {/* Badges */}
                     {userData.badges && userData.badges.length > 0 ? (
                       <div className="flex flex-wrap justify-center gap-1.5 mt-2 pt-3 border-t border-gray-100 w-full">
                         {userData.badges.map((badge, i) => (
@@ -178,7 +184,7 @@ export default function BlogList() {
                 </div>
               )}
 
-              {/* Trending Tags Card */}
+              {/* Trending Tags */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition hover:shadow-md">
                 <h4 className="font-bold text-gray-900 text-sm mb-4 flex items-center gap-2">
                   <span>🏷️</span> Xu hướng tìm kiếm
@@ -195,7 +201,9 @@ export default function BlogList() {
                       href={`/blog/tag/${item.tag}`}
                       className="flex flex-col group py-1.5 border-b border-gray-50 last:border-0"
                     >
-                      <span className="text-xs font-bold text-gray-800 group-hover:text-blue-600 transition">{item.label}</span>
+                      <span className="text-sm font-semibold text-gray-800 group-hover:text-blue-600 transition">
+                        {item.label}
+                      </span>
                       <span className="text-[10px] text-gray-400">{item.count}</span>
                     </Link>
                   ))}
@@ -203,38 +211,10 @@ export default function BlogList() {
               </div>
             </aside>
 
-            {/* CENTER PANEL: POST FEED */}
-            <div className="lg:col-span-6 flex flex-col gap-6">
-              
-              {/* ───── Hero Banner ───── */}
-              <div className="blog-hero rounded-2xl">
-                <div className="blog-hero-bg"></div>
-                <div className="blog-hero-content">
-                  <div className="blog-hero-badge">💬 Cộng đồng sinh viên</div>
-                  <h1 className="blog-hero-title">
-                    Diễn đàn <span>CityZ</span>
-                  </h1>
-                  <p className="blog-hero-desc">
-                    Nơi sinh viên chia sẻ kinh nghiệm, hỏi đáp và kết nối — từ review quán ăn đến tips thuê nhà trọ.
-                  </p>
-                  <div className="blog-hero-stats">
-                    <div className="blog-hero-stat">
-                      <span className="blog-hero-stat-num">{posts.length}</span>
-                      <span className="blog-hero-stat-label">Bài viết</span>
-                    </div>
-                    <div className="blog-hero-stat">
-                      <span className="blog-hero-stat-num">{posts.reduce((s, p) => s + (p.commentCount || 0), 0)}</span>
-                      <span className="blog-hero-stat-label">Bình luận</span>
-                    </div>
-                    <div className="blog-hero-stat">
-                      <span className="blog-hero-stat-num">{posts.reduce((s, p) => s + (p.upvotes || 0), 0)}</span>
-                      <span className="blog-hero-stat-label">Upvotes</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {/* ═══════ CENTER COLUMN: FEED ═══════ */}
+            <div className="lg:col-span-6 flex flex-col gap-6 w-full">
 
-              {/* ───── Featured Post ───── */}
+              {/* Featured Post */}
               {featuredPost && (
                 <Link href={`/post/${featuredPost.id}`} className="blog-featured">
                   <div className="blog-featured-image">
@@ -263,7 +243,7 @@ export default function BlogList() {
                 </Link>
               )}
 
-              {/* ───── Quick Post ───── */}
+              {/* Quick Post */}
               <div className="blog-quick-post">
                 <div className="blog-quick-avatar">{userInitial}</div>
                 <Link href="/blog/create" className="blog-quick-input">
@@ -271,7 +251,7 @@ export default function BlogList() {
                 </Link>
               </div>
 
-              {/* ───── Sort Tabs ───── */}
+              {/* Sort Tabs */}
               <div className="blog-sort-tabs">
                 {SORT_OPTIONS.map((opt) => (
                   <button
@@ -284,7 +264,7 @@ export default function BlogList() {
                 ))}
               </div>
 
-              {/* ───── Category Filters ───── */}
+              {/* Category Filters */}
               <div className="blog-cat-filters">
                 {CATEGORIES.map((cat) => (
                   <button
@@ -297,7 +277,7 @@ export default function BlogList() {
                 ))}
               </div>
 
-              {/* ───── Posts ───── */}
+              {/* Posts List */}
               {loading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
                   <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
@@ -311,7 +291,7 @@ export default function BlogList() {
                   </Link>
                 </div>
               ) : (
-                <div className="w-full space-y-6">
+                <div>
                   {posts.map((post) => (
                     <ThreadCard key={post.id} post={post} onVoteUpdate={fetchPosts} />
                   ))}
@@ -319,7 +299,7 @@ export default function BlogList() {
               )}
             </div>
 
-            {/* RIGHT SIDEBAR: AI COPILOT & STUDENT SITES */}
+            {/* ═══════ RIGHT SIDEBAR ═══════ */}
             <aside className="lg:col-span-3 hidden lg:flex flex-col gap-6 sticky top-20">
               {/* AI Gemini Mini Form */}
               <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-2xl shadow-sm p-5 relative overflow-hidden group transition hover:shadow-md">
@@ -358,7 +338,7 @@ export default function BlogList() {
                 </form>
               </div>
 
-              {/* Featured Student Spots Card */}
+              {/* Featured Student Spots */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition hover:shadow-md">
                 <h4 className="font-bold text-gray-900 text-sm mb-4 flex items-center gap-2">
                   <span>📍</span> Điểm đến đề xuất
@@ -406,7 +386,7 @@ export default function BlogList() {
                 </Link>
               </div>
 
-              {/* Active Members Card */}
+              {/* Active Members */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition hover:shadow-md">
                 <h4 className="font-bold text-gray-900 text-sm mb-4 flex items-center gap-2">
                   <span>🏆</span> Đóng góp nhiều nhất
@@ -414,7 +394,7 @@ export default function BlogList() {
                 <div className="flex flex-col gap-3">
                   {[
                     { name: 'Nguyen Ta', role: 'Đại sứ sinh viên', points: '120 đóng góp', badge: '👑' },
-                    { name: 'Minh Tran', role: 'Cộng tác viên', points: '95 đóng góp', badge: '🥈' }
+                    { name: 'Minh Tran', role: 'Cộng tác viên', points: '95 đóng góp', badge: '🥈' },
                   ].map((member, idx) => (
                     <div key={idx} className="flex items-center gap-2.5 py-1">
                       <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center font-bold text-xs text-blue-600 shrink-0">
@@ -439,5 +419,3 @@ export default function BlogList() {
     </ProtectedRoute>
   );
 }
-
-
