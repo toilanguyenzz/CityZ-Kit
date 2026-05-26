@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { auth } from '@/lib/firebase';
+import { useState, useEffect } from 'react';
+import { auth, db, onAuthStateChanged } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { upvoteComment, downvoteComment, addCommentToPost } from '@/lib/firestore';
+import useUserRole from '@/lib/useUserRole';
 import toast from 'react-hot-toast';
 
 function timeAgo(dateInput) {
@@ -25,8 +27,35 @@ function SingleComment({ comment, postId, depth = 0, onRefresh }) {
   const [replyText, setReplyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [voting, setVoting] = useState(false);
+  const [userProfile, setUserProfile] = useState({ name: '', avatarUrl: null });
 
-  const user = auth.currentUser;
+  const { user } = useUserRole();
+
+  useEffect(() => {
+    if (user && showReply) {
+      const fetchProfile = async () => {
+        try {
+          const docRef = doc(db, 'users', user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setUserProfile({
+              name: data.name || user.displayName || user.email?.split('@')[0] || 'User',
+              avatarUrl: data.avatarUrl || null
+            });
+          } else {
+            setUserProfile({
+              name: user.displayName || user.email?.split('@')[0] || 'User',
+              avatarUrl: null
+            });
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      };
+      fetchProfile();
+    }
+  }, [user, showReply]);
   const hasUpvoted = comment.upvotedBy?.includes(user?.uid);
   const hasDownvoted = comment.downvotedBy?.includes(user?.uid);
   const score = (comment.upvotes || 0) - (comment.downvotes || 0);
@@ -65,7 +94,7 @@ function SingleComment({ comment, postId, depth = 0, onRefresh }) {
     if (!replyText.trim()) return;
     setSubmitting(true);
     try {
-      await addCommentToPost(postId, user.uid, user.displayName || user.email || 'Ẩn danh', replyText.trim(), comment.id);
+      await addCommentToPost(postId, user.uid, userProfile.name || user.displayName || user.email || 'Ẩn danh', replyText.trim(), comment.id, userProfile.avatarUrl);
       setReplyText('');
       setShowReply(false);
       toast.success('Đã trả lời');
@@ -109,7 +138,11 @@ function SingleComment({ comment, postId, depth = 0, onRefresh }) {
         <div className="ct-content">
           <div className="ct-meta">
             <span className="ct-avatar">
-              {comment.userName?.charAt(0).toUpperCase() || 'U'}
+              {comment.userAvatar ? (
+                <img src={comment.userAvatar} alt={comment.userName} />
+              ) : (
+                comment.userName?.charAt(0).toUpperCase() || 'U'
+              )}
             </span>
             <span className="ct-author">{comment.userName || 'Ẩn danh'}</span>
             <span className="ct-time">{timeAgo(comment.createdAt)}</span>
@@ -179,8 +212,34 @@ function SingleComment({ comment, postId, depth = 0, onRefresh }) {
 export default function CommentThread({ comments = [], postId, onRefresh }) {
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const { user } = useUserRole();
+  const [userProfile, setUserProfile] = useState({ name: '', avatarUrl: null });
 
-  const user = auth.currentUser;
+  useEffect(() => {
+    if (user) {
+      const fetchProfile = async () => {
+        try {
+          const docRef = doc(db, 'users', user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setUserProfile({
+              name: data.name || user.displayName || user.email?.split('@')[0] || 'User',
+              avatarUrl: data.avatarUrl || null
+            });
+          } else {
+            setUserProfile({
+              name: user.displayName || user.email?.split('@')[0] || 'User',
+              avatarUrl: null
+            });
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      };
+      fetchProfile();
+    }
+  }, [user]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -188,7 +247,7 @@ export default function CommentThread({ comments = [], postId, onRefresh }) {
     if (!newComment.trim()) return;
     setSubmitting(true);
     try {
-      await addCommentToPost(postId, user.uid, user.displayName || user.email || 'Ẩn danh', newComment.trim());
+      await addCommentToPost(postId, user.uid, userProfile.name || user.displayName || user.email || 'Ẩn danh', newComment.trim(), null, userProfile.avatarUrl);
       setNewComment('');
       toast.success('Đã thêm bình luận');
       onRefresh();
@@ -204,7 +263,11 @@ export default function CommentThread({ comments = [], postId, onRefresh }) {
       {/* New comment form */}
       <form onSubmit={handleSubmit} className="ct-new-comment">
         <div className="ct-new-avatar">
-          {user?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+          {userProfile.avatarUrl ? (
+            <img src={userProfile.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+          ) : (
+            userProfile.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'
+          )}
         </div>
         <div className="ct-new-input-wrap">
           <textarea

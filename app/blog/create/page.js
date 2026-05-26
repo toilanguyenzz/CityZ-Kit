@@ -1,9 +1,10 @@
 'use client';
 
 import '@/app/styles/blog.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth } from '@/lib/firebase';
+import { auth, db, onAuthStateChanged } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { addPost } from '@/lib/firestore';
 import useUserRole from '@/lib/useUserRole';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -38,7 +39,35 @@ export default function CreatePost() {
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [pollOptions, setPollOptions] = useState(['', '']);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [userProfile, setUserProfile] = useState({ name: '', avatarUrl: null });
   const { role, isAdmin } = useUserRole();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        try {
+          const docRef = doc(db, 'users', u.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setUserProfile({
+              name: data.name || u.displayName || u.email?.split('@')[0] || 'User',
+              avatarUrl: data.avatarUrl || null
+            });
+          } else {
+            setUserProfile({
+              name: u.displayName || u.email?.split('@')[0] || 'User',
+              avatarUrl: null
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -85,14 +114,16 @@ export default function CreatePost() {
 
       await addPost(
         user.uid,
-        user.displayName || user.email,
+        userProfile.name || user.displayName || user.email,
         title,
         postType === 'poll' ? JSON.stringify({ question: title, options: pollOptions.map(o => ({ text: o, votes: 0 })) }) : content,
         imageUrl,
         role,
         finalType,
         category,
-        flair || null
+        flair || null,
+        isAnonymous,
+        userProfile.avatarUrl
       );
 
       toast.success(isAdmin ? 'Đã đăng bài thành công!' : 'Đã gửi! Bài viết đang chờ kiểm duyệt từ Admin.');
@@ -362,6 +393,43 @@ export default function CreatePost() {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Anonymous Toggle */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.85rem 1rem',
+              background: '#f8fafc',
+              borderRadius: '0.75rem',
+              border: '1.5px solid #e2e8f0',
+              marginBottom: '1.5rem',
+            }}>
+              <div>
+                <span style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: '#334155' }}>🕵️ Đăng ẩn danh</span>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', marginTop: '0.1rem' }}>Ẩn danh tính và avatar của bạn với mọi người (Admin vẫn có thể xem)</span>
+              </div>
+              <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px', flexShrink: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={isAnonymous}
+                  onChange={(e) => setIsAnonymous(e.target.checked)}
+                  style={{ opacity: 0, width: 0, height: 0 }}
+                />
+                <span style={{
+                  position: 'absolute', cursor: 'pointer', inset: 0,
+                  backgroundColor: isAnonymous ? '#3b82f6' : '#cbd5e1',
+                  borderRadius: '24px', transition: '0.3s',
+                }}>
+                  <span style={{
+                    position: 'absolute', content: '""', height: '18px', width: '18px',
+                    left: isAnonymous ? '26px' : '3px', bottom: '3px',
+                    backgroundColor: '#fff', borderRadius: '50%', transition: '0.3s',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }} />
+                </span>
+              </label>
             </div>
 
             {/* Submit */}

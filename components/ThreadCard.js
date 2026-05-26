@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { upvotePost, downvotePost } from '@/lib/firestore';
+import useUserRole from '@/lib/useUserRole';
 import FlairBadge from './FlairBadge';
 import toast from 'react-hot-toast';
 
@@ -38,7 +39,7 @@ const CATEGORY_MAP = {
 
 export default function ThreadCard({ post, onVoteUpdate }) {
   const [voting, setVoting] = useState(false);
-  const user = auth.currentUser;
+  const { user, isAdmin } = useUserRole();
 
   const hasUpvoted = post.upvotedBy?.includes(user?.uid);
   const hasDownvoted = post.downvotedBy?.includes(user?.uid);
@@ -110,7 +111,21 @@ export default function ThreadCard({ post, onVoteUpdate }) {
           </span>
           {post.flair && <FlairBadge flair={post.flair} />}
           <span className="tc-dot">•</span>
-          <span className="tc-author">{displayName(post.authorName)}</span>
+          {post.isAnonymous ? (
+            <div className="tc-avatar" style={{ background: '#cbd5e1', color: '#64748b', fontSize: '0.7rem' }}>👤</div>
+          ) : post.authorAvatar ? (
+            <img src={post.authorAvatar} alt={displayName(post.authorName)} className="tc-avatar" />
+          ) : (
+            <div className="tc-avatar">{displayName(post.authorName).charAt(0).toUpperCase()}</div>
+          )}
+          <span className="tc-author">
+            {displayName(post.authorName)}
+            {post.isAnonymous && isAdmin && (
+              <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: '0.25rem' }}>
+                (Bởi: {post.realAuthorName || 'Chưa rõ'})
+              </span>
+            )}
+          </span>
           <span className="tc-dot">•</span>
           <span className="tc-time">{timeAgo(post.createdAt)}</span>
         </div>

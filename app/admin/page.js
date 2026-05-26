@@ -181,7 +181,14 @@ export default function AdminPage() {
                         </>
                       )}
                       {activeTab === 'posts' && (
-                        <span>✍️ {item.authorName}</span>
+                        <span>
+                          ✍️ {item.authorName}{' '}
+                          {item.isAnonymous && (
+                            <span style={{ color: '#ef4444', fontWeight: 600 }}>
+                              (Ẩn danh bởi: {item.realAuthorName || 'Chưa rõ'})
+                            </span>
+                          )}
+                        </span>
                       )}
                       <span>📅 {formatDate(item.createdAt)}</span>
                     </div>

@@ -9,6 +9,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import CommentThread from '@/components/CommentThread';
 import FlairBadge from '@/components/FlairBadge';
+import useUserRole from '@/lib/useUserRole';
 import { getPostById, upvotePost, downvotePost, incrementViewCount, votePoll } from '@/lib/firestore';
 import toast from 'react-hot-toast';
 
@@ -71,7 +72,7 @@ export default function PostDetail() {
     }
   };
 
-  const user = auth.currentUser;
+  const { user, isAdmin } = useUserRole();
   const hasUpvoted = post?.upvotedBy?.includes(user?.uid);
   const hasDownvoted = post?.downvotedBy?.includes(user?.uid);
   const score = (post?.upvotes || 0) - (post?.downvotes || 0);
@@ -180,7 +181,21 @@ export default function PostDetail() {
                   </span>
                   {post.flair && <FlairBadge flair={post.flair} />}
                   <span className="pd-dot">•</span>
-                  <span className="pd-author">{displayName(post.authorName)}</span>
+                  {post.isAnonymous ? (
+                    <div className="tc-avatar" style={{ background: '#cbd5e1', color: '#64748b', fontSize: '0.7rem' }}>👤</div>
+                  ) : post.authorAvatar ? (
+                    <img src={post.authorAvatar} alt={displayName(post.authorName)} className="tc-avatar" />
+                  ) : (
+                    <div className="tc-avatar">{displayName(post.authorName).charAt(0).toUpperCase()}</div>
+                  )}
+                  <span className="pd-author">
+                    {displayName(post.authorName)}
+                    {post.isAnonymous && isAdmin && (
+                      <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: '0.25rem' }}>
+                        (Bởi: {post.realAuthorName || 'Chưa rõ'})
+                      </span>
+                    )}
+                  </span>
                   <span className="pd-dot">•</span>
                   <span className="pd-time">{timeAgo(post.createdAt)}</span>
                 </div>
