@@ -1,13 +1,16 @@
 'use client';
 
 import '@/app/styles/shorts.css';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { collection, getDocs, query, where, doc, updateDoc, increment, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, increment } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import toast from 'react-hot-toast';
+import dynamic from 'next/dynamic';
+
+const LocketCameraModal = dynamic(() => import('@/components/LocketCameraModal'), { ssr: false });
 
 const CATEGORY_MAP = {
   Food: { label: 'Ăn uống', emoji: '🍜' },
@@ -17,26 +20,17 @@ const CATEGORY_MAP = {
   Other: { label: 'Khác', emoji: '🏷️' },
 };
 
-// Sample vertical videos for demo (royalty-free from Mixkit)
-const SAMPLE_VIDEOS = [
-  'https://assets.mixkit.co/videos/52537/52537-720.mp4',
-  'https://assets.mixkit.co/videos/44521/44521-720.mp4',
-  'https://assets.mixkit.co/videos/34487/34487-720.mp4',
-  'https://assets.mixkit.co/videos/42141/42141-720.mp4',
-];
-
-function ShortItem({ location, isActive, onLike }) {
+function ShortItem({ location, isActive }) {
   const videoRef = useRef(null);
   const [paused, setPaused] = useState(false);
   const [showHeart, setShowHeart] = useState(false);
   const [progress, setProgress] = useState(0);
   const lastTapRef = useRef(0);
 
-  const user = auth.currentUser;
-  const isLiked = location.likedBy?.includes(user?.uid);
-  const likeCount = location.likes || 0;
+  const [reactions, setReactions] = useState(location.reactions || { fire: 0, yummy: 0, cheap: 0, like: 0 });
+  const [flyingEmojis, setFlyingEmojis] = useState([]);
 
-  // Auto play/pause based on visibility
+  // Auto play/pause video based on active item state
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -50,7 +44,7 @@ function ShortItem({ location, isActive, onLike }) {
     }
   }, [isActive]);
 
-  // Progress bar
+  // Video progress bar
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -68,11 +62,9 @@ function ShortItem({ location, isActive, onLike }) {
   const handleTap = () => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      // Double tap → like
       handleDoubleTap();
       lastTapRef.current = 0;
     } else {
-      // Single tap → play/pause
       lastTapRef.current = now;
       setTimeout(() => {
         if (lastTapRef.current !== 0) {
@@ -97,8 +89,32 @@ function ShortItem({ location, isActive, onLike }) {
   const handleDoubleTap = () => {
     setShowHeart(true);
     setTimeout(() => setShowHeart(false), 800);
-    if (!isLiked) {
-      onLike(location.id);
+    handleReaction('like');
+  };
+
+  // Flying reaction emoji handler
+  const handleReaction = async (type) => {
+    const emojiMap = { fire: '🔥', yummy: '🤤', cheap: '💸', like: '👍' };
+    const char = emojiMap[type];
+    const id = Date.now() + Math.random();
+
+    // Trigger floating animation
+    setFlyingEmojis(prev => [...prev, { id, char, left: Math.random() * 60 + 20 }]);
+    setTimeout(() => {
+      setFlyingEmojis(prev => prev.filter(e => e.id !== id));
+    }, 1000);
+
+    // Optimistic local state update
+    setReactions(prev => ({ ...prev, [type]: (prev[type] || 0) + 1 }));
+
+    // Persist to Firestore
+    try {
+      const locRef = doc(db, 'locations', location.id);
+      await updateDoc(locRef, {
+        [`reactions.${type}`]: increment(1)
+      });
+    } catch (err) {
+      console.error('Error updating reaction:', err);
     }
   };
 
@@ -106,52 +122,107 @@ function ShortItem({ location, isActive, onLike }) {
 
   return (
     <div className="short-item">
-      {/* Progress bar */}
-      <div className="short-progress">
-        <div className="short-progress-bar" style={{ width: `${progress}%` }} />
-      </div>
-
-      {/* Gradient overlays */}
-      <div className="short-gradient-top" />
-      <div className="short-gradient-bottom" />
-
-      {/* Video */}
-      <video
-        ref={videoRef}
-        className="short-video"
-        src={location.videoUrl}
-        loop
-        muted
-        playsInline
-        preload="metadata"
-        onClick={handleTap}
-        poster={location.imageUrl || undefined}
-      />
-
-      {/* Play/Pause indicator */}
-      <div className="short-play-overlay">
-        <div className={`short-play-icon ${paused ? 'visible' : ''}`}>
-          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      {/* 1:1 Camera Viewport / Locket Widget Frame */}
+      <div className="locket-viewport">
+        {/* Locket Live Capture badge */}
+        <div className="locket-badge">
+          {location.createdByAvatar ? (
+            <img src={location.createdByAvatar} alt={location.createdByName} className="locket-badge-avatar" />
+          ) : (
+            <div className="locket-badge-placeholder">
+              {(location.createdByName || 'U').charAt(0).toUpperCase()}
+            </div>
+          )}
+          <span>⚡ Live from {location.createdByName || 'Sinh viên'}</span>
         </div>
+
+        {/* Video or Image check-in fallback */}
+        {location.videoUrl ? (
+          <>
+            <video
+              ref={videoRef}
+              className="short-video"
+              src={location.videoUrl}
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              onClick={handleTap}
+              poster={location.imageUrl || undefined}
+            />
+            {/* Play/Pause overlay */}
+            <div className="short-play-overlay" style={{ zIndex: 3 }}>
+              <div className={`short-play-icon ${paused ? 'visible' : ''}`}>
+                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+            </div>
+          </>
+        ) : (
+          <img
+            src={location.imageUrl}
+            alt={location.name}
+            className="short-video"
+            onClick={handleTap}
+            style={{ objectFit: 'cover' }}
+          />
+        )}
+
+        {/* Double-tap heart anim */}
+        {showHeart && <div className="short-heart-anim">❤️</div>}
+
+        {/* Flying emojis animation stream overlay */}
+        {flyingEmojis.map(fe => (
+          <span
+            key={fe.id}
+            className="flying-emoji"
+            style={{ left: `${fe.left}%` }}
+          >
+            {fe.char}
+          </span>
+        ))}
+
+        {/* Locket Text overlay banner (Raw user caption) */}
+        {location.description && (
+          <div className="locket-caption-banner">
+            {location.description}
+          </div>
+        )}
+
+        {/* Locket capsule tags display (if selected during check-in) */}
+        {location.tags && location.tags.length > 0 && (
+          <div className="locket-tags-container">
+            {location.tags.map((tag, idx) => (
+              <span key={idx} className="locket-tag-capsule">{tag}</span>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Double-tap heart */}
-      {showHeart && <div className="short-heart-anim">❤️</div>}
-
-      {/* Side actions */}
-      <div className="short-actions">
-        <button className="short-action-btn" onClick={() => onLike(location.id)}>
-          <div className={`short-action-icon ${isLiked ? 'liked' : ''}`}>
-            {isLiked ? '❤️' : '🤍'}
-          </div>
-          <span className="short-action-label">{likeCount}</span>
+      {/* Locket Live Emoji Reactions Tool-bar */}
+      <div className="locket-reactions-bar">
+        <button onClick={() => handleReaction('fire')} className="locket-reaction-btn">
+          <span>🔥</span> <span className="locket-reaction-count">{reactions.fire || 0}</span>
         </button>
+        <button onClick={() => handleReaction('yummy')} className="locket-reaction-btn">
+          <span>🤤</span> <span className="locket-reaction-count">{reactions.yummy || 0}</span>
+        </button>
+        <button onClick={() => handleReaction('cheap')} className="locket-reaction-btn">
+          <span>💸</span> <span className="locket-reaction-count">{reactions.cheap || 0}</span>
+        </button>
+        <button onClick={() => handleReaction('like')} className="locket-reaction-btn">
+          <span>👍</span> <span className="locket-reaction-count">{reactions.like || 0}</span>
+        </button>
+      </div>
 
-        <Link href={`/location/${location.id}`} className="short-action-btn">
-          <div className="short-action-icon">💬</div>
-          <span className="short-action-label">{location.reviewCount || 0}</span>
-        </Link>
+      {/* Video progress indicator (only for video posts) */}
+      {location.videoUrl && (
+        <div className="short-progress">
+          <div className="short-progress-bar" style={{ width: `${progress}%` }} />
+        </div>
+      )}
 
+      {/* Share / Details actions */}
+      <div className="short-actions">
         <button
           className="short-action-btn"
           onClick={() => {
@@ -164,18 +235,15 @@ function ShortItem({ location, isActive, onLike }) {
         </button>
       </div>
 
-      {/* Bottom info */}
+      {/* Bottom Spot information */}
       <div className="short-info">
-        <h3 className="short-location-name">{location.name}</h3>
         <div className="short-location-meta">
           <span className="short-cat-badge">{cat.emoji} {cat.label}</span>
           {(location.averageRating || 0) > 0 && (
             <span className="short-rating">⭐ {location.averageRating?.toFixed(1)}</span>
           )}
         </div>
-        {location.description && (
-          <p className="short-desc">{location.description}</p>
-        )}
+        {/* TikTok-style location tag widget to direct to reviews page */}
         <Link href={`/location/${location.id}`} className="short-location-tag">
           <span className="slt-pin">📍</span>
           <span className="slt-name">{location.name} (Xem Review & Bản đồ)</span>
@@ -190,31 +258,26 @@ export default function ShortsPage() {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [showCameraModal, setShowCameraModal] = useState(false);
   const containerRef = useRef(null);
 
   useEffect(() => {
-    fetchLocationsWithVideo();
+    fetchLocations();
   }, []);
 
-  const fetchLocationsWithVideo = async () => {
+  const fetchLocations = async () => {
     try {
       const snapshot = await getDocs(collection(db, 'locations'));
       let locs = snapshot.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(l => (l.status === 'approved' || !l.status) && l.videoUrl);
+        .filter(l => (l.status === 'approved' || !l.status) && (l.videoUrl || l.imageUrl));
 
-      // If no locations have video, seed some sample videos to existing locations
-      if (locs.length === 0) {
-        const allLocs = snapshot.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(l => l.status === 'approved' || !l.status);
-
-        // Assign sample videos to existing locations for demo
-        locs = allLocs.slice(0, SAMPLE_VIDEOS.length).map((loc, i) => ({
-          ...loc,
-          videoUrl: SAMPLE_VIDEOS[i % SAMPLE_VIDEOS.length],
-        }));
-      }
+      // Sort by newest check-ins at the top
+      locs.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+        return dateB - dateA;
+      });
 
       setLocations(locs);
     } catch (error) {
@@ -225,7 +288,7 @@ export default function ShortsPage() {
     }
   };
 
-  // IntersectionObserver for detecting active video
+  // IntersectionObserver for tracking swipe position
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -242,50 +305,11 @@ export default function ShortsPage() {
       { root: container, threshold: 0.6 }
     );
 
-    const items = container.querySelectorAll('.short-item');
+    const items = container.querySelectorAll('.short-item-wrap');
     items.forEach((item) => observer.observe(item));
 
     return () => observer.disconnect();
   }, [locations]);
-
-  const handleLike = async (locationId) => {
-    const user = auth.currentUser;
-    if (!user) return toast.error('Vui lòng đăng nhập');
-
-    try {
-      const locRef = doc(db, 'locations', locationId);
-      const locSnap = await getDoc(locRef);
-      const data = locSnap.data();
-      const alreadyLiked = data.likedBy?.includes(user.uid);
-
-      if (alreadyLiked) {
-        await updateDoc(locRef, {
-          likes: increment(-1),
-          likedBy: arrayRemove(user.uid),
-        });
-      } else {
-        await updateDoc(locRef, {
-          likes: increment(1),
-          likedBy: arrayUnion(user.uid),
-        });
-      }
-
-      // Update local state
-      setLocations(prev => prev.map(l => {
-        if (l.id !== locationId) return l;
-        const wasLiked = l.likedBy?.includes(user.uid);
-        return {
-          ...l,
-          likes: (l.likes || 0) + (wasLiked ? -1 : 1),
-          likedBy: wasLiked
-            ? (l.likedBy || []).filter(uid => uid !== user.uid)
-            : [...(l.likedBy || []), user.uid],
-        };
-      }));
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   if (loading) {
     return (
@@ -300,30 +324,56 @@ export default function ShortsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="shorts-root">
+      <div className="shorts-root" style={{ overflow: 'hidden', height: '100vh', position: 'relative' }}>
         <Navbar />
+
+        {/* Floating Quick Snap / Check-in Button */}
+        <button
+          onClick={() => setShowCameraModal(true)}
+          style={{
+            position: 'absolute', right: '1.25rem', bottom: '6.5rem',
+            width: '56px', height: '56px', borderRadius: '50%',
+            background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
+            border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
+            boxShadow: '0 8px 24px rgba(79, 70, 229, 0.4)',
+            transition: 'transform 0.2s, box-shadow 0.2s'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.08) translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 28px rgba(79, 70, 229, 0.5)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1) translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(79, 70, 229, 0.4)'; }}
+          title="⚡ Check-in nhanh"
+        >
+          ⚡
+        </button>
 
         {locations.length === 0 ? (
           <div className="shorts-empty">
             <div className="shorts-empty-icon">🎬</div>
-            <h2>Chưa có Shorts nào</h2>
-            <p>Thêm video ngắn khi tạo địa điểm mới để xuất hiện tại đây!</p>
-            <Link href="/add-location" className="shorts-add-btn">
-              ➕ Thêm địa điểm với video
-            </Link>
+            <h2>Chưa có bài đăng nào</h2>
+            <p>Bấm Check-in nhanh để là người đầu tiên chia sẻ!</p>
+            <button onClick={() => setShowCameraModal(true)} className="shorts-add-btn">
+              ➕ Check-in nhanh ngay
+            </button>
           </div>
         ) : (
           <div className="shorts-container" ref={containerRef}>
             {locations.map((loc, idx) => (
-              <div key={loc.id} data-index={idx}>
+              <div key={loc.id} className="short-item-wrap" data-index={idx}>
                 <ShortItem
                   location={loc}
                   isActive={idx === activeIndex}
-                  onLike={handleLike}
                 />
               </div>
             ))}
           </div>
+        )}
+
+        {/* Locket Live Camera capture modal */}
+        {showCameraModal && (
+          <LocketCameraModal
+            onClose={() => setShowCameraModal(false)}
+            onUploadSuccess={fetchLocations}
+          />
         )}
       </div>
     </ProtectedRoute>
