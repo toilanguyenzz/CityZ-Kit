@@ -181,13 +181,6 @@ function ShortItem({ location, isActive }) {
           </span>
         ))}
 
-        {/* Locket Text overlay banner (Raw user caption) */}
-        {location.description && (
-          <div className="locket-caption-banner">
-            {location.description}
-          </div>
-        )}
-
         {/* Locket capsule tags display (if selected during check-in) */}
         {location.tags && location.tags.length > 0 && (
           <div className="locket-tags-container">
@@ -197,6 +190,13 @@ function ShortItem({ location, isActive }) {
           </div>
         )}
       </div>
+
+      {/* User Caption - Moved outside viewport to prevent covering the image/video */}
+      {location.description && (
+        <div className="locket-caption-text">
+          <span className="caption-author">@{location.createdByName || 'Sinh viên'}:</span> {location.description}
+        </div>
+      )}
 
       {/* Locket Live Emoji Reactions Tool-bar */}
       <div className="locket-reactions-bar">
