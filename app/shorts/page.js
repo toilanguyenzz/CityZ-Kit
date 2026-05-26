@@ -1,7 +1,7 @@
 'use client';
 
 import '@/app/styles/shorts.css';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { collection, getDocs, doc, updateDoc, increment } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
@@ -19,6 +19,44 @@ const CATEGORY_MAP = {
   Play: { label: 'Vui chơi', emoji: '🎡' },
   Other: { label: 'Khác', emoji: '🏷️' },
 };
+
+function getVideoEmbedInfo(url) {
+  if (!url) return { type: 'none' };
+  const cleanUrl = url.trim();
+
+  const ytShortsRegex = /youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/i;
+  const ytWatchRegex = /youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/i;
+  const ytShareRegex = /youtu\.be\/([a-zA-Z0-9_-]+)/i;
+
+  let match = cleanUrl.match(ytShortsRegex) || cleanUrl.match(ytWatchRegex) || cleanUrl.match(ytShareRegex);
+  if (match) {
+    return {
+      type: 'youtube',
+      embedUrl: `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1&loop=1&playlist=${match[1]}&controls=0&modestbranding=1&rel=0`
+    };
+  }
+
+  const ttVideoRegex = /tiktok\.com\/@[a-zA-Z0-9_.-]+\/video\/([0-9]+)/i;
+  match = cleanUrl.match(ttVideoRegex);
+  if (match) {
+    return {
+      type: 'tiktok-embed',
+      embedUrl: `https://www.tiktok.com/embed/v2/${match[1]}`
+    };
+  }
+
+  if (cleanUrl.includes('tiktok.com')) {
+    return {
+      type: 'tiktok-link',
+      originalUrl: cleanUrl
+    };
+  }
+
+  return {
+    type: 'direct',
+    url: cleanUrl
+  };
+}
 
 function ShortItem({ location }) {
   const [reactions, setReactions] = useState(location.reactions || { fire: 0, yummy: 0, cheap: 0, like: 0 });
@@ -155,11 +193,19 @@ function TikTokShortItem({ location, isActive }) {
 
   const [reactions, setReactions] = useState(location.reactions || { fire: 0, yummy: 0, cheap: 0, like: 0 });
   const [flyingEmojis, setFlyingEmojis] = useState([]);
+  const [videoError, setVideoError] = useState(false);
 
-  // Auto play/pause video based on active item state
+  const embedInfo = useMemo(() => {
+    return getVideoEmbedInfo(location.videoUrl);
+  }, [location.videoUrl]);
+
+  // Auto play/pause video based on active item state (direct mp4 links only)
   useEffect(() => {
+    if (embedInfo.type !== 'direct') return;
     const video = videoRef.current;
     if (!video) return;
+
+    video.muted = true;
 
     if (isActive) {
       video.currentTime = 0;
@@ -168,10 +214,11 @@ function TikTokShortItem({ location, isActive }) {
     } else {
       video.pause();
     }
-  }, [isActive]);
+  }, [isActive, embedInfo.type]);
 
   // Video progress bar
   useEffect(() => {
+    if (embedInfo.type !== 'direct') return;
     const video = videoRef.current;
     if (!video) return;
 
@@ -183,9 +230,10 @@ function TikTokShortItem({ location, isActive }) {
 
     video.addEventListener('timeupdate', updateProgress);
     return () => video.removeEventListener('timeupdate', updateProgress);
-  }, []);
+  }, [embedInfo.type]);
 
   const handleTap = () => {
+    if (embedInfo.type !== 'direct') return;
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
       handleDoubleTap();
@@ -201,6 +249,7 @@ function TikTokShortItem({ location, isActive }) {
   };
 
   const togglePlay = () => {
+    if (embedInfo.type !== 'direct') return;
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
@@ -246,17 +295,138 @@ function TikTokShortItem({ location, isActive }) {
     <div className="short-item">
       {/* 9:16 vertical TikTok Viewport */}
       <div className="tiktok-viewport">
-        <video
-          ref={videoRef}
-          className="tiktok-video"
-          src={location.videoUrl}
-          loop
-          muted
-          playsInline
-          preload="metadata"
-          onClick={handleTap}
-          poster={location.imageUrl || undefined}
-        />
+        {embedInfo.type === 'youtube' && (
+          <iframe
+            className="tiktok-video"
+            src={isActive ? embedInfo.embedUrl : 'about:blank'}
+            style={{ border: 'none', width: '100%', height: '100%' }}
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowFullScreen
+          />
+        )}
+
+        {embedInfo.type === 'tiktok-embed' && (
+          <iframe
+            className="tiktok-video"
+            src={isActive ? embedInfo.embedUrl : 'about:blank'}
+            style={{ border: 'none', width: '100%', height: '100%' }}
+            allow="autoplay; encrypted-media"
+            allowFullScreen
+          />
+        )}
+
+        {embedInfo.type === 'tiktok-link' && (
+          <div style={{
+            position: 'relative', width: '100%', height: '100%',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            background: '#050505', padding: '1.5rem', textAlign: 'center'
+          }}>
+            {location.imageUrl && (
+              <img
+                src={location.imageUrl}
+                alt={location.name}
+                style={{
+                  position: 'absolute', inset: 0, width: '100%', height: '100%',
+                  objectFit: 'cover', opacity: 0.25, filter: 'blur(4px)'
+                }}
+              />
+            )}
+            <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+              <div style={{
+                width: '64px', height: '64px', borderRadius: '50%',
+                background: 'linear-gradient(135deg, #ff0050, #00f2fe)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 8px 24px rgba(255,0,80,0.3)'
+              }}>
+                <span style={{ fontSize: '1.8rem', color: '#fff' }}>🎬</span>
+              </div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: '#fff' }}>Video TikTok</h3>
+              <p style={{ fontSize: '0.78rem', color: '#ccc', margin: 0, maxWidth: '240px', lineHeight: 1.4 }}>
+                Trình duyệt không thể phát trực tiếp link chia sẻ TikTok. Bấm nút dưới để xem clip.
+              </p>
+              <a
+                href={embedInfo.originalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                  background: 'linear-gradient(135deg, #ff0050, #00f2fe)',
+                  color: '#fff', padding: '0.65rem 1.25rem', borderRadius: '2rem',
+                  fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none',
+                  boxShadow: '0 4px 12px rgba(255,0,80,0.4)',
+                  transition: 'transform 0.15s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                ▶ Xem trên TikTok
+              </a>
+            </div>
+          </div>
+        )}
+
+        {embedInfo.type === 'direct' && !videoError && (
+          <video
+            ref={videoRef}
+            className="tiktok-video"
+            src={embedInfo.url}
+            loop
+            muted
+            playsInline
+            preload="metadata"
+            onClick={handleTap}
+            poster={location.imageUrl || undefined}
+            onError={() => setVideoError(true)}
+          />
+        )}
+
+        {embedInfo.type === 'direct' && videoError && (
+          <div style={{
+            position: 'relative', width: '100%', height: '100%',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            background: '#050505', padding: '1.5rem', textAlign: 'center'
+          }}>
+            {location.imageUrl && (
+              <img
+                src={location.imageUrl}
+                alt={location.name}
+                style={{
+                  position: 'absolute', inset: 0, width: '100%', height: '100%',
+                  objectFit: 'cover', opacity: 0.3, filter: 'blur(4px)'
+                }}
+              />
+            )}
+            <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+              <div style={{
+                width: '64px', height: '64px', borderRadius: '50%',
+                background: 'rgba(239, 68, 68, 0.2)', border: '2px solid #ef4444',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <span style={{ fontSize: '1.8rem', color: '#ef4444' }}>⚠️</span>
+              </div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: '#fff' }}>Không thể tải video</h3>
+              <p style={{ fontSize: '0.78rem', color: '#ccc', margin: 0, maxWidth: '240px', lineHeight: 1.4 }}>
+                Định dạng video không được hỗ trợ hoặc không thể truy cập.
+              </p>
+              <a
+                href={embedInfo.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                  background: '#222', border: '1px solid #444',
+                  color: '#fff', padding: '0.65rem 1.25rem', borderRadius: '2rem',
+                  fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none',
+                  transition: 'background 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#333'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#222'}
+              >
+                Mở liên kết video
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* Double-tap heart anim */}
         {showHeart && <div className="short-heart-anim">❤️</div>}
@@ -339,9 +509,11 @@ function TikTokShortItem({ location, isActive }) {
         </div>
 
         {/* Video progress bar overlay */}
-        <div className="short-progress" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10 }}>
-          <div className="short-progress-bar" style={{ width: `${progress}%` }} />
-        </div>
+        {embedInfo.type === 'direct' && (
+          <div className="short-progress" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10 }}>
+            <div className="short-progress-bar" style={{ width: `${progress}%` }} />
+          </div>
+        )}
       </div>
     </div>
   );
