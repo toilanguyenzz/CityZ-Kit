@@ -176,8 +176,10 @@ function ShortItem({ location, isActive, onLike }) {
         {location.description && (
           <p className="short-desc">{location.description}</p>
         )}
-        <Link href={`/location/${location.id}`} className="short-visit-btn">
-          📍 Ghé thăm địa điểm
+        <Link href={`/location/${location.id}`} className="short-location-tag">
+          <span className="slt-pin">📍</span>
+          <span className="slt-name">{location.name} (Xem Review & Bản đồ)</span>
+          <span className="slt-arrow">›</span>
         </Link>
       </div>
     </div>

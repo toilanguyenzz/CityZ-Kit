@@ -226,24 +226,45 @@
   text-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
 
-.short-visit-btn {
+.short-location-tag {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  background: rgba(255,255,255,0.15);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.2);
+  gap: 0.5rem;
+  background: rgba(59, 130, 246, 0.25); /* Semi-transparent blue */
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(59, 130, 246, 0.4);
   color: #fff;
   padding: 0.45rem 0.85rem;
   border-radius: 2rem;
   font-size: 0.78rem;
   font-weight: 600;
   text-decoration: none;
-  transition: background 0.2s;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  transition: all 0.2s ease;
+  margin-top: 0.5rem;
 }
 
-.short-visit-btn:hover {
-  background: rgba(255,255,255,0.25);
+.short-location-tag:hover {
+  background: rgba(59, 130, 246, 0.4);
+  border-color: rgba(59, 130, 246, 0.6);
+  transform: translateY(-1px);
+}
+
+.slt-pin {
+  font-size: 0.95rem;
+}
+
+.slt-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.slt-arrow {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-left: 0.2rem;
 }
 
 /* ── Progress Bar ─────────────────────────────────────── */
