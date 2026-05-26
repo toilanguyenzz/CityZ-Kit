@@ -97,19 +97,42 @@ export default function LocationDetail() {
             </div>
           </div>
 
+          {/* ───── Video Short ───── */}
+          {location.videoUrl && (
+            <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+              <h2 className="text-lg font-bold text-gray-900 mb-3">🎬 Video ngắn</h2>
+              <div style={{ borderRadius: '0.75rem', overflow: 'hidden', background: '#000', maxHeight: '400px' }}>
+                <video
+                  src={location.videoUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  poster={location.imageUrl || undefined}
+                  style={{ width: '100%', maxHeight: '400px', objectFit: 'contain' }}
+                />
+              </div>
+            </div>
+          )}
           {/* ───── OpenStreetMap ───── */}
           {location.address && (
             <div className="db-map-section mt-8">
               <h2 className="db-map-header">
                 <span>📍</span> Bản đồ vị trí
               </h2>
-              <iframe
-                className="db-map-frame"
-                title="Bản đồ địa điểm"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=106.5,10.7,106.9,10.9&layer=mapnik&marker=10.8,106.7`}
-                loading="lazy"
-                style={{ width: '100%', height: '350px', border: 'none' }}
-              />
+              {(() => {
+                const mapLat = location.latitude || 10.7769;
+                const mapLng = location.longitude || 106.7009;
+                const bbox = `${mapLng - 0.005},${mapLat - 0.005},${mapLng + 0.005},${mapLat + 0.005}`;
+                return (
+                  <iframe
+                    className="db-map-frame"
+                    title="Bản đồ địa điểm"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${mapLat},${mapLng}`}
+                    loading="lazy"
+                    style={{ width: '100%', height: '350px', border: 'none' }}
+                  />
+                );
+              })()}
               <div style={{ padding: '0.75rem 1.5rem 1rem', textAlign: 'right' }}>
                 <a
                   href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(location.address + ', TP.HCM, Việt Nam')}`}
