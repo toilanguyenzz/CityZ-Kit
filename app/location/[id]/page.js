@@ -13,6 +13,65 @@ import RatingStars from '@/components/RatingStars';
 import CommentSection from '@/components/CommentSection';
 import useUserRole from '@/lib/useUserRole';
 
+const compressImage = (file) => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          0.75
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = event.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function LocationDetail() {
   const { id } = useParams();
   const router = useRouter();
@@ -118,12 +177,13 @@ export default function LocationDetail() {
   const handleUploadMoreImages = async () => {
     if (additionalFiles.length === 0) return;
     setUploadingMore(true);
-    const toastId = toast.loading('Đang tải lên các ảnh mới...');
+    const toastId = toast.loading('Đang nén & tải lên các ảnh mới...');
     try {
       const uploadedItems = [];
       for (let i = 0; i < additionalFiles.length; i++) {
         const item = additionalFiles[i];
-        const uploadedItem = await uploadLocationFile(item.file, user.uid);
+        const compressedFile = await compressImage(item.file);
+        const uploadedItem = await uploadLocationFile(compressedFile, user.uid);
         uploadedItems.push(uploadedItem);
       }
 

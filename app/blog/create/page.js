@@ -28,6 +28,65 @@ const POST_TYPES = [
   { key: 'poll', label: '🗳️ Khảo sát', desc: 'Tạo bình chọn' },
 ];
 
+const compressImage = (file) => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          0.75
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = event.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function CreatePost() {
   const router = useRouter();
   const [title, setTitle] = useState('');
@@ -156,8 +215,9 @@ export default function CreatePost() {
       const uploadedMedia = [];
       for (let i = 0; i < mediaFiles.length; i++) {
         const item = mediaFiles[i];
-        setUploadStatus(`Tải file ${i + 1}/${mediaFiles.length}...`);
-        const uploadedItem = await uploadFile(item.file, user.uid, (progress) => {
+        setUploadStatus(`Nén & Tải file ${i + 1}/${mediaFiles.length}...`);
+        const compressedFile = await compressImage(item.file);
+        const uploadedItem = await uploadFile(compressedFile, user.uid, (progress) => {
           setUploadProgress((prev) => ({ ...prev, [i]: Math.round(progress) }));
         });
         uploadedMedia.push(uploadedItem);
