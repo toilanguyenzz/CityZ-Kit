@@ -202,6 +202,7 @@ export default function AddLocation() {
                           <option value="Food">Ăn uống</option>
                           <option value="Housing">Nhà trọ</option>
                           <option value="Cafe">Cafe</option>
+                          <option value="Play">Vui chơi</option>
                           <option value="Other">Khác</option>
                         </select>
                         <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">

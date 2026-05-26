@@ -23,6 +23,7 @@ export default function Dashboard() {
     { key: 'Food', label: 'Ăn uống', emoji: '🍜' },
     { key: 'Housing', label: 'Nhà trọ', emoji: '🏠' },
     { key: 'Cafe', label: 'Cafe', emoji: '☕' },
+    { key: 'Play', label: 'Vui chơi', emoji: '🎡' },
     { key: 'Other', label: 'Khác', emoji: '🏷️' },
   ];
 
