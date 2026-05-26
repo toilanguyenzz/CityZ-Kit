@@ -112,6 +112,74 @@ export default function LocationDetail() {
   const [additionalFiles, setAdditionalFiles] = useState([]);
   const [uploadingMore, setUploadingMore] = useState(false);
 
+  // Lightbox Zoom & Pan State
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [lightboxScale, setLightboxScale] = useState(1);
+  const [lightboxPosition, setLightboxPosition] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+
+  const handleCloseLightbox = () => {
+    setIsLightboxOpen(false);
+    handleResetZoom();
+  };
+
+  const handleZoomIn = () => {
+    setLightboxScale(prev => Math.min(prev + 0.5, 4));
+  };
+
+  const handleZoomOut = () => {
+    setLightboxScale(prev => {
+      const next = Math.max(prev - 0.5, 1);
+      if (next === 1) {
+        setLightboxPosition({ x: 0, y: 0 });
+      }
+      return next;
+    });
+  };
+
+  const handleResetZoom = () => {
+    setLightboxScale(1);
+    setLightboxPosition({ x: 0, y: 0 });
+  };
+
+  const handlePrevLightboxImage = (e) => {
+    e.stopPropagation();
+    handleResetZoom();
+    setActiveMediaIndex((prev) => (prev === 0 ? location.media.length - 1 : prev - 1));
+  };
+
+  const handleNextLightboxImage = (e) => {
+    e.stopPropagation();
+    handleResetZoom();
+    setActiveMediaIndex((prev) => (prev === location.media.length - 1 ? 0 : prev + 1));
+  };
+
+  const handlePanStart = (e) => {
+    if (lightboxScale <= 1) return;
+    setIsPanning(true);
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    setPanStart({
+      x: clientX - lightboxPosition.x,
+      y: clientY - lightboxPosition.y
+    });
+  };
+
+  const handlePanMove = (e) => {
+    if (!isPanning || lightboxScale <= 1) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    setLightboxPosition({
+      x: clientX - panStart.x,
+      y: clientY - panStart.y
+    });
+  };
+
+  const handlePanEnd = () => {
+    setIsPanning(false);
+  };
+
   const { user, role, isAdmin } = useUserRole();
 
   useEffect(() => {
@@ -243,12 +311,23 @@ export default function LocationDetail() {
             {/* Media Gallery / Slideshow */}
             {location.media && location.media.length > 0 ? (
               <div className="pd-media-carousel">
-                <div className="pd-media-viewer" style={{ height: '320px' }}>
+                <div className="pd-media-viewer" style={{ height: '320px', position: 'relative' }}>
                   <img
                     src={location.media[activeMediaIndex].url}
                     alt={`Media ${activeMediaIndex + 1}`}
                     className="pd-media-main-img"
+                    onClick={() => setIsLightboxOpen(true)}
+                    style={{ cursor: 'zoom-in' }}
                   />
+
+                  <button
+                    onClick={() => setIsLightboxOpen(true)}
+                    className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors z-20 border-none"
+                    title="Phóng to ảnh"
+                    style={{ cursor: 'pointer' }}
+                  >
+                    🔍
+                  </button>
 
                   {location.media.length > 1 && (
                     <>
@@ -459,6 +538,114 @@ export default function LocationDetail() {
             <h2 className="text-xl font-bold text-gray-900 mb-4">Các nhận xét ({location.reviewCount || 0})</h2>
             <CommentSection reviews={location.reviews || []} />
           </div>
+
+          {/* Lightbox Modal with Zoom & Pan */}
+          {isLightboxOpen && (
+            <div 
+              className="fixed inset-0 bg-black/95 backdrop-blur-md z-[9999] flex flex-col items-center justify-center select-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') handleCloseLightbox();
+              }}
+              tabIndex={0}
+              style={{ outline: 'none' }}
+            >
+              {/* Close Button */}
+              <button
+                onClick={handleCloseLightbox}
+                className="absolute top-6 right-6 text-white bg-white/10 hover:bg-white/20 w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-colors border-none cursor-pointer z-50"
+                title="Đóng (Esc)"
+              >
+                ✕
+              </button>
+
+              {/* Carousel Navigation in Lightbox */}
+              {location.media && location.media.length > 1 && (
+                <>
+                  <button
+                    onClick={handlePrevLightboxImage}
+                    className="absolute left-6 top-1/2 -translate-y-1/2 text-white bg-white/10 hover:bg-white/20 w-14 h-14 rounded-full flex items-center justify-center text-3xl transition-colors border-none cursor-pointer z-50"
+                    title="Ảnh trước"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={handleNextLightboxImage}
+                    className="absolute right-6 top-1/2 -translate-y-1/2 text-white bg-white/10 hover:bg-white/20 w-14 h-14 rounded-full flex items-center justify-center text-3xl transition-colors border-none cursor-pointer z-50"
+                    title="Ảnh sau"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+
+              {/* Large Image Container */}
+              <div 
+                className="relative w-full h-[80vh] flex items-center justify-center overflow-hidden"
+                onMouseMove={handlePanMove}
+                onMouseUp={handlePanEnd}
+                onMouseLeave={handlePanEnd}
+                onTouchMove={handlePanMove}
+                onTouchEnd={handlePanEnd}
+              >
+                <img
+                  src={location.media[activeMediaIndex].url}
+                  alt="Zoomed media"
+                  style={{
+                    maxHeight: '100%',
+                    maxWidth: '100%',
+                    objectFit: 'contain',
+                    transform: `translate(${lightboxPosition.x}px, ${lightboxPosition.y}px) scale(${lightboxScale})`,
+                    transition: isPanning ? 'none' : 'transform 0.2s cubic-bezier(0.1, 0.76, 0.55, 0.94)',
+                    cursor: lightboxScale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'zoom-in',
+                    userSelect: 'none',
+                  }}
+                  onMouseDown={handlePanStart}
+                  onTouchStart={handlePanStart}
+                  onClick={(e) => {
+                    if (lightboxScale === 1) {
+                      setLightboxScale(2);
+                    } else {
+                      handleResetZoom();
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Zoom Control Bar */}
+              <div className="absolute bottom-8 bg-black/60 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-3 flex items-center gap-6 z-50 text-white text-sm">
+                <button 
+                  onClick={handleZoomOut}
+                  className="bg-transparent border-none text-white text-lg hover:text-blue-400 cursor-pointer disabled:opacity-30 transition-colors"
+                  disabled={lightboxScale <= 1}
+                  title="Thu nhỏ"
+                >
+                  ➖
+                </button>
+                
+                <button 
+                  onClick={handleResetZoom}
+                  className="bg-white/10 hover:bg-white/20 border-none text-white px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                  title="Khôi phục kích thước"
+                >
+                  🔍 {Math.round(lightboxScale * 100)}%
+                </button>
+
+                <button 
+                  onClick={handleZoomIn}
+                  className="bg-transparent border-none text-white text-lg hover:text-blue-400 cursor-pointer disabled:opacity-30 transition-colors"
+                  disabled={lightboxScale >= 4}
+                  title="Phóng to"
+                >
+                  ➕
+                </button>
+              </div>
+
+              {/* Image index counter */}
+              <div className="absolute top-8 left-1/2 -translate-x-1/2 text-white/60 text-sm font-medium">
+                Ảnh {activeMediaIndex + 1} / {location.media.length}
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </ProtectedRoute>
