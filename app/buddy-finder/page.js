@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { db, auth, onAuthStateChanged } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import toast from 'react-hot-toast';
+import useUserRole from '@/lib/useUserRole';
+import { updateBuddyRequest, deleteBuddyRequest } from '@/lib/firestore';
 
 const TYPES = [
   { key: 'roommate', label: '🏠 Tìm bạn ở ghép', color: 'bg-green-100 text-green-700' },
@@ -27,9 +29,10 @@ export default function BuddyFinderPage() {
   const [requests, setRequests] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const { user, isAdmin } = useUserRole();
   const [filterType, setFilterType] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [editingRequestId, setEditingRequestId] = useState(null);
 
   // Form states
   const [formType, setFormType] = useState('roommate');
@@ -38,10 +41,39 @@ export default function BuddyFinderPage() {
   const [formInterests, setFormInterests] = useState([]);
   const [formNote, setFormNote] = useState('');
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
-    return () => unsub();
-  }, []);
+  const toggleForm = () => {
+    if (showForm) {
+      setEditingRequestId(null);
+      setFormType('roommate');
+      setFormUniversity('');
+      setFormHabits([]);
+      setFormInterests([]);
+      setFormNote('');
+    }
+    setShowForm(!showForm);
+  };
+
+  const startEditing = (req) => {
+    setEditingRequestId(req.id);
+    setFormType(req.type || 'roommate');
+    setFormUniversity(req.university || '');
+    setFormHabits(req.habits || []);
+    setFormInterests(req.interests || []);
+    setFormNote(req.note || '');
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (requestId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa yêu cầu này không?')) return;
+    try {
+      await deleteBuddyRequest(requestId);
+      toast.success('Đã xóa yêu cầu thành công!');
+      fetchRequests();
+    } catch (error) {
+      toast.error('Lỗi khi xóa yêu cầu: ' + error.message);
+    }
+  };
 
   useEffect(() => {
     fetchRequests();
@@ -65,25 +97,36 @@ export default function BuddyFinderPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!user) return toast.error('Bạn cần đăng nhập để đăng yêu cầu!');
+    if (!user) return toast.error('Bạn cần đăng nhập!');
     if (!formUniversity) return toast.error('Vui lòng chọn trường đại học!');
     if (formHabits.length === 0 && formInterests.length === 0) return toast.error('Vui lòng chọn ít nhất 1 thói quen hoặc sở thích!');
 
     setSubmitting(true);
     try {
-      await addDoc(collection(db, 'buddyRequests'), {
-        userId: user.uid,
-        userName: user.displayName || user.email,
+      const requestData = {
         type: formType,
         university: formUniversity,
         habits: formHabits,
         interests: formInterests,
         note: formNote,
-        status: 'open',
-        createdAt: serverTimestamp(),
-      });
-      toast.success('Đã đăng yêu cầu tìm bạn!');
+      };
+
+      if (editingRequestId) {
+        await updateBuddyRequest(editingRequestId, requestData);
+        toast.success('Đã cập nhật yêu cầu tìm bạn thành công!');
+      } else {
+        await addDoc(collection(db, 'buddyRequests'), {
+          ...requestData,
+          userId: user.uid,
+          userName: user.displayName || user.email,
+          status: 'open',
+          createdAt: serverTimestamp(),
+        });
+        toast.success('Đã đăng yêu cầu tìm bạn!');
+      }
+      
       setShowForm(false);
+      setEditingRequestId(null);
       setFormType('roommate');
       setFormUniversity('');
       setFormHabits([]);
@@ -113,17 +156,17 @@ export default function BuddyFinderPage() {
               <p className="text-gray-500 mt-1">Kết nối với sinh viên cùng trường, cùng sở thích tại TP.HCM</p>
             </div>
             <button
-              onClick={() => setShowForm(!showForm)}
+              onClick={toggleForm}
               className="btn-primary flex items-center gap-2"
             >
-              {showForm ? '✕ Đóng' : '＋ Đăng yêu cầu'}
+              {showForm ? '✕ Đóng' : editingRequestId ? '✏️ Sửa yêu cầu' : '＋ Đăng yêu cầu'}
             </button>
           </div>
 
           {/* Form */}
           {showForm && (
             <form onSubmit={handleSubmit} className="card p-6 mb-8 border border-blue-100">
-              <h2 className="text-xl font-bold mb-4 text-gray-800">📝 Tạo yêu cầu tìm bạn</h2>
+              <h2 className="text-xl font-bold mb-4 text-gray-800">{editingRequestId ? '✏️ Chỉnh sửa yêu cầu tìm bạn' : '📝 Tạo yêu cầu tìm bạn'}</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
@@ -172,7 +215,7 @@ export default function BuddyFinderPage() {
               </div>
 
               <button type="submit" disabled={submitting} className="btn-primary w-full sm:w-auto">
-                {submitting ? 'Đang đăng...' : '🚀 Đăng yêu cầu'}
+                {submitting ? 'Đang xử lý...' : editingRequestId ? '💾 Cập nhật' : '🚀 Đăng yêu cầu'}
               </button>
             </form>
           )}
@@ -217,6 +260,13 @@ export default function BuddyFinderPage() {
                     </div>
                     <h3 className="text-lg font-bold text-gray-800 mb-1">🎓 {req.university || 'Chưa rõ trường'}</h3>
                     <p className="text-sm text-gray-500 mb-3">Bởi {req.userName || 'Ẩn danh'}</p>
+                    {user && (req.userId === user.uid || isAdmin) && (
+                      <div className="flex gap-2 mb-3 text-xs font-semibold">
+                        <button onClick={() => startEditing(req)} className="text-blue-600 hover:text-blue-800 border-none bg-transparent cursor-pointer">Sửa</button>
+                        <span className="text-gray-300">|</span>
+                        <button onClick={() => handleDelete(req.id)} className="text-red-600 hover:text-red-800 border-none bg-transparent cursor-pointer">Xóa</button>
+                      </div>
+                    )}
                     {req.note && <p className="text-sm text-gray-600 mb-3 line-clamp-2 italic">&quot;{req.note}&quot;</p>}
 
                     <div className="flex flex-wrap gap-1.5 mb-4">

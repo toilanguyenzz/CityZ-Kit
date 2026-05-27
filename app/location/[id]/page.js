@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { uploadToCloudinary } from '@/lib/cloudinary';
-import { addReview } from '@/lib/firestore';
+import { addReview, updateLocation, deleteLocation } from '@/lib/firestore';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import toast from 'react-hot-toast';
@@ -118,6 +118,65 @@ export default function LocationDetail() {
   const [lightboxPosition, setLightboxPosition] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+
+  // Edit & Delete states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('Food');
+  const [editAddress, setEditAddress] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editVideoUrl, setEditVideoUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const startEditing = () => {
+    if (!location) return;
+    setEditName(location.name || '');
+    setEditCategory(location.category || 'Food');
+    setEditAddress(location.address || '');
+    setEditDescription(location.description || '');
+    setEditVideoUrl(location.videoUrl || '');
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editName.trim()) return toast.error('Vui lòng nhập tên địa điểm');
+    if (!editAddress.trim()) return toast.error('Vui lòng nhập địa chỉ');
+    if (!editDescription.trim()) return toast.error('Vui lòng nhập mô tả');
+
+    setSaving(true);
+    try {
+      const updatedData = {
+        name: editName.trim(),
+        category: editCategory,
+        address: editAddress.trim(),
+        description: editDescription.trim(),
+        videoUrl: editVideoUrl.trim() || null,
+      };
+
+      await updateLocation(id, updatedData);
+      toast.success('Đã cập nhật địa điểm thành công!');
+      setIsEditing(false);
+      await fetchLocation();
+    } catch (err) {
+      toast.error('Lỗi khi cập nhật địa điểm: ' + err.message);
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa địa điểm này không?')) return;
+    try {
+      await deleteLocation(id);
+      toast.success('Đã xóa địa điểm thành công!');
+      router.push('/dashboard');
+    } catch (err) {
+      toast.error('Lỗi khi xóa địa điểm: ' + err.message);
+      console.error(err);
+    }
+  };
 
   const handleCloseLightbox = () => {
     setIsLightboxOpen(false);
@@ -308,156 +367,252 @@ export default function LocationDetail() {
         <Navbar />
         <main className="max-w-4xl mx-auto px-4 py-8">
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
-            {/* Media Gallery / Slideshow */}
-            {location.media && location.media.length > 0 ? (
-              <div className="pd-media-carousel">
-                <div className="pd-media-viewer" style={{ height: '320px', position: 'relative' }}>
-                  <img
-                    src={location.media[activeMediaIndex].url}
-                    alt={`Media ${activeMediaIndex + 1}`}
-                    className="pd-media-main-img"
-                    onClick={() => setIsLightboxOpen(true)}
-                    style={{ cursor: 'zoom-in' }}
+            {isEditing ? (
+              <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Chỉnh sửa địa điểm</h2>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Tên địa điểm</label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
                   />
-
-                  <button
-                    onClick={() => setIsLightboxOpen(true)}
-                    className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors z-20 border-none"
-                    title="Phóng to ảnh"
-                    style={{ cursor: 'pointer' }}
-                  >
-                    🔍
-                  </button>
-
-                  {location.media.length > 1 && (
-                    <>
-                      <button
-                        onClick={() => setActiveMediaIndex((prev) => (prev === 0 ? location.media.length - 1 : prev - 1))}
-                        className="pd-carousel-nav pd-carousel-prev"
-                        title="Ảnh trước"
-                      >
-                        ‹
-                      </button>
-                      <button
-                        onClick={() => setActiveMediaIndex((prev) => (prev === location.media.length - 1 ? 0 : prev + 1))}
-                        className="pd-carousel-nav pd-carousel-next"
-                        title="Ảnh sau"
-                      >
-                        ›
-                      </button>
-                    </>
-                  )}
                 </div>
 
-                {location.media.length > 1 && (
-                  <div className="pd-media-thumbnails">
-                    {location.media.map((item, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActiveMediaIndex(idx)}
-                        className={`pd-thumbnail-btn ${idx === activeMediaIndex ? 'active' : ''}`}
-                      >
-                        <img src={item.url} alt={`Thumbnail ${idx + 1}`} />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : location.imageUrl ? (
-              <div className="relative h-72 w-full bg-gray-200">
-                <img src={location.imageUrl} alt={location.name} className="w-full h-full object-cover" />
-              </div>
-            ) : (
-              <div className="relative h-72 w-full bg-gray-200 flex items-center justify-center text-gray-400">No image</div>
-            )}
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h1 className="text-2xl font-bold text-gray-900">{location.name}</h1>
-                {location.reviewCount >= 3 && (
-                  <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">✓ Verified</span>
-                )}
-              </div>
-              <p className="text-gray-600 mb-1"><span className="font-semibold">Danh mục:</span> {location.category}</p>
-              <p className="text-gray-600 mb-1"><span className="font-semibold">Địa chỉ:</span> {location.address}</p>
-              <p className="text-gray-700 mt-4">{location.description}</p>
-              <div className="mt-4 flex items-center">
-                <span className="font-semibold text-gray-700 mr-2">Đánh giá:</span>
-                <RatingStars rating={location.averageRating || 0} />
-                <span className="ml-2 text-gray-500">({location.reviewCount} nhận xét)</span>
-              </div>
-
-              {/* Owner/Admin upload more images section */}
-              {canAddMore && (
-                <div className="mt-6 border-t border-gray-100 pt-6">
-                  {showUploadPanel ? (
-                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                      <h3 className="text-sm font-bold text-gray-700 mb-2">Thêm hình ảnh minh họa</h3>
-                      <p className="text-xs text-gray-500 mb-3">Bạn có thể đăng tải tối đa {9 - currentMediaCount} ảnh nữa (tối đa 9 ảnh cho mỗi địa điểm).</p>
-                      
-                      <div className="flex flex-col gap-3">
-                        <input
-                          type="file"
-                          multiple
-                          accept="image/*"
-                          onChange={handleUploadPanelFileChange}
-                          className="text-xs text-gray-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 cursor-pointer"
-                        />
-                        
-                        {/* Preview grid */}
-                        {additionalFiles.length > 0 && (
-                          <div className="grid grid-cols-4 gap-2 mt-2">
-                            {additionalFiles.map((fileObj, idx) => (
-                              <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
-                                <img src={fileObj.preview} alt="preview" className="w-full h-full object-cover" />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    URL.revokeObjectURL(fileObj.preview);
-                                    setAdditionalFiles(prev => prev.filter((_, i) => i !== idx));
-                                  }}
-                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-bold shadow-sm"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="flex gap-2 justify-end mt-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowUploadPanel(false);
-                              setAdditionalFiles([]);
-                            }}
-                            className="px-3 py-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 transition"
-                          >
-                            Hủy
-                          </button>
-                          <button
-                            type="button"
-                            disabled={uploadingMore || additionalFiles.length === 0}
-                            onClick={handleUploadMoreImages}
-                            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white text-xs font-bold rounded-xl shadow-sm transition"
-                          >
-                            {uploadingMore ? `Đang tải...` : 'Tải lên'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowUploadPanel(true)}
-                      className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition"
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Danh mục</label>
+                    <select
+                      value={editCategory}
+                      onChange={(e) => setEditCategory(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
                     >
-                      📷 Thêm hình ảnh minh họa địa điểm
-                    </button>
+                      <option value="Food">Ăn uống</option>
+                      <option value="Housing">Nhà trọ</option>
+                      <option value="Cafe">Cafe</option>
+                      <option value="Play">Vui chơi</option>
+                      <option value="Other">Khác</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Địa chỉ</label>
+                    <input
+                      type="text"
+                      value={editAddress}
+                      onChange={(e) => setEditAddress(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Mô tả</label>
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    required
+                    rows="4"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Link video ngắn (tùy chọn)</label>
+                  <input
+                    type="url"
+                    value={editVideoUrl}
+                    onChange={(e) => setEditVideoUrl(e.target.value)}
+                    placeholder="https://... (link video .mp4)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-50 transition"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
+                  >
+                    {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                {/* Media Gallery / Slideshow */}
+                {location.media && location.media.length > 0 ? (
+                  <div className="pd-media-carousel">
+                    <div className="pd-media-viewer" style={{ height: '320px', position: 'relative' }}>
+                      <img
+                        src={location.media[activeMediaIndex].url}
+                        alt={`Media ${activeMediaIndex + 1}`}
+                        className="pd-media-main-img"
+                        onClick={() => setIsLightboxOpen(true)}
+                        style={{ cursor: 'zoom-in' }}
+                      />
+
+                      <button
+                        onClick={() => setIsLightboxOpen(true)}
+                        className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors z-20 border-none"
+                        title="Phóng to ảnh"
+                        style={{ cursor: 'pointer' }}
+                      >
+                        🔍
+                      </button>
+
+                      {location.media.length > 1 && (
+                        <>
+                          <button
+                            onClick={() => setActiveMediaIndex((prev) => (prev === 0 ? location.media.length - 1 : prev - 1))}
+                            className="pd-carousel-nav pd-carousel-prev"
+                            title="Ảnh trước"
+                          >
+                            ‹
+                          </button>
+                          <button
+                            onClick={() => setActiveMediaIndex((prev) => (prev === location.media.length - 1 ? 0 : prev + 1))}
+                            className="pd-carousel-nav pd-carousel-next"
+                            title="Ảnh sau"
+                          >
+                            ›
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    {location.media.length > 1 && (
+                      <div className="pd-media-thumbnails">
+                        {location.media.map((item, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setActiveMediaIndex(idx)}
+                            className={`pd-thumbnail-btn ${idx === activeMediaIndex ? 'active' : ''}`}
+                          >
+                            <img src={item.url} alt={`Thumbnail ${idx + 1}`} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : location.imageUrl ? (
+                  <div className="relative h-72 w-full bg-gray-200">
+                    <img src={location.imageUrl} alt={location.name} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="relative h-72 w-full bg-gray-200 flex items-center justify-center text-gray-400">No image</div>
+                )}
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                        {location.name}
+                        {canEdit && (
+                          <span className="inline-flex gap-2 text-xs font-semibold normal-case">
+                            <button onClick={startEditing} className="text-blue-600 hover:text-blue-800 border-none bg-transparent cursor-pointer font-semibold">Sửa</button>
+                            <span className="text-gray-300">|</span>
+                            <button onClick={handleDelete} className="text-red-600 hover:text-red-800 border-none bg-transparent cursor-pointer font-semibold">Xóa</button>
+                          </span>
+                        )}
+                      </h1>
+                    </div>
+                    {location.reviewCount >= 3 && (
+                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">✓ Verified</span>
+                    )}
+                  </div>
+                  <p className="text-gray-600 mb-1"><span className="font-semibold">Danh mục:</span> {location.category}</p>
+                  <p className="text-gray-600 mb-1"><span className="font-semibold">Địa chỉ:</span> {location.address}</p>
+                  <p className="text-gray-700 mt-4">{location.description}</p>
+                  <div className="mt-4 flex items-center">
+                    <span className="font-semibold text-gray-700 mr-2">Đánh giá:</span>
+                    <RatingStars rating={location.averageRating || 0} />
+                    <span className="ml-2 text-gray-500">({location.reviewCount} nhận xét)</span>
+                  </div>
+
+                  {/* Owner/Admin upload more images section */}
+                  {canAddMore && (
+                    <div className="mt-6 border-t border-gray-100 pt-6">
+                      {showUploadPanel ? (
+                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                          <h3 className="text-sm font-bold text-gray-700 mb-2">Thêm hình ảnh minh họa</h3>
+                          <p className="text-xs text-gray-500 mb-3">Bạn có thể đăng tải tối đa {9 - currentMediaCount} ảnh nữa (tối đa 9 ảnh cho mỗi địa điểm).</p>
+                          
+                          <div className="flex flex-col gap-3">
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              onChange={handleUploadPanelFileChange}
+                              className="text-xs text-gray-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 cursor-pointer"
+                            />
+                            
+                            {/* Preview grid */}
+                            {additionalFiles.length > 0 && (
+                              <div className="grid grid-cols-4 gap-2 mt-2">
+                                {additionalFiles.map((fileObj, idx) => (
+                                  <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                                    <img src={fileObj.preview} alt="preview" className="w-full h-full object-cover" />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        URL.revokeObjectURL(fileObj.preview);
+                                        setAdditionalFiles(prev => prev.filter((_, i) => i !== idx));
+                                      }}
+                                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-bold shadow-sm"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="flex gap-2 justify-end mt-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowUploadPanel(false);
+                                  setAdditionalFiles([]);
+                                }}
+                                className="px-3 py-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 transition"
+                              >
+                                Hủy
+                              </button>
+                              <button
+                                type="button"
+                                disabled={uploadingMore || additionalFiles.length === 0}
+                                onClick={handleUploadMoreImages}
+                                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white text-xs font-bold rounded-xl shadow-sm transition"
+                              >
+                                {uploadingMore ? `Đang tải...` : 'Tải lên'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setShowUploadPanel(true)}
+                          className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition"
+                        >
+                          📷 Thêm hình ảnh minh họa địa điểm
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
 
           {/* ───── Video Short ───── */}
