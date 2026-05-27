@@ -598,6 +598,7 @@ export default function LocationDetail() {
                     transition: isPanning ? 'none' : 'transform 0.2s cubic-bezier(0.1, 0.76, 0.55, 0.94)',
                     cursor: lightboxScale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'zoom-in',
                     userSelect: 'none',
+                    touchAction: lightboxScale > 1 ? 'none' : 'auto',
                   }}
                   onMouseDown={handlePanStart}
                   onTouchStart={handlePanStart}
