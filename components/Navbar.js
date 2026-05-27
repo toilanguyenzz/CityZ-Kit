@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { auth, onAuthStateChanged } from '@/lib/firebase';
@@ -12,15 +12,29 @@ export default function Navbar() {
   const [user, setUser] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isCommunityOpen, setIsCommunityOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const { isAdmin } = useUserRole();
+  const communityRef = useRef(null);
+  const communityTimeout = useRef(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
     return () => unsubscribe();
+  }, []);
+
+  // Close community dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (communityRef.current && !communityRef.current.contains(e.target)) {
+        setIsCommunityOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleLogout = async () => {
@@ -35,13 +49,14 @@ export default function Navbar() {
 
   const avatarUrl = user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || user?.email || 'U')}&background=3b82f6&color=fff`;
 
-  const navItems = [
+  /* ── Primary nav items (flat links) ─────────────── */
+  const primaryItems = [
     {
       name: 'Khám phá',
       href: '/dashboard',
       icon: (active) => (
         <svg className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-500'} transition-colors`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7" />
         </svg>
       )
     },
@@ -80,8 +95,53 @@ export default function Navbar() {
           <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
         </svg>
       )
-    }
+    },
   ];
+
+  /* ── Community sub-items (inside dropdown) ──────── */
+  const communityItems = [
+    {
+      name: 'Tìm bạn đồng hành',
+      href: '/buddy-finder',
+      emoji: '🤝',
+      desc: 'Kết nối bạn ở ghép, bạn cùng học',
+      color: 'text-green-600 bg-green-50',
+    },
+    {
+      name: 'Chợ đồ cũ',
+      href: '/marketplace',
+      emoji: '🛍️',
+      desc: 'Mua bán đồ cũ sinh viên giá rẻ',
+      color: 'text-blue-600 bg-blue-50',
+    },
+    {
+      name: 'An toàn & Cảnh báo',
+      href: '/safety',
+      emoji: '🛡️',
+      desc: 'Báo cáo lừa đảo, vùng nguy hiểm',
+      color: 'text-red-600 bg-red-50',
+    },
+    {
+      name: 'Sự kiện sinh viên',
+      href: '/events',
+      emoji: '📅',
+      desc: 'Lịch sự kiện từ các trường ĐH',
+      color: 'text-purple-600 bg-purple-50',
+    },
+  ];
+
+  const isCommunityActive = communityItems.some(item => pathname === item.href);
+
+  const handleCommunityEnter = () => {
+    clearTimeout(communityTimeout.current);
+    setIsCommunityOpen(true);
+  };
+
+  const handleCommunityLeave = () => {
+    communityTimeout.current = setTimeout(() => {
+      setIsCommunityOpen(false);
+    }, 200);
+  };
 
   return (
     <nav className="bg-white/80 backdrop-blur-md border-b border-gray-100/85 sticky top-0 z-50 transition-all duration-300">
@@ -103,8 +163,8 @@ export default function Navbar() {
 
           {/* Desktop Navigation Links */}
           {user && (
-            <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
-              {navItems.map((item) => {
+            <div className="hidden md:flex items-center space-x-1 lg:space-x-1.5">
+              {primaryItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
@@ -124,6 +184,69 @@ export default function Navbar() {
                   </Link>
                 );
               })}
+
+              {/* Community Mega Dropdown */}
+              <div
+                ref={communityRef}
+                className="relative"
+                onMouseEnter={handleCommunityEnter}
+                onMouseLeave={handleCommunityLeave}
+              >
+                <button
+                  onClick={() => setIsCommunityOpen(!isCommunityOpen)}
+                  className={`group flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 relative ${
+                    isCommunityActive || isCommunityOpen
+                      ? 'text-blue-600 bg-blue-50/50'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className={`w-5 h-5 ${isCommunityActive || isCommunityOpen ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-500'} transition-colors`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <span>Cộng đồng</span>
+                  <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isCommunityOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                  {isCommunityActive && (
+                    <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-blue-600 rounded-full" />
+                  )}
+                </button>
+
+                {/* Dropdown Panel */}
+                {isCommunityOpen && (
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-72 bg-white rounded-xl shadow-xl border border-gray-100/80 py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="px-3 py-1.5 mb-1">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Kết nối & Hỗ trợ</p>
+                    </div>
+                    {communityItems.map((item) => {
+                      const isActive = pathname === item.href;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setIsCommunityOpen(false)}
+                          className={`flex items-center gap-3 mx-1.5 px-3 py-2.5 rounded-lg transition-all duration-150 ${
+                            isActive
+                              ? 'bg-blue-50 ring-1 ring-blue-100'
+                              : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className={`flex items-center justify-center w-9 h-9 rounded-lg text-lg ${item.color}`}>
+                            {item.emoji}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-semibold ${isActive ? 'text-blue-700' : 'text-gray-800'}`}>{item.name}</p>
+                            <p className="text-xs text-gray-400 truncate">{item.desc}</p>
+                          </div>
+                          {isActive && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0"></span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -238,7 +361,8 @@ export default function Navbar() {
 
       {/* Mobile Menu Dropdown */}
       {user && isOpen && (
-        <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-lg px-4 py-3 space-y-1 z-45">
+        <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-lg px-4 py-3 space-y-1 z-45 max-h-[calc(100vh-4rem)] overflow-y-auto">
+          {/* User info */}
           <div className="flex items-center space-x-3 px-3 py-2 bg-gray-50 rounded-xl mb-2">
             <img 
               src={avatarUrl} 
@@ -252,8 +376,10 @@ export default function Navbar() {
               <p className="text-xs text-gray-500 truncate">{user.email}</p>
             </div>
           </div>
-          
-          {navItems.map((item) => {
+
+          {/* Primary nav section */}
+          <p className="px-3 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">Chính</p>
+          {primaryItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
@@ -271,20 +397,52 @@ export default function Navbar() {
               </Link>
             );
           })}
-          
+
+          {/* Community section */}
+          <div className="border-t border-gray-100 pt-2 mt-2">
+            <p className="px-3 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">Cộng đồng</p>
+            {communityItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-base font-medium transition-colors ${
+                    isActive 
+                      ? 'text-blue-600 bg-blue-50/50' 
+                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className={`flex items-center justify-center w-8 h-8 rounded-lg text-base ${item.color}`}>
+                    {item.emoji}
+                  </span>
+                  <div>
+                    <span>{item.name}</span>
+                    <p className="text-xs text-gray-400 font-normal">{item.desc}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Admin */}
           {isAdmin && (
-            <Link
-              href="/admin"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-base font-semibold text-purple-600 hover:bg-purple-50 transition-colors"
-            >
-              <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              <span>🛡️ Quản trị</span>
-            </Link>
+            <div className="border-t border-gray-100 pt-2 mt-2">
+              <Link
+                href="/admin"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-base font-semibold text-purple-600 hover:bg-purple-50 transition-colors"
+              >
+                <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span>🛡️ Quản trị</span>
+              </Link>
+            </div>
           )}
           
+          {/* Logout */}
           <div className="border-t border-gray-100 pt-2 mt-2">
             <button
               onClick={() => { handleLogout(); setIsOpen(false); }}
@@ -301,4 +459,3 @@ export default function Navbar() {
     </nav>
   );
 }
-
