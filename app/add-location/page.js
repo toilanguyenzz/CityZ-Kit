@@ -109,6 +109,7 @@ export default function AddLocation() {
     videoUrl: '',
   });
   const [coords, setCoords] = useState({ lat: 10.7769, lng: 106.7009 }); // Mặc định TT TP.HCM
+  const [isMapManuallyPinned, setIsMapManuallyPinned] = useState(false);
   const [rating, setRating] = useState(5);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -148,6 +149,7 @@ export default function AddLocation() {
     const value = e.target.value;
     setFormData({ ...formData, address: value });
     setShowSuggestions(true);
+    setIsMapManuallyPinned(false); // User modified the text address manually
 
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);
@@ -183,12 +185,14 @@ export default function AddLocation() {
   const handleSelectSuggestion = (suggestion) => {
     setFormData({ ...formData, address: suggestion.display_name });
     setCoords({ lat: suggestion.lat, lng: suggestion.lon });
+    setIsMapManuallyPinned(false); // Synced with suggestion
     setSuggestions([]);
     setShowSuggestions(false);
   };
 
   const handleMapLocationChange = async (lat, lng) => {
     setCoords({ lat, lng });
+    setIsMapManuallyPinned(true); // User manually clicked/dragged the map
     try {
       setGeocoding(true);
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
@@ -221,6 +225,7 @@ export default function AddLocation() {
         
         // Cập nhật tọa độ
         setCoords({ lat: latitude, lng: longitude });
+        setIsMapManuallyPinned(true); // Obtained from hardware GPS
         
         // Reverse geocode để lấy địa chỉ chữ
         try {
@@ -287,6 +292,25 @@ export default function AddLocation() {
       return;
     }
     setLoading(true);
+    let finalCoords = { ...coords };
+    if (!isMapManuallyPinned && formData.address && formData.address.length >= 5) {
+      setUploadStatus('Đang đồng bộ bản đồ...');
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(formData.address)}&countrycodes=vn`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            finalCoords = {
+              lat: parseFloat(data[0].lat),
+              lng: parseFloat(data[0].lon)
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Geocoding on submit failed:', err);
+      }
+    }
+
     setUploadStatus('Bắt đầu tải ảnh...');
     try {
       let creatorName = user.displayName || user.email?.split('@')[0] || 'User';
@@ -319,8 +343,8 @@ export default function AddLocation() {
 
       const newLocationId = await addLocation({
         ...formData,
-        latitude: coords.lat,
-        longitude: coords.lng,
+        latitude: finalCoords.lat,
+        longitude: finalCoords.lng,
         createdByName: creatorName,
         createdByAvatar: creatorAvatar,
       }, null, user.uid, role, uploadedMedia);

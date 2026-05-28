@@ -131,6 +131,7 @@ export default function LocationDetail() {
   const [editDescription, setEditDescription] = useState('');
   const [editVideoUrl, setEditVideoUrl] = useState('');
   const [editCoords, setEditCoords] = useState({ lat: 10.7769, lng: 106.7009 });
+  const [isEditMapManuallyPinned, setIsEditMapManuallyPinned] = useState(false);
   const [currentMediaList, setCurrentMediaList] = useState([]);
   const [editMediaFiles, setEditMediaFiles] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -144,6 +145,7 @@ export default function LocationDetail() {
     setEditDescription(location.description || '');
     setEditVideoUrl(location.videoUrl || '');
     setEditCoords({ lat: location.latitude || 10.7769, lng: location.longitude || 106.7009 });
+    setIsEditMapManuallyPinned(false);
     
     let initialMedia = location.media || [];
     if (initialMedia.length === 0 && location.imageUrl) {
@@ -162,6 +164,24 @@ export default function LocationDetail() {
 
     setSaving(true);
     const toastId = toast.loading('Đang lưu thay đổi...');
+    let finalCoords = { ...editCoords };
+    if (!isEditMapManuallyPinned && editAddress.trim()) {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(editAddress.trim())}&countrycodes=vn`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            finalCoords = {
+              lat: parseFloat(data[0].lat),
+              lng: parseFloat(data[0].lon)
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Geocoding on edit failed:', err);
+      }
+    }
+
     try {
       // Upload any new images
       const uploadedItems = [];
@@ -181,8 +201,8 @@ export default function LocationDetail() {
         address: editAddress.trim(),
         description: editDescription.trim(),
         videoUrl: editVideoUrl.trim() || null,
-        latitude: editCoords.lat,
-        longitude: editCoords.lng,
+        latitude: finalCoords.lat,
+        longitude: finalCoords.lng,
         media: mergedMedia,
         imageUrl: mergedMedia.length > 0 ? mergedMedia[0].url : null,
       };
@@ -458,7 +478,10 @@ export default function LocationDetail() {
                     <input
                       type="text"
                       value={editAddress}
-                      onChange={(e) => setEditAddress(e.target.value)}
+                      onChange={(e) => {
+                        setEditAddress(e.target.value);
+                        setIsEditMapManuallyPinned(false);
+                      }}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
                     />
@@ -494,7 +517,10 @@ export default function LocationDetail() {
                       <MapComponent
                         latitude={editCoords.lat}
                         longitude={editCoords.lng}
-                        onChangeLocation={(lat, lng) => setEditCoords({ lat, lng })}
+                        onChangeLocation={(lat, lng) => {
+                          setEditCoords({ lat, lng });
+                          setIsEditMapManuallyPinned(true);
+                        }}
                       />
                     </div>
                   </div>
