@@ -858,3 +858,494 @@
 }
 
 
+/* ═══════════════════════════════════════════════════════════
+   TASTE DNA — Radar Chart + Tags
+   ═══════════════════════════════════════════════════════════ */
+
+.taste-dna-wrap {
+  padding: 0 2rem;
+  margin-bottom: 2rem;
+}
+
+.taste-dna-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: #8e8e8e;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.taste-dna-empty-icon {
+  font-size: 2.5rem;
+  animation: bounce 2s infinite;
+}
+
+.taste-dna-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.taste-dna-personality {
+  font-size: 1.15rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #6366f1, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.taste-dna-content {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+.taste-dna-chart {
+  flex-shrink: 0;
+  width: 240px;
+  height: 240px;
+}
+
+.taste-dna-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.taste-dna-polygon {
+  animation: tasteReveal 1s ease-out forwards;
+  transform-origin: center;
+}
+
+@keyframes tasteReveal {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.taste-dna-dot {
+  animation: dotPop 0.4s ease-out backwards;
+}
+
+.taste-dna-dot:nth-child(1) { animation-delay: 0.6s; }
+.taste-dna-dot:nth-child(2) { animation-delay: 0.7s; }
+.taste-dna-dot:nth-child(3) { animation-delay: 0.8s; }
+.taste-dna-dot:nth-child(4) { animation-delay: 0.9s; }
+.taste-dna-dot:nth-child(5) { animation-delay: 1s; }
+
+@keyframes dotPop {
+  from {
+    r: 0;
+    opacity: 0;
+  }
+  to {
+    r: 4;
+    opacity: 1;
+  }
+}
+
+.taste-dna-label {
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.taste-dna-tags {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.taste-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 12px;
+  background: #f8f9ff;
+  border: 1px solid #e8eaff;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.taste-tag:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+}
+
+.taste-tag-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.taste-tag-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.taste-tag-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.taste-tag-bar-bg {
+  width: 100%;
+  height: 5px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.taste-tag-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #a78bfa);
+  border-radius: 3px;
+  transition: width 1.2s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.taste-tag-pct {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #6366f1;
+}
+
+@media (max-width: 735px) {
+  .taste-dna-wrap {
+    padding: 0 1.5rem;
+  }
+
+  .taste-dna-content {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .taste-dna-chart {
+    width: 200px;
+    height: 200px;
+  }
+
+  .taste-dna-tags {
+    width: 100%;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   SHARED VIBES — Glassmorphism "Điểm chung" Card
+   ═══════════════════════════════════════════════════════════ */
+
+.shared-vibes-wrap {
+  padding: 0 2rem;
+  margin-bottom: 2rem;
+}
+
+.shared-vibes-card {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.08));
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 16px;
+  padding: 1.5rem;
+  animation: vibeSlideIn 0.6s ease-out;
+}
+
+@keyframes vibeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.shared-vibes-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.shared-vibes-icon {
+  font-size: 1.8rem;
+  animation: vibeWave 2s ease-in-out infinite;
+}
+
+@keyframes vibeWave {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(15deg); }
+  75% { transform: rotate(-10deg); }
+}
+
+.shared-vibes-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.shared-vibes-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.shared-vibe-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #374151;
+  animation: vibeChipIn 0.4s ease-out backwards;
+}
+
+.shared-vibe-emoji {
+  font-size: 1rem;
+}
+
+.shared-vibes-empty {
+  font-size: 0.88rem;
+  color: #6b7280;
+  margin: 0;
+  font-style: italic;
+}
+
+@media (max-width: 735px) {
+  .shared-vibes-wrap {
+    padding: 0 1.5rem;
+  }
+}
+
+@keyframes vibeChipIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   INSIGHTS CARD — Fun facts grid
+   ═══════════════════════════════════════════════════════════ */
+
+.insights-wrap {
+  padding: 0 2rem;
+  margin-bottom: 2rem;
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.insight-card {
+  display: flex;
+  gap: 0.85rem;
+  padding: 1rem 1.15rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fafbff, #f0f1ff);
+  border: 1px solid #e8eaff;
+  transition: transform 0.2s, box-shadow 0.2s;
+  animation: insightFadeIn 0.5s ease-out backwards;
+}
+
+.insight-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.1);
+}
+
+@keyframes insightFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.insight-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 0.15rem;
+}
+
+.insight-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.insight-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #8e8e8e;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.insight-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.insight-link {
+  color: #6366f1;
+  text-decoration: none;
+}
+
+.insight-link:hover {
+  text-decoration: underline;
+}
+
+.insight-comment {
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.3;
+}
+
+@media (max-width: 735px) {
+  .insights-wrap {
+    padding: 0 1.5rem;
+  }
+
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   MILESTONE TIMELINE — Vertical Timeline
+   ═══════════════════════════════════════════════════════════ */
+
+.milestone-wrap {
+  padding: 0 2rem;
+  margin-bottom: 2rem;
+}
+
+.milestone-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.milestone-item {
+  display: flex;
+  gap: 1rem;
+  animation: milestoneSlide 0.5s ease-out backwards;
+}
+
+.milestone-dot-line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 40px;
+}
+
+.milestone-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #eff0ff, #e0e2ff);
+  border: 2px solid #c7c9ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+  z-index: 1;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.milestone-item:hover .milestone-dot {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.milestone-line {
+  width: 2px;
+  flex: 1;
+  background: linear-gradient(to bottom, #c7c9ff, #e5e7eb);
+  min-height: 20px;
+}
+
+.milestone-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding-bottom: 1.5rem;
+  min-width: 0;
+}
+
+.milestone-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.milestone-desc {
+  font-size: 0.82rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
+}
+
+.milestone-date {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  margin-top: 0.1rem;
+}
+
+@keyframes milestoneSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 735px) {
+  .milestone-wrap {
+    padding: 0 1.5rem;
+  }
+
+  .milestone-desc {
+    max-width: 200px;
+  }
+}

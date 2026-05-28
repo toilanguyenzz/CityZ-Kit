@@ -1,11 +1,11 @@
 'use client';
 
 import '@/app/styles/profile.css';
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { auth, db, onAuthStateChanged } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { 
   updateUserAvatar, 
   updateUserProfile, 
@@ -22,13 +22,19 @@ import {
   getBookmarkedPosts,
   getBookmarkedLocations,
   bookmarkLocation,
-  bookmarkPost
+  bookmarkPost,
+  computeTasteDNA,
+  computeSharedVibes,
 } from '@/lib/firestore';
 import { compressAndToBase64 } from '@/lib/imageHelper';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import RatingStars from '@/components/RatingStars';
 import FlairBadge from '@/components/FlairBadge';
+import TasteDNA from '@/components/TasteDNA';
+import SharedVibes from '@/components/SharedVibes';
+import InsightsCard from '@/components/InsightsCard';
+import MilestoneTimeline from '@/components/MilestoneTimeline';
 import toast from 'react-hot-toast';
 
 
@@ -101,6 +107,10 @@ function ProfileContent() {
   const [savedLocations, setSavedLocations] = useState([]);
   const [loadingContent, setLoadingContent] = useState(false);
 
+  // Personalization states
+  const [allLocations, setAllLocations] = useState([]);
+  const [myVibeData, setMyVibeData] = useState(null); // current user's data for SharedVibes
+
   const displayPosts = isOwnProfile ? posts : posts.filter(p => p.status === 'approved' || !p.status);
   const displayLocations = isOwnProfile ? locations : locations.filter(l => l.status === 'approved' || !l.status);
 
@@ -172,6 +182,33 @@ function ProfileContent() {
 
           // Fetch user-generated contents
           await fetchUserContents(targetUid);
+
+          // Fetch all locations for TasteDNA category mapping
+          try {
+            const locsSnap = await getDocs(collection(db, 'locations'));
+            setAllLocations(locsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          } catch (e) { console.error('Error fetching all locations:', e); }
+
+          // If viewing someone else's profile, fetch current user's data for SharedVibes
+          if (u && profileUid && u.uid !== profileUid) {
+            try {
+              const [myPosts, myLocs, myRevs] = await Promise.all([
+                getUserPosts(u.uid), getUserLocations(u.uid), getUserReviews(u.uid)
+              ]);
+              const myStats = await getUserStats(u.uid);
+              const myXp = calculateXPFromStats(myStats);
+              const myLevel = getLevelFromXP(myXp);
+              const locsSnap = await getDocs(collection(db, 'locations'));
+              const allLocs = locsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+              const myDna = computeTasteDNA(myLocs, myPosts, myRevs, allLocs);
+              setMyVibeData({
+                tasteScores: myDna.scores,
+                reviews: myRevs,
+                allLocations: allLocs,
+                level: myLevel.level,
+              });
+            } catch (e) { console.error('Error fetching my vibe data:', e); }
+          }
 
           // Trigger progress bar animation
           setTimeout(() => setXpAnimated(true), 350);
@@ -542,6 +579,43 @@ function ProfileContent() {
 
           <div className="pf-section-divider" />
 
+          {/* 🧬 Taste DNA Section */}
+          <TasteDNA
+            locations={displayLocations}
+            posts={displayPosts}
+            reviews={reviews}
+            allLocations={allLocations}
+          />
+
+          <div className="pf-section-divider" />
+
+          {/* 🤝 Shared Vibes — only when viewing someone else's profile */}
+          {!isOwnProfile && user && (() => {
+            const theirDna = computeTasteDNA(displayLocations, displayPosts, reviews, allLocations);
+            const theirVibeData = {
+              tasteScores: theirDna.scores,
+              reviews: reviews,
+              allLocations: allLocations,
+              level: levelInfo.level,
+            };
+            return (
+              <SharedVibes
+                myData={myVibeData}
+                theirData={theirVibeData}
+                theirName={displayName}
+              />
+            );
+          })()}
+
+          {/* 📊 Insights Card */}
+          <InsightsCard
+            locations={displayLocations}
+            posts={displayPosts}
+            reviews={reviews}
+          />
+
+          <div className="pf-section-divider" />
+
           {/* Badges Story Highlight Section */}
           <div className="pf-badges-wrap">
             <h2 className="pf-section-title">🏆 Danh hiệu cộng đồng ({earnedBadgeNames.length}/{ALL_BADGES.length})</h2>
@@ -565,6 +639,14 @@ function ProfileContent() {
               })}
             </div>
           </div>
+
+          {/* 🏅 Milestone Timeline */}
+          <MilestoneTimeline
+            userData={userData}
+            locations={displayLocations}
+            posts={displayPosts}
+            reviews={reviews}
+          />
 
           {/* Join Date & Meta information */}
           <div className="pf-footer-meta">

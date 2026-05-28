@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import useUserRole from '@/lib/useUserRole';
-import { getPendingLocations, getPendingPosts, moderateItem } from '@/lib/firestore';
+import { getPendingLocations, getPendingPosts, moderateItem, getUserProfile } from '@/lib/firestore';
 import toast from 'react-hot-toast';
 
 export default function AdminPage() {
@@ -31,8 +31,44 @@ export default function AdminPage() {
         getPendingLocations(),
         getPendingPosts(),
       ]);
-      setPendingLocations(locations);
-      setPendingPosts(posts);
+
+      // Thu thập tất cả userId của người đăng
+      const userIds = new Set();
+      locations.forEach(loc => {
+        if (loc.createdBy) userIds.add(loc.createdBy);
+      });
+      posts.forEach(post => {
+        if (post.userId) userIds.add(post.userId);
+      });
+
+      // Tải song song thông tin profile của từng người dùng từ Firestore
+      const profileMap = {};
+      await Promise.all(
+        Array.from(userIds).map(async (uid) => {
+          try {
+            const profile = await getUserProfile(uid);
+            if (profile) {
+              profileMap[uid] = profile;
+            }
+          } catch (err) {
+            console.error(`Lỗi tải profile user ${uid}:`, err);
+          }
+        })
+      );
+
+      // Gắn thông tin profile vào từng item chờ duyệt
+      const locationsWithAuthor = locations.map(loc => ({
+        ...loc,
+        authorProfile: profileMap[loc.createdBy] || null
+      }));
+
+      const postsWithAuthor = posts.map(post => ({
+        ...post,
+        authorProfile: profileMap[post.userId] || null
+      }));
+
+      setPendingLocations(locationsWithAuthor);
+      setPendingPosts(postsWithAuthor);
     } catch (error) {
       toast.error('Lỗi khi tải dữ liệu chờ duyệt');
       console.error(error);
@@ -169,49 +205,100 @@ export default function AdminPage() {
             </div>
           ) : (
             <div>
-              {currentItems.map((item) => (
-                <div key={item.id} className="admin-item">
-                  <div className="admin-item-info">
-                    <h3>{activeTab === 'locations' ? item.name : item.title}</h3>
-                    <div className="admin-item-meta">
-                      {activeTab === 'locations' && (
-                        <>
-                          <span>🏷️ {getCategoryLabel(item.category)}</span>
-                          <span>📍 {item.address}</span>
-                        </>
+              {currentItems.map((item) => {
+                const authorId = activeTab === 'locations' ? item.createdBy : item.userId;
+                const authorProfile = item.authorProfile;
+                
+                // Fallbacks cho avatar và tên hiển thị đối với admin
+                const authorName = activeTab === 'locations'
+                  ? (authorProfile?.name || item.createdByName || 'Người dùng ẩn danh')
+                  : (authorProfile?.name || item.realAuthorName || item.authorName || 'Người dùng ẩn danh');
+                
+                const authorAvatar = activeTab === 'locations'
+                  ? (authorProfile?.avatarUrl || item.createdByAvatar)
+                  : (authorProfile?.avatarUrl || item.authorAvatar);
+
+                return (
+                  <div key={item.id} className="admin-item">
+                    <div className="admin-item-info">
+                      <h3>{activeTab === 'locations' ? item.name : item.title}</h3>
+                      <div className="admin-item-meta">
+                        {activeTab === 'locations' && (
+                          <>
+                            <span>🏷️ {getCategoryLabel(item.category)}</span>
+                            <span>📍 {item.address}</span>
+                          </>
+                        )}
+                        {activeTab === 'posts' && (
+                          <span>
+                            ✍️ Hiển thị: {item.authorName}{' '}
+                            {item.isAnonymous && (
+                              <span style={{ color: '#ef4444', fontWeight: 600 }}>
+                                (Ẩn danh)
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        <span>📅 {formatDate(item.createdAt)}</span>
+                      </div>
+                      <p className="admin-item-preview">
+                        {activeTab === 'locations' ? item.description : item.content}
+                      </p>
+
+                      {/* Thông tin người đăng hiển thị cụ thể cho Admin */}
+                      {authorId && (
+                        <div className="admin-item-author">
+                          <div className="admin-author-avatar-wrapper">
+                            {authorAvatar ? (
+                              <img src={authorAvatar} className="admin-author-avatar" alt="avatar" />
+                            ) : (
+                              <span>{authorName.charAt(0).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div className="admin-author-info">
+                            <div className="admin-author-row">
+                              <span className="admin-author-label">Người đăng:</span>
+                              <Link 
+                                href={`/profile?uid=${authorId}`} 
+                                className="admin-author-name-link"
+                              >
+                                {authorName}
+                              </Link>
+                              {activeTab === 'posts' && item.isAnonymous && (
+                                <span className="admin-badge-anon" title="Bài viết này hiển thị ẩn danh với người dùng thông thường">
+                                  🕵️ Đăng ẩn danh
+                                </span>
+                              )}
+                            </div>
+                            <div className="admin-author-meta">
+                              {authorProfile?.email && (
+                                <span className="admin-author-email">📧 {authorProfile.email}</span>
+                              )}
+                              <span className="admin-author-role">
+                                🔑 Quyền: {authorProfile?.role === 'admin' ? 'Quản trị viên' : 'Sinh viên'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       )}
-                      {activeTab === 'posts' && (
-                        <span>
-                          ✍️ {item.authorName}{' '}
-                          {item.isAnonymous && (
-                            <span style={{ color: '#ef4444', fontWeight: 600 }}>
-                              (Ẩn danh bởi: {item.realAuthorName || 'Chưa rõ'})
-                            </span>
-                          )}
-                        </span>
-                      )}
-                      <span>📅 {formatDate(item.createdAt)}</span>
                     </div>
-                    <p className="admin-item-preview">
-                      {activeTab === 'locations' ? item.description : item.content}
-                    </p>
+                    <div className="admin-actions">
+                      <button
+                        className="admin-btn admin-btn-approve"
+                        onClick={() => handleModerate(currentCollection, item.id, 'approved')}
+                      >
+                        ✅ Duyệt
+                      </button>
+                      <button
+                        className="admin-btn admin-btn-reject"
+                        onClick={() => handleModerate(currentCollection, item.id, 'rejected')}
+                      >
+                        ❌ Từ chối
+                      </button>
+                    </div>
                   </div>
-                  <div className="admin-actions">
-                    <button
-                      className="admin-btn admin-btn-approve"
-                      onClick={() => handleModerate(currentCollection, item.id, 'approved')}
-                    >
-                      ✅ Duyệt
-                    </button>
-                    <button
-                      className="admin-btn admin-btn-reject"
-                      onClick={() => handleModerate(currentCollection, item.id, 'rejected')}
-                    >
-                      ❌ Từ chối
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
