@@ -363,19 +363,26 @@ export default function Navbar() {
       {user && isOpen && (
         <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-lg px-4 py-3 space-y-1 z-45 max-h-[calc(100vh-4rem)] overflow-y-auto">
           {/* User info */}
-          <div className="flex items-center space-x-3 px-3 py-2 bg-gray-50 rounded-xl mb-2">
+          <Link 
+            href="/profile"
+            onClick={() => setIsOpen(false)}
+            className="flex items-center space-x-3 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-xl mb-2 transition-colors cursor-pointer group"
+          >
             <img 
               src={avatarUrl} 
               alt="Avatar" 
-              className="w-10 h-10 rounded-full border border-gray-200" 
+              className="w-10 h-10 rounded-full border border-gray-200 transition-transform group-hover:scale-105" 
             />
-            <div className="overflow-hidden">
-              <p className="text-sm font-semibold text-gray-800 truncate">
+            <div className="overflow-hidden flex-1">
+              <p className="text-sm font-semibold text-gray-800 truncate group-hover:text-blue-600 transition-colors">
                 {user.displayName || 'Người dùng CityZ'}
               </p>
               <p className="text-xs text-gray-500 truncate">{user.email}</p>
             </div>
-          </div>
+            <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
 
           {/* Primary nav section */}
           <p className="px-3 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">Chính</p>
