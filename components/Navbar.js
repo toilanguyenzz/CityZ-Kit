@@ -3,13 +3,15 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { auth, onAuthStateChanged } from '@/lib/firebase';
+import { auth, db, onAuthStateChanged } from '@/lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import useUserRole from '@/lib/useUserRole';
 import toast from 'react-hot-toast';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
+  const [dbUser, setDbUser] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCommunityOpen, setIsCommunityOpen] = useState(false);
@@ -20,10 +22,30 @@ export default function Navbar() {
   const communityTimeout = useRef(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    let unsubscribeDoc = null;
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        const userRef = doc(db, 'users', currentUser.uid);
+        unsubscribeDoc = onSnapshot(userRef, (snapshot) => {
+          if (snapshot.exists()) {
+            setDbUser(snapshot.data());
+          }
+        }, (error) => {
+          console.error("Error listening to user doc:", error);
+        });
+      } else {
+        setDbUser(null);
+        if (unsubscribeDoc) {
+          unsubscribeDoc();
+          unsubscribeDoc = null;
+        }
+      }
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeDoc) unsubscribeDoc();
+    };
   }, []);
 
   // Close community dropdown when clicking outside
@@ -47,7 +69,7 @@ export default function Navbar() {
     }
   };
 
-  const avatarUrl = user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || user?.email || 'U')}&background=3b82f6&color=fff`;
+  const avatarUrl = dbUser?.avatarUrl || user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(dbUser?.name || user?.displayName || user?.email || 'U')}&background=3b82f6&color=fff`;
 
   /* ── Primary nav items (flat links) ─────────────── */
   const primaryItems = [
@@ -266,7 +288,7 @@ export default function Navbar() {
                       className="w-8 h-8 rounded-full border border-gray-200" 
                     />
                     <span className="hidden lg:block text-sm font-medium text-gray-700 max-w-[120px] truncate">
-                      {user.displayName || user.email?.split('@')[0]}
+                      {dbUser?.name || user.displayName || user.email?.split('@')[0]}
                     </span>
                     <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -279,7 +301,7 @@ export default function Navbar() {
                       <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-20">
                         <div className="px-4 py-2.5 border-b border-gray-100">
                           <p className="text-sm font-semibold text-gray-800 truncate">
-                            {user.displayName || 'Người dùng CityZ'}
+                            {dbUser?.name || user.displayName || 'Người dùng CityZ'}
                           </p>
                           <p className="text-xs text-gray-500 truncate">{user.email}</p>
                         </div>
@@ -375,7 +397,7 @@ export default function Navbar() {
             />
             <div className="overflow-hidden flex-1">
               <p className="text-sm font-semibold text-gray-800 truncate group-hover:text-blue-600 transition-colors">
-                {user.displayName || 'Người dùng CityZ'}
+                {dbUser?.name || user.displayName || 'Người dùng CityZ'}
               </p>
               <p className="text-xs text-gray-500 truncate">{user.email}</p>
             </div>

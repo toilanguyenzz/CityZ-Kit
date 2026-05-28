@@ -76,6 +76,8 @@ export default function Profile() {
   const [stats, setStats] = useState({ locationCount: 0, reviewCount: 0, postCount: 0, totalUpvotes: 0 });
   const [xpAnimated, setXpAnimated] = useState(false);
   const fileInputRef = useRef(null);
+  const coverInputRef = useRef(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   // States for user-generated content tabs
   const [activeTab, setActiveTab] = useState('posts');
@@ -253,6 +255,28 @@ export default function Profile() {
     }
   };
 
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !user) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ảnh quá lớn! Tối đa 5MB');
+      return;
+    }
+
+    setUploadingCover(true);
+    try {
+      const base64 = await compressAndToBase64(file, 935, 320, 0.7);
+      await updateUserProfile(user.uid, { coverUrl: base64 });
+      setUserData(prev => ({ ...prev, coverUrl: base64 }));
+      toast.success('Cập nhật ảnh bìa thành công!');
+    } catch (err) {
+      toast.error('Lỗi tải ảnh bìa: ' + err.message);
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
@@ -324,8 +348,28 @@ export default function Profile() {
 
         <div className="pf-container">
           {/* Cover Photo */}
-          <div className="pf-cover">
+          <div className="pf-cover" style={{ backgroundImage: userData?.coverUrl ? `url(${userData.coverUrl})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' }}>
             <div className="pf-cover-shimmer" />
+            <button className="pf-cover-upload-btn" onClick={() => coverInputRef.current?.click()} title="Đổi ảnh bìa">
+              📷 Chỉnh sửa ảnh bìa
+            </button>
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleCoverUpload}
+              style={{ display: 'none' }}
+            />
+            {uploadingCover && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'rgba(0,0,0,0.4)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                zIndex: 20
+              }}>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+              </div>
+            )}
           </div>
 
           {/* Profile Header Block */}
