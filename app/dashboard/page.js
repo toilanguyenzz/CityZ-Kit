@@ -395,13 +395,13 @@ export default function Dashboard() {
           <div className="flex items-center gap-3 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl px-4 py-2.5 mb-5 db-fade-in db-fade-in-2">
             <span className="text-lg flex-shrink-0">🤖</span>
             <p className="text-xs text-gray-600 flex-1">
-              <span className="font-semibold text-indigo-700">AI gợi ý</span> — Nhập ngân sách, khẩu vị để được gợi ý địa điểm phù hợp
+              <span className="font-semibold text-indigo-700">AI gợi ý</span> — Nhập ngân sách, khẩu vị để được gợi ý địa điểm phù hợp <span className="ml-1.5 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[9px] font-bold rounded-md uppercase">Sắp ra mắt</span>
             </p>
             <Link
               href="/recommend"
               className="text-xs font-bold text-indigo-600 hover:text-indigo-800 whitespace-nowrap transition-colors"
             >
-              Thử ngay ✨
+              Chi tiết →
             </Link>
           </div>
 

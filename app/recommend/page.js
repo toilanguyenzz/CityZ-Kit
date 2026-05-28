@@ -48,224 +48,91 @@ export default function RecommendPage() {
 
   return (
     <ProtectedRoute>
-      <div className="recommend-root">
+      <div className="recommend-root" style={{ background: 'linear-gradient(to bottom right, #f8fafc, #e0e7ff, #f3e8ff)' }}>
         <Navbar />
 
-        {/* ───── Hero Section ───── */}
-        <section className="rc-hero">
-          {/* Floating particles */}
-          <div className="rc-particles">
-            <div className="rc-particle rc-particle--1"></div>
-            <div className="rc-particle rc-particle--2"></div>
-            <div className="rc-particle rc-particle--3"></div>
-            <div className="rc-particle rc-particle--4"></div>
-            <div className="rc-particle rc-particle--5"></div>
-          </div>
-
-          <div className="rc-hero-inner">
-            <div className="rc-hero-badge">
-              <span className="rc-badge-dot"></span>
-              AI-Powered Recommendations
+        <main className="rc-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', padding: '2rem', textAlign: 'center' }}>
+          <div style={{
+            maxWidth: '550px',
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.4)',
+            borderRadius: '2.5rem',
+            padding: '3rem 2rem',
+            boxShadow: '0 20px 40px rgba(99, 102, 241, 0.08)'
+          }} className="db-fade-in">
+            {/* Pulsing AI Robot emoji */}
+            <div style={{
+              fontSize: '4.5rem',
+              marginBottom: '1.5rem',
+              animation: 'dbPulseRing 2s infinite ease-in-out',
+              display: 'inline-block'
+            }}>
+              🤖
             </div>
-            <h1 className="rc-hero-title">
-              Gợi ý <span className="rc-gradient-text">thông minh</span> dành cho bạn
+
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              background: 'rgba(99, 102, 241, 0.1)',
+              color: '#4f46e5',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              padding: '0.35rem 0.8rem',
+              borderRadius: '2rem',
+              marginBottom: '1.25rem'
+            }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4f46e5', animation: 'ping 1s infinite' }}></span>
+              Feature Coming Soon
+            </div>
+
+            <h1 style={{
+              fontSize: '1.75rem',
+              fontWeight: 900,
+              color: '#1e1b4b',
+              lineHeight: 1.3,
+              marginBottom: '1rem',
+              fontFamily: 'inherit'
+            }}>
+              Tính Năng Gợi Ý AI <br />
+              <span style={{ background: 'linear-gradient(135deg, #4f46e5, #9333ea)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Đang Được Nâng Cấp</span>
             </h1>
-            <p className="rc-hero-desc">
-              Để AI phân tích ngân sách, sở thích và vị trí của bạn — 
-              tìm ra những địa điểm phù hợp nhất trong vài giây
+
+            <p style={{
+              fontSize: '0.9rem',
+              color: '#475569',
+              lineHeight: 1.6,
+              marginBottom: '2rem',
+              padding: '0 1rem'
+            }}>
+              Hệ thống gợi ý thông minh dựa trên khẩu vị, vị trí GPS và phân tích ngân sách sinh viên đang được nâng cấp lên phiên bản 2.0. Hãy quay lại sau khi tính năng hoàn thành nhé! ✨
             </p>
-          </div>
-        </section>
 
-        <main className="rc-main">
-          {/* ───── Form Card ───── */}
-          <div className="rc-form-card">
-            <div className="rc-form-header">
-              <div className="rc-form-icon">🎯</div>
-              <div className="rc-form-header-text">
-                <h2>Chọn tiêu chí của bạn</h2>
-                <p>Điền thông tin để AI gợi ý 3 địa điểm tốt nhất</p>
-              </div>
-            </div>
-
-            <div className="rc-form-body">
-              <form onSubmit={handleSubmit}>
-                <div className="rc-form-grid">
-                  {/* Budget */}
-                  <div className="rc-field">
-                    <label className="rc-field-label">
-                      <span className="rc-label-icon">💰</span>
-                      Ngân sách (VND/tháng)
-                    </label>
-                    <div className="rc-select-wrap">
-                      <select
-                        value={budget}
-                        onChange={(e) => setBudget(e.target.value)}
-                        required
-                        className="rc-select"
-                      >
-                        <option value="">Chọn mức ngân sách</option>
-                        <option value="<2M">&lt; 2 triệu</option>
-                        <option value="2-4M">2 - 4 triệu</option>
-                        <option value=">4M">&gt; 4 triệu</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Food Type */}
-                  <div className="rc-field">
-                    <label className="rc-field-label">
-                      <span className="rc-label-icon">🍜</span>
-                      Loại ẩm thực yêu thích
-                    </label>
-                    <div className="rc-select-wrap">
-                      <select
-                        value={foodType}
-                        onChange={(e) => setFoodType(e.target.value)}
-                        required
-                        className="rc-select"
-                      >
-                        <option value="">Chọn loại ẩm thực</option>
-                        <option value="Vietnamese">Việt Nam</option>
-                        <option value="Japanese">Nhật Bản</option>
-                        <option value="Fast Food">Fast Food</option>
-                        <option value="Seafood">Hải sản</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* District */}
-                  <div className="rc-field">
-                    <label className="rc-field-label">
-                      <span className="rc-label-icon">📍</span>
-                      Quận hiện tại
-                    </label>
-                    <div className="rc-select-wrap">
-                      <select
-                        value={district}
-                        onChange={(e) => setDistrict(e.target.value)}
-                        required
-                        className="rc-select"
-                      >
-                        <option value="">Chọn quận</option>
-                        <option value="1">Quận 1</option>
-                        <option value="3">Quận 3</option>
-                        <option value="4">Quận 4</option>
-                        <option value="5">Quận 5</option>
-                        <option value="7">Quận 7</option>
-                        <option value="Binh Thanh">Bình Thạnh</option>
-                        <option value="Thu Duc">Thủ Đức</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="rc-submit-btn"
-                >
-                  {loading ? (
-                    <span className="rc-btn-spinner">
-                      <span className="rc-spinner-dots">
-                        <span className="rc-spinner-dot"></span>
-                        <span className="rc-spinner-dot"></span>
-                        <span className="rc-spinner-dot"></span>
-                      </span>
-                      AI đang phân tích...
-                    </span>
-                  ) : (
-                    <>
-                      <span className="rc-btn-icon">✨</span>
-                      Nhận gợi ý từ AI
-                    </>
-                  )}
-                </button>
-              </form>
-
-              {/* Messages */}
-              {error && (
-                <div className="rc-message rc-message--error">
-                  <span className="rc-message-icon">❌</span>
-                  {error}
-                </div>
-              )}
-
-              {infoMessage && (
-                <div className="rc-message rc-message--info">
-                  <span className="rc-message-icon">💡</span>
-                  {infoMessage}
-                </div>
-              )}
-
-              {hasSearched && recommendations.length === 0 && !infoMessage && (
-                <div className="rc-message rc-message--warning">
-                  <span className="rc-message-icon">🔍</span>
-                  Không tìm thấy gợi ý nào phù hợp. Vui lòng thêm địa điểm mới vào hệ thống trước!
-                </div>
-              )}
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <Link
+                href="/dashboard"
+                style={{
+                  background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  padding: '0.8rem 1.75rem',
+                  borderRadius: '1.25rem',
+                  boxShadow: '0 4px 15px rgba(79, 70, 229, 0.25)',
+                  transition: 'opacity 0.2s',
+                  textDecoration: 'none'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.opacity = 0.9}
+                onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
+              >
+                ← Về Dashboard
+              </Link>
             </div>
           </div>
-
-          {/* ───── How it Works Steps ───── */}
-          {!hasSearched && (
-            <div className="rc-steps">
-              <div className="rc-step">
-                <div className="rc-step-num">1</div>
-                <div className="rc-step-text">
-                  <h4>Chọn tiêu chí</h4>
-                  <p>Điền ngân sách, ẩm thực yêu thích và khu vực của bạn</p>
-                </div>
-              </div>
-              <div className="rc-step">
-                <div className="rc-step-num">2</div>
-                <div className="rc-step-text">
-                  <h4>AI phân tích</h4>
-                  <p>Hệ thống AI sẽ so sánh và đánh giá các địa điểm phù hợp</p>
-                </div>
-              </div>
-              <div className="rc-step">
-                <div className="rc-step-num">3</div>
-                <div className="rc-step-text">
-                  <h4>Nhận gợi ý</h4>
-                  <p>Xem top 3 địa điểm tốt nhất kèm lý do chi tiết</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ───── Results ───── */}
-          {recommendations.length > 0 && (
-            <div className="rc-results">
-              <div className="rc-results-header">
-                <div className="rc-results-icon">🎉</div>
-                <div>
-                  <div className="rc-results-title">Gợi ý dành cho bạn</div>
-                  <div className="rc-results-subtitle">
-                    AI đã phân tích và chọn ra {recommendations.length} địa điểm phù hợp nhất
-                  </div>
-                </div>
-              </div>
-
-              <div className="rc-results-grid">
-                {recommendations.map((rec, idx) => (
-                  <div key={idx} className="rc-result-card">
-                    <div className="rc-card-accent"></div>
-                    <div className="rc-card-body">
-                      <div className="rc-card-rank">#{idx + 1}</div>
-                      <h3 className="rc-card-name">{rec.name}</h3>
-                      <p className="rc-card-reason">{rec.reason}</p>
-                    </div>
-                    <div className="rc-card-footer">
-                      <span className="rc-card-tag">
-                        <span>🤖</span> AI Picked
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </main>
       </div>
     </ProtectedRoute>
