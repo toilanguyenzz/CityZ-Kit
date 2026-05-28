@@ -2,13 +2,30 @@
 
 import '@/app/styles/profile.css';
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { auth, db, onAuthStateChanged } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { updateUserAvatar, updateUserProfile, getUserStats, calculateXPFromStats, getLevelFromXP } from '@/lib/firestore';
+import { 
+  updateUserAvatar, 
+  updateUserProfile, 
+  getUserStats, 
+  calculateXPFromStats, 
+  getLevelFromXP,
+  getUserPosts,
+  getUserLocations,
+  getUserReviews,
+  deletePost,
+  updatePost,
+  deleteLocation,
+  deleteReview
+} from '@/lib/firestore';
 import { compressAndToBase64 } from '@/lib/imageHelper';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
+import RatingStars from '@/components/RatingStars';
+import FlairBadge from '@/components/FlairBadge';
 import toast from 'react-hot-toast';
+
 
 const ALL_BADGES = [
   { name: 'Explorer', icon: '🧭', desc: 'Thêm ≥1 địa điểm', color: '#3b82f6' },
@@ -56,6 +73,54 @@ export default function Profile() {
   const [xpAnimated, setXpAnimated] = useState(false);
   const fileInputRef = useRef(null);
 
+  // States for user-generated content tabs
+  const [activeTab, setActiveTab] = useState('posts');
+  const [posts, setPosts] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [loadingContent, setLoadingContent] = useState(false);
+
+  // Edit post states
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editPostTitle, setEditPostTitle] = useState('');
+  const [editPostContent, setEditPostContent] = useState('');
+  const [editPostCategory, setEditPostCategory] = useState('general');
+  const [editPostFlair, setEditPostFlair] = useState('');
+  const [isSavingPost, setIsSavingPost] = useState(false);
+
+  const fetchUserContents = async (uid) => {
+    setLoadingContent(true);
+    try {
+      const userUid = uid || user?.uid;
+      if (!userUid) return;
+      const [userPosts, userLocations, userReviews] = await Promise.all([
+        getUserPosts(userUid),
+        getUserLocations(userUid),
+        getUserReviews(userUid)
+      ]);
+      setPosts(userPosts);
+      setLocations(userLocations);
+      setReviews(userReviews);
+    } catch (err) {
+      console.error('Error fetching user contents:', err);
+      toast.error('Không thể tải danh sách nội dung đã đăng');
+    } finally {
+      setLoadingContent(false);
+    }
+  };
+
+  const refreshStatsAndContent = async (uid) => {
+    const userUid = uid || user?.uid;
+    if (!userUid) return;
+    try {
+      const userStats = await getUserStats(userUid);
+      setStats(userStats);
+      await fetchUserContents(userUid);
+    } catch (err) {
+      console.error('Error refreshing stats & contents:', err);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
@@ -76,6 +141,9 @@ export default function Profile() {
           const userStats = await getUserStats(u.uid);
           setStats(userStats);
 
+          // Fetch user-generated contents
+          await fetchUserContents(u.uid);
+
           // Trigger progress bar animation
           setTimeout(() => setXpAnimated(true), 350);
         } catch (error) {
@@ -87,6 +155,71 @@ export default function Profile() {
     });
     return () => unsubscribe();
   }, []);
+
+
+  const handleDeletePost = async (postId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa bài viết này không?')) return;
+    try {
+      await deletePost(postId);
+      toast.success('Đã xóa bài viết thành công!');
+      await refreshStatsAndContent(user.uid);
+    } catch (err) {
+      toast.error('Lỗi khi xóa bài viết: ' + err.message);
+    }
+  };
+
+  const handleStartEditPost = (post) => {
+    setEditingPostId(post.id);
+    setEditPostTitle(post.title || '');
+    setEditPostContent(post.content || '');
+    setEditPostCategory(post.category || 'general');
+    setEditPostFlair(post.flair || '');
+  };
+
+  const handleSaveEditPost = async (e) => {
+    e.preventDefault();
+    if (!editPostTitle.trim()) return toast.error('Vui lòng nhập tiêu đề');
+    if (!editPostContent.trim()) return toast.error('Vui lòng nhập nội dung');
+    
+    setIsSavingPost(true);
+    try {
+      await updatePost(editingPostId, {
+        title: editPostTitle.trim(),
+        content: editPostContent.trim(),
+        category: editPostCategory,
+        flair: editPostFlair || null,
+      });
+      toast.success('Cập nhật bài viết thành công!');
+      setEditingPostId(null);
+      await fetchUserContents(user.uid);
+    } catch (err) {
+      toast.error('Lỗi khi chỉnh sửa bài viết: ' + err.message);
+    } finally {
+      setIsSavingPost(false);
+    }
+  };
+
+  const handleDeleteLocation = async (locationId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa địa điểm này không? Tất cả các nhận xét của địa điểm này cũng sẽ bị xóa.')) return;
+    try {
+      await deleteLocation(locationId);
+      toast.success('Đã xóa địa điểm thành công!');
+      await refreshStatsAndContent(user.uid);
+    } catch (err) {
+      toast.error('Lỗi khi xóa địa điểm: ' + err.message);
+    }
+  };
+
+  const handleDeleteReview = async (locationId, reviewId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa đánh giá này không?')) return;
+    try {
+      await deleteReview(locationId, reviewId);
+      toast.success('Đã xóa đánh giá thành công!');
+      await refreshStatsAndContent(user.uid);
+    } catch (err) {
+      toast.error('Lỗi khi xóa đánh giá: ' + err.message);
+    }
+  };
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
@@ -335,6 +468,256 @@ export default function Profile() {
               <span>👤</span>
               <span>Vai trò: <strong>{userData?.role === 'admin' ? 'Quản trị viên' : 'Thành viên'}</strong></span>
             </div>
+          </div>
+
+          <div className="pf-section-divider" />
+
+          {/* Facebook/Instagram Style Manage Content Section */}
+          <div className="pf-tabs">
+            <button 
+              className={`pf-tab-btn ${activeTab === 'posts' ? 'active' : ''}`}
+              onClick={() => setActiveTab('posts')}
+            >
+              📝 Bài viết <span className="pf-tab-count">{posts.length}</span>
+            </button>
+            <button 
+              className={`pf-tab-btn ${activeTab === 'locations' ? 'active' : ''}`}
+              onClick={() => setActiveTab('locations')}
+            >
+              📍 Địa điểm <span className="pf-tab-count">{locations.length}</span>
+            </button>
+            <button 
+              className={`pf-tab-btn ${activeTab === 'reviews' ? 'active' : ''}`}
+              onClick={() => setActiveTab('reviews')}
+            >
+              ⭐ Đánh giá <span className="pf-tab-count">{reviews.length}</span>
+            </button>
+          </div>
+
+          <div className="pf-content-grid">
+            {loadingContent ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : activeTab === 'posts' ? (
+              posts.length === 0 ? (
+                <div className="pf-empty-state">
+                  <div className="pf-empty-icon">📝</div>
+                  <div className="pf-empty-title">Bạn chưa đăng bài viết nào</div>
+                  <div className="pf-empty-desc">Chia sẻ ý kiến, câu hỏi hoặc kinh nghiệm của bạn với cộng đồng ngay nhé.</div>
+                  <Link href="/blog" className="pf-action-btn pf-action-btn-view" style={{ marginTop: '0.5rem', background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' }}>Đăng bài ngay</Link>
+                </div>
+              ) : (
+                posts.map(post => (
+                  <div key={post.id} className="pf-card">
+                    {editingPostId === post.id ? (
+                      <form onSubmit={handleSaveEditPost} className="pf-edit-card-form">
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#1f2937' }}>Chỉnh sửa bài viết</h3>
+                        
+                        <div className="pf-edit-field">
+                          <label>Tiêu đề</label>
+                          <input 
+                            type="text" 
+                            value={editPostTitle} 
+                            onChange={(e) => setEditPostTitle(e.target.value)} 
+                            required 
+                          />
+                        </div>
+
+                        <div className="pf-edit-field">
+                          <label>Nội dung</label>
+                          <textarea 
+                            value={editPostContent} 
+                            onChange={(e) => setEditPostContent(e.target.value)} 
+                            required 
+                            rows={4}
+                          />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                          <div className="pf-edit-field">
+                            <label>Danh mục</label>
+                            <select value={editPostCategory} onChange={(e) => setEditPostCategory(e.target.value)}>
+                              <option value="general">Tổng hợp</option>
+                              <option value="housing">Nhà trọ</option>
+                              <option value="food">Ẩm thực</option>
+                              <option value="academic">Học tập</option>
+                              <option value="social">Xã hội</option>
+                            </select>
+                          </div>
+                          
+                          <div className="pf-edit-field">
+                            <label>Flair</label>
+                            <select value={editPostFlair || ''} onChange={(e) => setEditPostFlair(e.target.value || null)}>
+                              <option value="">Không có</option>
+                              <option value="DISCUSSION">DISCUSSION</option>
+                              <option value="QUESTION">QUESTION</option>
+                              <option value="REVIEW">REVIEW</option>
+                              <option value="URGENT">URGENT</option>
+                              <option value="ANNOUNCEMENT">ANNOUNCEMENT</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+                          <button type="button" onClick={() => setEditingPostId(null)} className="pf-btn-cancel">Hủy</button>
+                          <button type="submit" disabled={isSavingPost} className="pf-btn-save">
+                            {isSavingPost ? 'Đang lưu...' : 'Lưu'}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="pf-card-header">
+                          <h3 className="pf-card-title">
+                            <Link href={`/post/${post.id}`}>{post.title}</Link>
+                          </h3>
+                          <span className={`pf-status-badge ${
+                            post.status === 'rejected' ? 'pf-status-rejected' : 
+                            post.status === 'pending' ? 'pf-status-pending' : 'pf-status-approved'
+                          }`}>
+                            {post.status === 'rejected' ? '❌ Từ chối' : 
+                             post.status === 'pending' ? '⏳ Chờ duyệt' : '✓ Đã duyệt'}
+                          </span>
+                        </div>
+                        
+                        <div className="pf-card-meta">
+                          <span className="pf-card-category">
+                            {post.category === 'housing' ? '🏠 Nhà trọ' : 
+                             post.category === 'food' ? '🍜 Ẩm thực' :
+                             post.category === 'academic' ? '📚 Học tập' :
+                             post.category === 'social' ? '🎉 Xã hội' : '💬 Tổng hợp'}
+                          </span>
+                          {post.flair && <FlairBadge flair={post.flair} />}
+                          <span>•</span>
+                          <span>Đăng ngày {post.createdAt ? (post.createdAt.toDate ? post.createdAt.toDate().toLocaleDateString('vi-VN') : new Date(post.createdAt).toLocaleDateString('vi-VN')) : '—'}</span>
+                        </div>
+
+                        <p className="pf-card-body">
+                          {post.content && post.content.length > 200 
+                            ? `${post.content.substring(0, 200)}...` 
+                            : post.content}
+                        </p>
+
+                        <div className="pf-card-footer">
+                          <div className="pf-card-stats">
+                            <span>👍 {post.likes || post.upvotes || 0} lượt thích</span>
+                            <span>💬 {post.commentCount || 0} bình luận</span>
+                          </div>
+                          
+                          <div className="pf-card-actions">
+                            <Link href={`/post/${post.id}`} className="pf-action-btn pf-action-btn-view">
+                              🔗 Xem
+                            </Link>
+                            <button onClick={() => handleStartEditPost(post)} className="pf-action-btn pf-action-btn-edit">
+                              ✏️ Sửa
+                            </button>
+                            <button onClick={() => handleDeletePost(post.id)} className="pf-action-btn pf-action-btn-delete">
+                              🗑️ Xóa
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
+              )
+            ) : activeTab === 'locations' ? (
+              locations.length === 0 ? (
+                <div className="pf-empty-state">
+                  <div className="pf-empty-icon">📍</div>
+                  <div className="pf-empty-title">Bạn chưa thêm địa điểm nào</div>
+                  <div className="pf-empty-desc">Giới thiệu những địa điểm chất lượng quanh trường cho các bạn khác nhé.</div>
+                  <Link href="/add-location" className="pf-action-btn pf-action-btn-view" style={{ marginTop: '0.5rem', background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' }}>Thêm địa điểm ngay</Link>
+                </div>
+              ) : (
+                locations.map(loc => (
+                  <div key={loc.id} className="pf-card">
+                    <div className="pf-card-header">
+                      <h3 className="pf-card-title">
+                        <Link href={`/location/${loc.id}`}>{loc.name}</Link>
+                      </h3>
+                      <span className={`pf-status-badge ${
+                        loc.status === 'rejected' ? 'pf-status-rejected' : 
+                        loc.status === 'pending' ? 'pf-status-pending' : 'pf-status-approved'
+                      }`}>
+                        {loc.status === 'rejected' ? '❌ Từ chối' : 
+                         loc.status === 'pending' ? '⏳ Chờ duyệt' : '✓ Đã duyệt'}
+                      </span>
+                    </div>
+
+                    <div className="pf-card-meta">
+                      <span className="pf-card-category">{loc.category}</span>
+                      <span>•</span>
+                      <span>{loc.address}</span>
+                    </div>
+
+                    <p className="pf-card-body">
+                      {loc.description && loc.description.length > 200 
+                        ? `${loc.description.substring(0, 200)}...` 
+                        : loc.description}
+                    </p>
+
+                    <div className="pf-card-footer">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <RatingStars rating={loc.averageRating || 0} />
+                        <span style={{ fontSize: '0.82rem', color: '#8e8e8e' }}>({loc.reviewCount || 0} đánh giá)</span>
+                      </div>
+
+                      <div className="pf-card-actions">
+                        <Link href={`/location/${loc.id}`} className="pf-action-btn pf-action-btn-view">
+                          🔗 Xem
+                        </Link>
+                        <Link href={`/location/${loc.id}`} className="pf-action-btn pf-action-btn-edit">
+                          ✏️ Sửa
+                        </Link>
+                        <button onClick={() => handleDeleteLocation(loc.id)} className="pf-action-btn pf-action-btn-delete">
+                          🗑️ Xóa
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )
+            ) : (
+              reviews.length === 0 ? (
+                <div className="pf-empty-state">
+                  <div className="pf-empty-icon">⭐</div>
+                  <div className="pf-empty-title">Bạn chưa viết đánh giá nào</div>
+                  <div className="pf-empty-desc">Nhận xét của bạn sẽ giúp các bạn sinh viên khác có cái nhìn chân thực hơn.</div>
+                  <Link href="/dashboard" className="pf-action-btn pf-action-btn-view" style={{ marginTop: '0.5rem', background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' }}>Khám phá địa điểm</Link>
+                </div>
+              ) : (
+                reviews.map(rev => (
+                  <div key={rev.id} className="pf-card">
+                    <div className="pf-card-header">
+                      <h3 className="pf-card-title" style={{ fontSize: '0.95rem' }}>
+                        Đánh giá về: <Link href={`/location/${rev.locationId}`} style={{ color: '#3b82f6', textDecoration: 'underline' }}>{rev.locationName}</Link>
+                      </h3>
+                      <span style={{ fontSize: '0.8rem', color: '#8e8e8e' }}>
+                        {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString('vi-VN') : '—'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', marginTop: '-0.25rem' }}>
+                      <RatingStars rating={rev.rating || 0} />
+                    </div>
+
+                    <p className="pf-card-body" style={{ fontStyle: 'italic', margin: '0.25rem 0' }}>
+                      "{rev.comment}"
+                    </p>
+
+                    <div className="pf-card-footer" style={{ justifyContent: 'flex-end', borderTop: 'none', paddingTop: 0 }}>
+                      <div className="pf-card-actions">
+                        <button onClick={() => handleDeleteReview(rev.locationId, rev.id)} className="pf-action-btn pf-action-btn-delete">
+                          🗑️ Xóa đánh giá
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )
+            )}
           </div>
 
         </div>
