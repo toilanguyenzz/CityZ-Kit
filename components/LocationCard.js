@@ -4,7 +4,7 @@ import Link from 'next/link';
 export default function LocationCard({ location, averageRating }) {
   const getCategoryLabel = (category) => {
     switch(category) {
-      case 'Food': return '🍔 Ăn uống';
+      case 'Food': return '🍜 Ăn uống';
       case 'Housing': return '🏠 Nhà trọ';
       case 'Cafe': return '☕ Cafe';
       case 'Play': return '🎡 Vui chơi';
@@ -13,80 +13,81 @@ export default function LocationCard({ location, averageRating }) {
     }
   };
 
-  const renderStars = (rating) => {
-    const fullStars = Math.floor(rating);
-    const emptyStars = 5 - fullStars;
-    return (
-      <div className="flex items-center">
-        {[...Array(fullStars)].map((_, i) => (
-          <span key={`full-${i}`} className="text-yellow-400">★</span>
-        ))}
-        {[...Array(emptyStars)].map((_, i) => (
-          <span key={`empty-${i}`} className="text-gray-300">★</span>
-        ))}
-        <span className="ml-1 text-sm text-gray-600">({rating})</span>
-      </div>
-    );
-  };
+  const rating = parseFloat(averageRating) || 0;
+  const reviewCount = location.reviewCount || 0;
+  const shortAddress = (location.address || '').split(',').slice(0, 2).join(', ');
 
   return (
-    <Link href={`/location/${location.id}`} className="block bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 no-underline text-inherit">
-      <div className="relative h-48 w-full bg-gray-200">
+    <Link
+      href={`/location/${location.id}`}
+      className="group block bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-indigo-200 shadow-sm hover:shadow-lg transition-all duration-300 no-underline text-inherit"
+    >
+      {/* Image — fixed 4:3 ratio */}
+      <div className="relative overflow-hidden bg-gray-100">
         {location.imageUrl ? (
           <Image
             src={location.imageUrl}
             alt={location.name}
-            fill
-            className="object-cover"
+            width={400}
+            height={300}
+            className="db-card-img"
             unoptimized
           />
         ) : (
-          <div className="flex items-center justify-center h-full bg-gray-200 text-gray-400">
-            No image
+          <div className="flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-gray-300" style={{ aspectRatio: '4/3' }}>
+            <span className="text-4xl">📍</span>
           </div>
         )}
-      </div>
-      <div className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-lg font-semibold text-gray-800">{location.name}</h3>
-          <span className="text-xs px-2 py-1 bg-gray-100 rounded-full">
-            {getCategoryLabel(location.category)}
-          </span>
-        </div>
-        <p className="text-gray-600 text-sm mb-2 line-clamp-2">{location.description}</p>
-        <p className="text-gray-500 text-xs mb-3">📍 {location.address}</p>
-        
-        {/* Creator Info */}
-        <div className="flex items-center gap-2 mb-3.5 pt-2">
-          {location.createdByAvatar ? (
-            <img src={location.createdByAvatar} alt={location.createdByName} className="w-6 h-6 rounded-full object-cover" style={{ width: '1.5rem', height: '1.5rem' }} />
-          ) : (
-            <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs" style={{ width: '1.5rem', height: '1.5rem' }}>
-              {(location.createdByName || 'U').charAt(0).toUpperCase()}
-            </div>
-          )}
-          <span className="text-xs text-gray-500 font-medium">
-            Đăng bởi: {location.createdByName || 'Sinh viên ẩn danh'}
-          </span>
-        </div>
 
-        <div className="flex justify-between items-center flex-wrap gap-2">
-          {renderStars(averageRating)}
-          {location.reviewCount >= 100 && (location.averageRating || 0) >= 4.5 ? (
-            <span className="text-xs bg-yellow-100 text-yellow-800 border border-yellow-200 px-2 py-1 rounded-full font-semibold flex items-center gap-1">
-              ✨ Đã xác thực (100+ Đánh giá 5★)
-            </span>
-          ) : location.reviewCount >= 3 ? (
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-              ✓ Verified by Student
-            </span>
-          ) : null}
-        </div>
-        <span
-          className="mt-3 inline-block text-blue-600 hover:text-blue-800 text-sm font-medium"
-        >
-          Xem chi tiết →
+        {/* Category badge - floating top-left */}
+        <span className="absolute top-2.5 left-2.5 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-700 px-2 py-1 rounded-lg shadow-sm">
+          {getCategoryLabel(location.category)}
         </span>
+
+        {/* Verified badge - floating top-right */}
+        {reviewCount >= 3 && (
+          <span className="absolute top-2.5 right-2.5 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-0.5">
+            ✓ Verified
+          </span>
+        )}
+      </div>
+
+      {/* Info — compact */}
+      <div className="p-3.5">
+        {/* Title */}
+        <h3 className="text-[15px] font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors leading-tight">
+          {location.name}
+        </h3>
+
+        {/* Address - short */}
+        <p className="text-xs text-gray-400 mt-1 truncate">
+          📍 {shortAddress || 'TP. Hồ Chí Minh'}
+        </p>
+
+        {/* Bottom row: Rating + Creator */}
+        <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-gray-50">
+          <div className="flex items-center gap-1">
+            <span className="text-amber-400 text-sm">★</span>
+            <span className="text-sm font-bold text-gray-800">{rating > 0 ? rating : '—'}</span>
+            {reviewCount > 0 && (
+              <span className="text-xs text-gray-400">({reviewCount})</span>
+            )}
+          </div>
+
+          {/* Creator avatar + name */}
+          <div className="flex items-center gap-1.5 max-w-[45%]">
+            {location.createdByAvatar ? (
+              <img src={location.createdByAvatar} alt="" className="w-4 h-4 rounded-full object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[8px] flex-shrink-0">
+                {(location.createdByName || 'U').charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span className="text-[11px] text-gray-400 truncate">
+              {location.createdByName || 'Ẩn danh'}
+            </span>
+          </div>
+        </div>
       </div>
     </Link>
   );

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { auth, db, onAuthStateChanged } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { upvoteComment, downvoteComment, addCommentToPost } from '@/lib/firestore';
+import { upvoteComment, downvoteComment, addCommentToPost, deleteComment, reactToComment } from '@/lib/firestore';
 import useUserRole from '@/lib/useUserRole';
 import toast from 'react-hot-toast';
 
@@ -28,8 +28,25 @@ function SingleComment({ comment, postId, depth = 0, onRefresh }) {
   const [submitting, setSubmitting] = useState(false);
   const [voting, setVoting] = useState(false);
   const [userProfile, setUserProfile] = useState({ name: '', avatarUrl: null });
+  const [showPicker, setShowPicker] = useState(false);
 
-  const { user } = useUserRole();
+  const { user, isAdmin } = useUserRole();
+  const pickerRef = useRef(null);
+
+  useEffect(() => {
+    if (!showPicker) return;
+    const handleClickOutside = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        setShowPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showPicker]);
 
   useEffect(() => {
     if (user && showReply) {
@@ -56,6 +73,7 @@ function SingleComment({ comment, postId, depth = 0, onRefresh }) {
       fetchProfile();
     }
   }, [user, showReply]);
+
   const hasUpvoted = comment.upvotedBy?.includes(user?.uid);
   const hasDownvoted = comment.downvotedBy?.includes(user?.uid);
   const score = (comment.upvotes || 0) - (comment.downvotes || 0);
@@ -106,56 +124,125 @@ function SingleComment({ comment, postId, depth = 0, onRefresh }) {
     }
   };
 
+  const handleReact = async (emoji) => {
+    if (!user) return toast.error('Vui lòng đăng nhập để thả cảm xúc');
+    try {
+      await reactToComment(postId, comment.id, user.uid, emoji);
+      onRefresh();
+      setShowPicker(false);
+    } catch (e) {
+      toast.error('Lỗi khi thả cảm xúc');
+    }
+  };
+
+  const handleDeleteComment = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa bình luận này?')) return;
+    try {
+      await deleteComment(postId, comment.id);
+      toast.success('Đã xóa bình luận');
+      onRefresh();
+    } catch (e) {
+      toast.error('Lỗi khi xóa bình luận: ' + e.message);
+    }
+  };
+
   const maxDepth = 3;
+  const reactions = comment.reactions || {};
 
   return (
     <div className={`ct-comment ${depth > 0 ? 'ct-reply' : ''}`} style={{ '--depth': depth }}>
       <div className="ct-comment-inner">
-        {/* Vote column */}
-        <div className="ct-vote-col">
-          <button
-            onClick={handleUpvote}
-            disabled={voting}
-            className={`ct-vote-btn ${hasUpvoted ? 'ct-voted-up' : ''}`}
-            title="Upvote"
-          >
-            ▲
-          </button>
-          <span className={`ct-score ${score > 0 ? 'ct-positive' : score < 0 ? 'ct-negative' : ''}`}>
-            {score}
-          </span>
-          <button
-            onClick={handleDownvote}
-            disabled={voting}
-            className={`ct-vote-btn ${hasDownvoted ? 'ct-voted-down' : ''}`}
-            title="Downvote"
-          >
-            ▼
-          </button>
-        </div>
+        {/* Avatar on the left */}
+        <span className="ct-avatar" style={{ flexShrink: 0, marginTop: '0.2rem' }}>
+          {comment.userAvatar ? (
+            <img src={comment.userAvatar} alt={comment.userName} />
+          ) : (
+            comment.userName?.charAt(0).toUpperCase() || 'U'
+          )}
+        </span>
 
-        {/* Content */}
+        {/* Content on the right */}
         <div className="ct-content">
           <div className="ct-meta">
-            <span className="ct-avatar">
-              {comment.userAvatar ? (
-                <img src={comment.userAvatar} alt={comment.userName} />
-              ) : (
-                comment.userName?.charAt(0).toUpperCase() || 'U'
-              )}
-            </span>
             <span className="ct-author">{comment.userName || 'Ẩn danh'}</span>
             <span className="ct-time">{timeAgo(comment.createdAt)}</span>
           </div>
           <p className="ct-text">{comment.comment}</p>
-          <div className="ct-actions">
-            {depth < maxDepth && (
+          
+          <div className="ct-comment-footer">
+            <div className="ct-actions">
               <button
-                className="ct-action-btn"
-                onClick={() => setShowReply(!showReply)}
+                className={`ct-action-btn ${hasUpvoted ? 'ct-voted-up' : ''}`}
+                onClick={handleUpvote}
+                disabled={voting}
+                style={hasUpvoted ? { color: 'var(--blog-like-color)', fontWeight: 600 } : {}}
+                title={hasUpvoted ? 'Bỏ thích' : 'Thích'}
               >
-                💬 Trả lời
+                {hasUpvoted ? '❤️' : '🤍'} {comment.upvotes || 0}
               </button>
+              {depth < maxDepth && (
+                <button
+                  className="ct-action-btn"
+                  onClick={() => setShowReply(!showReply)}
+                >
+                  💬 Trả lời
+                </button>
+              )}
+              {user && (comment.userId === user.uid || isAdmin) && (
+                <button
+                  className="ct-action-btn"
+                  onClick={handleDeleteComment}
+                  style={{ color: '#ef4444' }}
+                >
+                  🗑️ Xóa
+                </button>
+              )}
+              {user && (
+                <div className="ct-picker-container" ref={pickerRef}>
+                  <button
+                    className="ct-action-btn"
+                    onClick={() => setShowPicker(!showPicker)}
+                  >
+                    😊 Cảm xúc
+                  </button>
+                  {showPicker && (
+                    <div className="ct-reaction-picker">
+                      {['👍', '❤️', '😂', '😮', '😢', '😡'].map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          className="ct-picker-emoji"
+                          onClick={() => handleReact(emoji)}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Reaction pills */}
+            {Object.keys(reactions).some(emoji => reactions[emoji]?.length > 0) && (
+              <div className="ct-reactions-list">
+                {['👍', '❤️', '😂', '😮', '😢', '😡'].map((emoji) => {
+                  const uids = reactions[emoji] || [];
+                  if (uids.length === 0) return null;
+                  const hasReacted = uids.includes(user?.uid);
+                  return (
+                    <button
+                      key={emoji}
+                      className={`ct-reaction-pill ${hasReacted ? 'ct-reacted' : ''}`}
+                      onClick={() => handleReact(emoji)}
+                      title={hasReacted ? 'Bỏ cảm xúc' : 'Thả cảm xúc'}
+                    >
+                      <span>{emoji}</span>
+                      <span>{uids.length}</span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
 
@@ -214,6 +301,18 @@ export default function CommentThread({ comments = [], postId, onRefresh }) {
   const [submitting, setSubmitting] = useState(false);
   const { user } = useUserRole();
   const [userProfile, setUserProfile] = useState({ name: '', avatarUrl: null });
+  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'popular'
+
+  const sortedComments = [...comments].sort((a, b) => {
+    if (sortBy === 'popular') {
+      const scoreA = (a.upvotes || 0) - (a.downvotes || 0);
+      const scoreB = (b.upvotes || 0) - (b.downvotes || 0);
+      if (scoreB !== scoreA) return scoreB - scoreA;
+    }
+    const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime();
+    const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime();
+    return (timeB || 0) - (timeA || 0);
+  });
 
   useEffect(() => {
     if (user) {
@@ -288,6 +387,26 @@ export default function CommentThread({ comments = [], postId, onRefresh }) {
         </div>
       </form>
 
+      {/* Sorting bar */}
+      {comments.length > 0 && (
+        <div className="ct-sort-bar">
+          <button
+            type="button"
+            className={`ct-sort-btn ${sortBy === 'newest' ? 'active' : ''}`}
+            onClick={() => setSortBy('newest')}
+          >
+            Mới nhất
+          </button>
+          <button
+            type="button"
+            className={`ct-sort-btn ${sortBy === 'popular' ? 'active' : ''}`}
+            onClick={() => setSortBy('popular')}
+          >
+            Phổ biến nhất
+          </button>
+        </div>
+      )}
+
       {/* Comments list */}
       {comments.length === 0 ? (
         <div className="ct-empty">
@@ -295,7 +414,7 @@ export default function CommentThread({ comments = [], postId, onRefresh }) {
         </div>
       ) : (
         <div className="ct-list">
-          {comments.map((comment) => (
+          {sortedComments.map((comment) => (
             <SingleComment
               key={comment.id}
               comment={comment}

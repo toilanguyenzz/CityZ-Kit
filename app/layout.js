@@ -2,6 +2,7 @@ import './styles/globals.css';
 import 'leaflet/dist/leaflet.css';
 import { Inter } from 'next/font/google';
 import ToastProvider from '@/components/ToastProvider';
+import InAppBrowserBarrier from '@/components/InAppBrowserBarrier';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
@@ -27,6 +28,7 @@ export default function RootLayout({ children }) {
     <html lang="vi">
       <body className={`${inter.className} bg-gray-50`}>
         <ToastProvider />
+        <InAppBrowserBarrier />
         {children}
         <Analytics />
         <SpeedInsights />
@@ -35,14 +37,24 @@ export default function RootLayout({ children }) {
             __html: `
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(
-                    function(reg) {
-                      console.log('Service Worker registered successfully:', reg.scope);
-                    },
-                    function(err) {
-                      console.warn('Service Worker registration failed:', err);
-                    }
-                  );
+                  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    // Unregister service worker in local development to prevent aggressive cache-first asset locking
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                      for (let registration of registrations) {
+                        registration.unregister();
+                        console.log('Service worker unregistered in local development');
+                      }
+                    });
+                  } else {
+                    navigator.serviceWorker.register('/sw.js').then(
+                      function(reg) {
+                        console.log('Service Worker registered successfully:', reg.scope);
+                      },
+                      function(err) {
+                        console.warn('Service Worker registration failed:', err);
+                      }
+                    );
+                  }
                 });
               }
             `,

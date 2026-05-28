@@ -13,6 +13,9 @@ import toast from 'react-hot-toast';
 import RatingStars from '@/components/RatingStars';
 import CommentSection from '@/components/CommentSection';
 import useUserRole from '@/lib/useUserRole';
+import dynamic from 'next/dynamic';
+
+const MapComponent = dynamic(() => import('@/components/MapComponent'), { ssr: false });
 
 const compressImage = (file) => {
   return new Promise((resolve) => {
@@ -126,6 +129,9 @@ export default function LocationDetail() {
   const [editAddress, setEditAddress] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editVideoUrl, setEditVideoUrl] = useState('');
+  const [editCoords, setEditCoords] = useState({ lat: 10.7769, lng: 106.7009 });
+  const [currentMediaList, setCurrentMediaList] = useState([]);
+  const [editMediaFiles, setEditMediaFiles] = useState([]);
   const [saving, setSaving] = useState(false);
 
   const startEditing = () => {
@@ -135,6 +141,14 @@ export default function LocationDetail() {
     setEditAddress(location.address || '');
     setEditDescription(location.description || '');
     setEditVideoUrl(location.videoUrl || '');
+    setEditCoords({ lat: location.latitude || 10.7769, lng: location.longitude || 106.7009 });
+    
+    let initialMedia = location.media || [];
+    if (initialMedia.length === 0 && location.imageUrl) {
+      initialMedia = [{ type: 'image', url: location.imageUrl }];
+    }
+    setCurrentMediaList(initialMedia);
+    setEditMediaFiles([]);
     setIsEditing(true);
   };
 
@@ -145,21 +159,38 @@ export default function LocationDetail() {
     if (!editDescription.trim()) return toast.error('Vui lòng nhập mô tả');
 
     setSaving(true);
+    const toastId = toast.loading('Đang lưu thay đổi...');
     try {
+      // Upload any new images
+      const uploadedItems = [];
+      for (let i = 0; i < editMediaFiles.length; i++) {
+        const item = editMediaFiles[i];
+        const compressedFile = await compressImage(item.file);
+        const uploadedItem = await uploadToCloudinary(compressedFile);
+        uploadedItems.push(uploadedItem);
+      }
+
+      // Merge remaining existing media and new uploaded media
+      const mergedMedia = [...currentMediaList, ...uploadedItems];
+
       const updatedData = {
         name: editName.trim(),
         category: editCategory,
         address: editAddress.trim(),
         description: editDescription.trim(),
         videoUrl: editVideoUrl.trim() || null,
+        latitude: editCoords.lat,
+        longitude: editCoords.lng,
+        media: mergedMedia,
+        imageUrl: mergedMedia.length > 0 ? mergedMedia[0].url : null,
       };
 
       await updateLocation(id, updatedData);
-      toast.success('Đã cập nhật địa điểm thành công!');
+      toast.success('Đã cập nhật địa điểm thành công!', { id: toastId });
       setIsEditing(false);
       await fetchLocation();
     } catch (err) {
-      toast.error('Lỗi khi cập nhật địa điểm: ' + err.message);
+      toast.error('Lỗi khi cập nhật địa điểm: ' + err.message, { id: toastId });
       console.error(err);
     } finally {
       setSaving(false);
@@ -248,8 +279,13 @@ export default function LocationDetail() {
           URL.revokeObjectURL(item.preview);
         }
       });
+      editMediaFiles.forEach(item => {
+        if (item.preview && item.preview.startsWith('blob:')) {
+          URL.revokeObjectURL(item.preview);
+        }
+      });
     };
-  }, [additionalFiles]);
+  }, [additionalFiles, editMediaFiles]);
 
   useEffect(() => {
     fetchLocation();
@@ -260,7 +296,15 @@ export default function LocationDetail() {
       const docRef = doc(db, 'locations', id);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        setLocation({ id: docSnap.id, ...docSnap.data() });
+        const data = docSnap.data();
+        const isApproved = data.status === 'approved' || !data.status;
+        const isCreator = user && data.createdBy === user.uid;
+        if (!isApproved && !isAdmin && !isCreator) {
+          toast.error('Địa điểm này đang chờ duyệt.');
+          router.push('/dashboard');
+          return;
+        }
+        setLocation({ id: docSnap.id, ...data });
       } else {
         toast.error('Không tìm thấy địa điểm');
         router.push('/dashboard');
@@ -431,7 +475,87 @@ export default function LocationDetail() {
                   />
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="space-y-4 pt-2">
+                  <div className="border-t border-gray-100 pt-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Vị trí bản đồ (Kéo ghim hoặc click trên bản đồ để chọn lại vị trí chính xác)</label>
+                    <div className="rounded-xl overflow-hidden border border-gray-200">
+                      <MapComponent
+                        latitude={editCoords.lat}
+                        longitude={editCoords.lng}
+                        onChangeLocation={(lat, lng) => setEditCoords({ lat, lng })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-100 pt-4 space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Hình ảnh hiện tại (Có thể xóa bớt ảnh bị sai)</label>
+                      {currentMediaList.length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">Không có hình ảnh nào.</p>
+                      ) : (
+                        <div className="grid grid-cols-4 gap-2">
+                          {currentMediaList.map((item, idx) => (
+                            <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                              <img src={item.url} alt="existing media" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCurrentMediaList(prev => prev.filter((_, i) => i !== idx));
+                                }}
+                                className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-sm border border-white/20 cursor-pointer"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tải thêm hình ảnh mới (Tối đa 9 ảnh tổng cộng)</label>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          if (currentMediaList.length + editMediaFiles.length + files.length > 9) {
+                            toast.error("Tổng số hình ảnh không được vượt quá 9!");
+                            return;
+                          }
+                          const newFiles = files.map(file => ({
+                            file,
+                            preview: URL.createObjectURL(file)
+                          }));
+                          setEditMediaFiles(prev => [...prev, ...newFiles]);
+                        }}
+                        className="text-xs text-gray-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 cursor-pointer"
+                      />
+                      {editMediaFiles.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2 mt-2">
+                          {editMediaFiles.map((fileObj, idx) => (
+                            <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                              <img src={fileObj.preview} alt="new upload preview" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  URL.revokeObjectURL(fileObj.preview);
+                                  setEditMediaFiles(prev => prev.filter((_, i) => i !== idx));
+                                }}
+                                className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-sm border border-white/20 cursor-pointer"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
                   <button
                     type="button"
                     onClick={() => setIsEditing(false)}
@@ -517,19 +641,34 @@ export default function LocationDetail() {
                     <div className="flex-1">
                       <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
                         {location.name}
-                        {canEdit && (
-                          <span className="inline-flex gap-2 text-xs font-semibold normal-case">
-                            <button onClick={startEditing} className="text-blue-600 hover:text-blue-800 border-none bg-transparent cursor-pointer font-semibold">Sửa</button>
-                            <span className="text-gray-300">|</span>
-                            <button onClick={handleDelete} className="text-red-600 hover:text-red-800 border-none bg-transparent cursor-pointer font-semibold">Xóa</button>
-                          </span>
-                        )}
                       </h1>
                     </div>
                     {location.reviewCount >= 3 && (
                       <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">✓ Verified</span>
                     )}
                   </div>
+
+                  {canEdit && (
+                    <div className="flex flex-col sm:flex-row gap-3 mb-6 bg-slate-50 border border-slate-200/80 rounded-2xl p-4 items-start sm:items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-slate-700">⚙️ Quản lý địa điểm của bạn:</span>
+                      </div>
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <button
+                          onClick={startEditing}
+                          className="flex-1 sm:flex-initial flex items-center justify-center gap-1 bg-white hover:bg-slate-50 text-blue-600 border border-slate-200 text-xs font-bold py-2 px-4 rounded-xl shadow-sm transition cursor-pointer"
+                        >
+                          ✏️ Chỉnh sửa thông tin
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          className="flex-1 sm:flex-initial flex items-center justify-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 text-xs font-bold py-2 px-4 rounded-xl transition cursor-pointer"
+                        >
+                          🗑️ Xóa địa điểm
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <p className="text-gray-600 mb-1"><span className="font-semibold">Danh mục:</span> {location.category}</p>
                   <p className="text-gray-600 mb-1"><span className="font-semibold">Địa chỉ:</span> {location.address}</p>
                   <p className="text-gray-700 mt-4">{location.description}</p>
@@ -642,25 +781,46 @@ export default function LocationDetail() {
                 const mapLng = location.longitude || 106.7009;
                 const bbox = `${mapLng - 0.005},${mapLat - 0.005},${mapLng + 0.005},${mapLat + 0.005}`;
                 return (
-                  <iframe
-                    className="db-map-frame"
-                    title="Bản đồ địa điểm"
-                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${mapLat},${mapLng}`}
-                    loading="lazy"
-                    style={{ width: '100%', height: '350px', border: 'none' }}
-                  />
+                  <>
+                    <iframe
+                      className="db-map-frame"
+                      title="Bản đồ địa điểm"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${mapLat},${mapLng}`}
+                      loading="lazy"
+                      style={{ width: '100%', height: '350px', border: 'none' }}
+                    />
+                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', padding: '0.75rem 1.5rem 1rem', flexWrap: 'wrap', borderTop: '1px solid var(--blog-divider)' }}>
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${mapLat},${mapLng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all text-decoration-none border-none cursor-pointer"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        🚗 Chỉ đường Google Maps
+                      </a>
+                      <a
+                        href={`https://maps.apple.com/?daddr=${mapLat},${mapLng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all text-decoration-none border-none cursor-pointer"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        🍎 Apple Maps (iOS)
+                      </a>
+                      <a
+                        href={`https://www.openstreetmap.org/directions?route=%3B${mapLat}%2C${mapLng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-sm transition-all border border-gray-200 text-decoration-none cursor-pointer"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        🗺️ OpenStreetMap
+                      </a>
+                    </div>
+                  </>
                 );
               })()}
-              <div style={{ padding: '0.75rem 1.5rem 1rem', textAlign: 'right' }}>
-                <a
-                  href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(location.address + ', TP.HCM, Việt Nam')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                >
-                  🗺️ Xem bản đồ lớn hơn →
-                </a>
-              </div>
             </div>
           )}
           <div className="mt-8 bg-white rounded-xl shadow-md p-6">
@@ -691,7 +851,7 @@ export default function LocationDetail() {
 
           <div className="mt-8 bg-white rounded-xl shadow-md p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Các nhận xét ({location.reviewCount || 0})</h2>
-            <CommentSection reviews={location.reviews || []} />
+            <CommentSection reviews={location.reviews || []} locationId={id} onRefresh={fetchLocation} />
           </div>
 
           {/* Lightbox Modal with Zoom & Pan */}

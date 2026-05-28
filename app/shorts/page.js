@@ -586,6 +586,43 @@ export default function ShortsPage() {
     setActiveIndex(0);
   }, [activeTab]);
 
+  // Handle activeId URL parameter (deep linking from Dashboard Locket Carousel)
+  useEffect(() => {
+    if (loading || locations.length === 0) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const activeId = params.get('activeId');
+    if (!activeId) return;
+
+    const targetLoc = locations.find(l => l.id === activeId);
+    if (!targetLoc) return;
+
+    const targetTab = targetLoc.videoUrl ? 'tiktok' : 'locket';
+    
+    if (activeTab !== targetTab) {
+      setActiveTab(targetTab);
+      return;
+    }
+
+    const tabLocations = targetTab === 'locket' 
+      ? locations.filter(l => l.imageUrl && !l.videoUrl)
+      : locations.filter(l => l.videoUrl);
+
+    const idx = tabLocations.findIndex(l => l.id === activeId);
+    if (idx !== -1) {
+      setActiveIndex(idx);
+      setTimeout(() => {
+        const el = document.getElementById(`short-item-${activeId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'auto', block: 'center' });
+        }
+      }, 150);
+      
+      // Clean up URL parameters to prevent re-scrolling on tab change
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [locations, loading, activeTab]);
+
   // IntersectionObserver for tracking swipe position
   useEffect(() => {
     const container = containerRef.current;
@@ -673,23 +710,50 @@ export default function ShortsPage() {
           </div>
         </div>
 
-        {/* Floating Quick Snap / Check-in Button */}
+        {/* Floating Locket Camera Button */}
         <button
           onClick={() => setShowCameraModal(true)}
           style={{
-            position: 'absolute', right: '1.25rem', bottom: '6.5rem',
-            width: '56px', height: '56px', borderRadius: '50%',
-            background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
-            border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-            boxShadow: '0 8px 24px rgba(79, 70, 229, 0.4)',
-            transition: 'transform 0.2s, box-shadow 0.2s'
+            position: 'absolute',
+            right: '1.25rem',
+            bottom: '6.5rem',
+            padding: '0 1.25rem 0 0.85rem',
+            height: '56px',
+            borderRadius: '28px',
+            background: 'linear-gradient(135deg, #ffd000, #ff9000)',
+            border: '3px solid #fff',
+            color: '#000',
+            fontSize: '0.85rem',
+            fontWeight: 800,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            zIndex: 100,
+            boxShadow: '0 8px 28px rgba(255, 144, 0, 0.5), 0 0 15px rgba(255, 208, 0, 0.3)',
+            transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+            fontFamily: 'inherit',
           }}
-          onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.08) translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 28px rgba(79, 70, 229, 0.5)'; }}
-          onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1) translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(79, 70, 229, 0.4)'; }}
-          title="⚡ Check-in nhanh"
+          className="locket-shoot-btn"
+          title="Chụp ảnh Locket Live!"
         >
-          ⚡
+          <span style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '36px',
+            height: '36px',
+            borderRadius: '50%',
+            background: '#000',
+            color: '#ffd000',
+            fontSize: '1.15rem',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+          }}>
+            📸
+          </span>
+          <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Chụp Locket
+          </span>
         </button>
 
         {activeLocations.length === 0 ? (
@@ -704,7 +768,7 @@ export default function ShortsPage() {
         ) : (
           <div className="shorts-container" ref={containerRef} key={activeTab}>
             {activeLocations.map((loc, idx) => (
-              <div key={loc.id} className="short-item-wrap" data-index={idx}>
+              <div key={loc.id} id={`short-item-${loc.id}`} className="short-item-wrap" data-index={idx}>
                 {activeTab === 'locket' ? (
                   <ShortItem
                     location={loc}

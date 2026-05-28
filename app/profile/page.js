@@ -1,14 +1,47 @@
 'use client';
 
+import '@/app/styles/profile.css';
 import { useState, useEffect, useRef } from 'react';
 import { auth, db, onAuthStateChanged } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { updateUserAvatar, updateUserProfile } from '@/lib/firestore';
+import { updateUserAvatar, updateUserProfile, getUserStats, calculateXPFromStats, getLevelFromXP } from '@/lib/firestore';
 import { compressAndToBase64 } from '@/lib/imageHelper';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
-import Badge from '@/components/Badge';
 import toast from 'react-hot-toast';
+
+const ALL_BADGES = [
+  { name: 'Explorer', icon: '🧭', desc: 'Thêm ≥1 địa điểm', color: '#3b82f6' },
+  { name: 'Helper', icon: '🤝', desc: 'Viết ≥3 đánh giá', color: '#22c55e' },
+  { name: 'Influencer', icon: '⭐', desc: 'Đăng ≥1 bài viết', color: '#8b5cf6' },
+  { name: 'Trailblazer', icon: '🗺️', desc: 'Thêm ≥5 địa điểm', color: '#f59e0b' },
+  { name: 'Critic', icon: '📝', desc: 'Viết ≥10 đánh giá', color: '#ef4444' },
+  { name: 'Blogger', icon: '📰', desc: 'Đăng ≥5 bài viết', color: '#06b6d4' },
+];
+
+function CountUp({ end, duration = 1000 }) {
+  const [value, setValue] = useState(0);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (end === 0) { setValue(0); return; }
+    let start = 0;
+    const startTime = performance.now();
+    const animate = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setValue(Math.round(eased * end));
+      if (progress < 1) {
+        ref.current = requestAnimationFrame(animate);
+      }
+    };
+    ref.current = requestAnimationFrame(animate);
+    return () => { if (ref.current) cancelAnimationFrame(ref.current); };
+  }, [end, duration]);
+
+  return <span className="pf-countup">{value}</span>;
+}
 
 export default function Profile() {
   const [userData, setUserData] = useState(null);
@@ -19,6 +52,8 @@ export default function Profile() {
   const [newName, setNewName] = useState('');
   const [newBio, setNewBio] = useState('');
   const [user, setUser] = useState(null);
+  const [stats, setStats] = useState({ locationCount: 0, reviewCount: 0, postCount: 0, totalUpvotes: 0 });
+  const [xpAnimated, setXpAnimated] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -36,6 +71,13 @@ export default function Profile() {
           } else {
             toast.error('Không tìm thấy thông tin tài khoản');
           }
+
+          // Fetch real stats
+          const userStats = await getUserStats(u.uid);
+          setStats(userStats);
+
+          // Trigger progress bar animation
+          setTimeout(() => setXpAnimated(true), 350);
         } catch (error) {
           toast.error('Lỗi khi tải hồ sơ');
           console.error(error);
@@ -60,7 +102,7 @@ export default function Profile() {
       const base64 = await compressAndToBase64(file, 300, 300, 0.7);
       await updateUserAvatar(user.uid, base64);
       setUserData(prev => ({ ...prev, avatarUrl: base64 }));
-      toast.success('Cập nhật avatar thành công!');
+      toast.success('Cập nhật ảnh đại diện thành công!');
     } catch (err) {
       toast.error('Lỗi tải ảnh: ' + err.message);
     } finally {
@@ -76,7 +118,7 @@ export default function Profile() {
       setEditingName(false);
       toast.success('Đã cập nhật tên!');
     } catch (err) {
-      toast.error('Lỗi cập nhật');
+      toast.error('Lỗi cập nhật tên');
     }
   };
 
@@ -86,76 +128,56 @@ export default function Profile() {
       await updateUserProfile(user.uid, { bio: newBio.trim() });
       setUserData(prev => ({ ...prev, bio: newBio.trim() }));
       setEditingBio(false);
-      toast.success('Đã cập nhật bio!');
+      toast.success('Đã cập nhật giới thiệu!');
     } catch (err) {
-      toast.error('Lỗi cập nhật');
+      toast.error('Lỗi cập nhật giới thiệu');
     }
   };
 
-  const displayName = userData?.name || user?.displayName || user?.email?.split('@')[0] || 'User';
+  const displayName = userData?.name || user?.displayName || user?.email?.split('@')[0] || 'Thành viên';
   const initial = displayName.charAt(0).toUpperCase();
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8f9fb' }}>
+      <div className="pf-root">
         <Navbar />
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '6rem 0' }}>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
         </div>
       </div>
     );
   }
 
-  const hasBadges = userData?.badges && userData.badges.length > 0;
+  const xp = calculateXPFromStats(stats);
+  const levelInfo = getLevelFromXP(xp);
+  const earnedBadgeNames = (userData?.badges || []).map(b => b.name);
 
   return (
     <ProtectedRoute>
-      <div style={{ minHeight: '100vh', background: '#f8f9fb' }}>
+      <div className="pf-root">
         <Navbar />
 
-        {/* ── Profile Hero ── */}
-        <div style={{
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)',
-          padding: '2.5rem 1rem 3.5rem',
-          position: 'relative',
-          overflow: 'hidden',
-        }}>
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'radial-gradient(ellipse 500px 300px at 30% 50%, rgba(59,130,246,0.15), transparent)',
-            pointerEvents: 'none',
-          }} />
-          <div style={{ maxWidth: '700px', margin: '0 auto', position: 'relative', textAlign: 'center' }}>
-            {/* Avatar */}
-            <div style={{ position: 'relative', display: 'inline-block', marginBottom: '1rem' }}>
+        <div className="pf-container">
+          {/* Cover Photo */}
+          <div className="pf-cover">
+            <div className="pf-cover-shimmer" />
+          </div>
+
+          {/* Profile Header Block */}
+          <div className="pf-header-wrap">
+            {/* Avatar Box */}
+            <div className="pf-avatar-box">
               <div
+                className="pf-avatar"
                 onClick={() => fileInputRef.current?.click()}
                 style={{
-                  width: '100px', height: '100px', borderRadius: '50%',
-                  background: userData?.avatarUrl ? `url(${userData.avatarUrl}) center/cover` : 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontSize: userData?.avatarUrl ? 0 : '2.5rem', fontWeight: 800,
-                  cursor: 'pointer', border: '4px solid rgba(255,255,255,0.2)',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                  backgroundImage: userData?.avatarUrl ? `url(${userData.avatarUrl})` : 'none',
+                  fontSize: userData?.avatarUrl ? 0 : undefined,
                 }}
-                onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = '0 6px 28px rgba(59,130,246,0.4)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)'; }}
               >
                 {!userData?.avatarUrl && initial}
               </div>
-              {/* Camera badge */}
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  position: 'absolute', bottom: '2px', right: '2px',
-                  width: '30px', height: '30px', borderRadius: '50%',
-                  background: '#3b82f6', border: '2px solid #1e1b4b',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', fontSize: '0.8rem',
-                  transition: 'background 0.2s',
-                }}
-              >
+              <div className="pf-avatar-upload-btn" onClick={() => fileInputRef.current?.click()} title="Đổi ảnh đại diện">
                 📷
               </div>
               <input
@@ -168,135 +190,154 @@ export default function Profile() {
               {uploading && (
                 <div style={{
                   position: 'absolute', inset: 0, borderRadius: '50%',
-                  background: 'rgba(0,0,0,0.5)', display: 'flex',
+                  background: 'rgba(0,0,0,0.4)', display: 'flex',
                   alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
                 </div>
               )}
             </div>
 
-            {/* Name */}
-            <div style={{ marginBottom: '0.25rem' }}>
-              {editingName ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                  <input
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    style={{
-                      background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                      color: '#fff', padding: '0.4rem 0.75rem', borderRadius: '0.5rem',
-                      fontSize: '1.1rem', fontWeight: 700, textAlign: 'center', outline: 'none',
-                    }}
-                    autoFocus
-                  />
-                  <button onClick={handleSaveName} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '0.4rem 0.75rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>Lưu</button>
-                  <button onClick={() => setEditingName(false)} style={{ background: 'rgba(255,255,255,0.1)', color: '#94a3b8', border: 'none', padding: '0.4rem 0.75rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>Hủy</button>
-                </div>
+            {/* Info Section */}
+            <div className="pf-info-box">
+              <div className="pf-meta-row">
+                {editingName ? (
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    <input
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      className="pf-edit-input"
+                      autoFocus
+                    />
+                    <button onClick={handleSaveName} className="pf-btn-save">Lưu</button>
+                    <button onClick={() => setEditingName(false)} className="pf-btn-cancel">Hủy</button>
+                  </div>
+                ) : (
+                  <h1 className="pf-name" onClick={() => setEditingName(true)} title="Nhấp để đổi tên">
+                    {displayName} ✏️
+                  </h1>
+                )}
+
+                <span className="pf-level-badge" title={`${levelInfo.name} (Đạt được ${xp} XP)`}>
+                  {levelInfo.icon} Level {levelInfo.level} ({levelInfo.name})
+                </span>
+
+                {!editingName && !editingBio && (
+                  <button className="pf-btn-edit" onClick={() => setEditingBio(true)}>
+                    Chỉnh sửa tiểu sử
+                  </button>
+                )}
+              </div>
+
+              {/* Stats Row */}
+              <ul className="pf-stats-row">
+                <li className="pf-stat-item">
+                  <span className="pf-stat-val"><CountUp end={stats.locationCount} /></span> địa điểm
+                </li>
+                <li className="pf-stat-item">
+                  <span className="pf-stat-val"><CountUp end={stats.postCount} /></span> bài viết
+                </li>
+                <li className="pf-stat-item">
+                  <span className="pf-stat-val"><CountUp end={stats.reviewCount} /></span> đánh giá
+                </li>
+                <li className="pf-stat-item" title={`Chi tiết: Địa điểm x50 XP, Bài viết x30 XP, Đánh giá x20 XP, Upvotes x5 XP`}>
+                  <span className="pf-stat-val"><CountUp end={xp} /></span> XP tích lũy
+                </li>
+              </ul>
+
+              {/* Bio Box */}
+              <div className="pf-bio-box">
+                <div className="pf-email">{userData?.email || user?.email}</div>
+                {editingBio ? (
+                  <div>
+                    <textarea
+                      value={newBio}
+                      onChange={(e) => setNewBio(e.target.value)}
+                      placeholder="Viết một vài mô tả ngắn về bạn..."
+                      rows={2}
+                      maxLength={150}
+                      className="pf-edit-textarea"
+                      autoFocus
+                    />
+                    <div className="pf-edit-actions">
+                      <button onClick={handleSaveBio} className="pf-btn-save">Lưu</button>
+                      <button onClick={() => setEditingBio(false)} className="pf-btn-cancel">Hủy</button>
+                    </div>
+                  </div>
+                ) : (
+                  <p
+                    className={`pf-bio-text ${!userData?.bio ? 'pf-bio-placeholder' : ''}`}
+                    onClick={() => setEditingBio(true)}
+                    title="Nhấp để thêm tiểu sử"
+                  >
+                    {userData?.bio || '+ Thêm giới thiệu ngắn để mọi người hiểu hơn về bạn'}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* XP Progress Bar Section */}
+          <div className="pf-xp-section">
+            <div className="pf-xp-info">
+              {levelInfo.nextLevel ? (
+                <>
+                  <span>Tiến trình cấp độ: {Math.round(levelInfo.progress)}%</span>
+                  <span>Còn {levelInfo.xpToNext} XP đến Level {levelInfo.nextLevel.level}</span>
+                </>
               ) : (
-                <h1
-                  onClick={() => setEditingName(true)}
-                  style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, margin: 0, cursor: 'pointer' }}
-                  title="Nhấp để sửa tên"
-                >
-                  {displayName} ✏️
-                </h1>
+                <span>🎉 Bạn đã đạt cấp độ tối đa (Huyền thoại)</span>
               )}
             </div>
-
-            <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '0 0 0.75rem' }}>
-              {userData?.email || user?.email}
-            </p>
-
-            {/* Bio */}
-            {editingBio ? (
-              <div style={{ maxWidth: '400px', margin: '0 auto' }}>
-                <textarea
-                  value={newBio}
-                  onChange={(e) => setNewBio(e.target.value)}
-                  placeholder="Giới thiệu bản thân..."
-                  rows={2}
-                  maxLength={150}
-                  style={{
-                    width: '100%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                    color: '#fff', padding: '0.5rem 0.75rem', borderRadius: '0.5rem',
-                    fontSize: '0.85rem', resize: 'none', outline: 'none', fontFamily: 'inherit',
-                  }}
-                  autoFocus
-                />
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '0.4rem' }}>
-                  <button onClick={handleSaveBio} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '0.35rem 0.75rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}>Lưu</button>
-                  <button onClick={() => setEditingBio(false)} style={{ background: 'rgba(255,255,255,0.1)', color: '#94a3b8', border: 'none', padding: '0.35rem 0.75rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}>Hủy</button>
-                </div>
-              </div>
-            ) : (
-              <p
-                onClick={() => setEditingBio(true)}
+            <div className="pf-xp-bar-bg">
+              <div
+                className="pf-xp-bar-fill"
                 style={{
-                  color: userData?.bio ? '#94a3b8' : '#475569',
-                  fontSize: '0.85rem', margin: 0, cursor: 'pointer',
-                  fontStyle: userData?.bio ? 'normal' : 'italic',
+                  width: xpAnimated ? `${levelInfo.progress}%` : '0%',
                 }}
-                title="Nhấp để thêm bio"
-              >
-                {userData?.bio || '+ Thêm giới thiệu bản thân'}
-              </p>
-            )}
+              />
+            </div>
           </div>
+
+          <div className="pf-section-divider" />
+
+          {/* Badges Story Highlight Section */}
+          <div className="pf-badges-wrap">
+            <h2 className="pf-section-title">🏆 Danh hiệu cộng đồng ({earnedBadgeNames.length}/{ALL_BADGES.length})</h2>
+            <div className="pf-badge-row">
+              {ALL_BADGES.map((badge) => {
+                const isUnlocked = earnedBadgeNames.includes(badge.name);
+                return (
+                  <div
+                    key={badge.name}
+                    className={`pf-badge-item ${isUnlocked ? 'pf-badge-item-unlocked' : 'pf-badge-item-locked'}`}
+                    style={{ '--badge-color': badge.color }}
+                  >
+                    <div className="pf-badge-circle" title={isUnlocked ? `Đã mở khóa: ${badge.desc}` : `Chưa mở khóa: ${badge.desc}`}>
+                      <span>{badge.icon}</span>
+                      {!isUnlocked && <span className="pf-badge-lock-icon">🔒</span>}
+                    </div>
+                    <span className="pf-badge-label">{badge.name}</span>
+                    <span className="pf-badge-desc">{badge.desc}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Join Date & Meta information */}
+          <div className="pf-footer-meta">
+            <div className="pf-meta-item">
+              <span>📅</span>
+              <span>Đã tham gia: <strong>{userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('vi-VN') : '—'}</strong></span>
+            </div>
+            <div className="pf-meta-item">
+              <span>👤</span>
+              <span>Vai trò: <strong>{userData?.role === 'admin' ? 'Quản trị viên' : 'Thành viên'}</strong></span>
+            </div>
+          </div>
+
         </div>
-
-        {/* ── Content ── */}
-        <main style={{ maxWidth: '700px', margin: '-2rem auto 0', padding: '0 1rem 2rem', position: 'relative', zIndex: 2 }}>
-          {/* Stats card */}
-          <div style={{
-            background: '#fff', borderRadius: '1rem', boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-            padding: '1.25rem', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-around',
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>
-                {userData?.badges?.length || 0}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Danh hiệu</div>
-            </div>
-            <div style={{ width: '1px', background: '#f1f5f9' }} />
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>
-                {userData?.role === 'admin' ? '👑' : '🧑‍🎓'}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>
-                {userData?.role === 'admin' ? 'Admin' : 'Thành viên'}
-              </div>
-            </div>
-            <div style={{ width: '1px', background: '#f1f5f9' }} />
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>
-                {userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('vi-VN') : '—'}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Tham gia</div>
-            </div>
-          </div>
-
-          {/* Badges */}
-          <div style={{
-            background: '#fff', borderRadius: '1rem', boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-            padding: '1.25rem',
-          }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', marginBottom: '1rem' }}>
-              🏅 Danh hiệu đã đạt được
-            </h2>
-            {!hasBadges ? (
-              <p style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', padding: '1.5rem 0' }}>
-                Chưa có danh hiệu nào. Hãy tham gia đóng góp để nhận huy hiệu! 🎯
-              </p>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
-                {userData.badges.map((badge, idx) => (
-                  <Badge key={idx} name={badge.name} icon={badge.icon} />
-                ))}
-              </div>
-            )}
-          </div>
-        </main>
       </div>
     </ProtectedRoute>
   );

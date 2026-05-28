@@ -12,13 +12,19 @@ export async function POST(request) {
     }
 
     const locationsSnap = await getDocs(collection(db, 'locations'));
-    const locations = locationsSnap.docs.map(doc => ({
-      name: doc.data().name,
-      category: doc.data().category,
-      address: doc.data().address,
-      description: doc.data().description,
-      averageRating: doc.data().averageRating,
-    }));
+    const locations = locationsSnap.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      .filter(loc => loc.status === 'approved' || !loc.status)
+      .map(loc => ({
+        name: loc.name,
+        category: loc.category,
+        address: loc.address,
+        description: loc.description,
+        averageRating: loc.averageRating,
+      }));
 
     if (locations.length === 0) {
       return new Response(JSON.stringify({ recommendations: [], message: 'Chưa có địa điểm nào trong hệ thống' }));

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { addLocation } from '@/lib/firestore';
+import useUserRole from '@/lib/useUserRole';
 import toast from 'react-hot-toast';
 
 // Haversine formula to calculate distance in meters
@@ -31,6 +32,7 @@ const QUICK_TAGS = [
 ];
 
 export default function LocketCameraModal({ onClose, onUploadSuccess }) {
+  const { role, isAdmin } = useUserRole();
   const [stream, setStream] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
   const [facingMode, setFacingMode] = useState('environment'); // Default to rear camera
@@ -38,6 +40,7 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
   const [coords, setCoords] = useState(null);
   const [address, setAddress] = useState('');
   const [nearbyLocations, setNearbyLocations] = useState([]);
+  const [useGPS, setUseGPS] = useState(false);
   
   // Form fields
   const [spotName, setSpotName] = useState('');
@@ -49,58 +52,76 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // 1. Fetch GPS on mount and load nearby spots
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          setCoords({ lat: latitude, lng: longitude });
-          
-          // Pre-fetch reverse geocoding
-          try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-            if (res.ok) {
-              const data = await res.json();
-              if (data && data.display_name) {
-                setAddress(data.display_name);
-              }
-            }
-          } catch (e) {
-            console.error('Error reverse geocoding:', e);
-          }
-
-          // Fetch locations to find nearby spots within 100m
-          try {
-            const snapshot = await getDocs(collection(db, 'locations'));
-            const spots = snapshot.docs.map(docSnap => ({
-              id: docSnap.id,
-              ...docSnap.data()
-            }));
-
-            const calculated = spots
-              .map(spot => {
-                if (spot.latitude && spot.longitude) {
-                  const dist = getDistance(latitude, longitude, spot.latitude, spot.longitude);
-                  return { ...spot, distance: dist };
-                }
-                return { ...spot, distance: 99999 };
-              })
-              .filter(spot => spot.distance <= 100) // 100 meters limit
-              .sort((a, b) => a.distance - b.distance);
-
-            setNearbyLocations(calculated);
-          } catch (err) {
-            console.error('Error fetching nearby locations:', err);
-          }
-        },
-        (err) => {
-          console.warn('Geolocation error:', err);
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
+  // Manual GPS trigger
+  const handleFetchGPS = (shouldFetch) => {
+    if (!shouldFetch) {
+      setCoords(null);
+      setAddress('');
+      setNearbyLocations([]);
+      return;
     }
-  }, []);
+
+    if (!navigator.geolocation) {
+      toast.error('Trình duyệt của bạn không hỗ trợ định vị GPS');
+      setUseGPS(false);
+      return;
+    }
+    
+    const toastId = toast.loading('Đang lấy vị trí GPS...');
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        toast.dismiss(toastId);
+        toast.success('Đã lấy vị trí GPS thành công!');
+        setCoords({ lat: latitude, lng: longitude });
+        
+        // Fetch reverse geocoding
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.display_name) {
+              setAddress(data.display_name);
+            }
+          }
+        } catch (e) {
+          console.error('Error reverse geocoding:', e);
+        }
+
+        // Fetch locations to find nearby spots within 100m
+        try {
+          const snapshot = await getDocs(collection(db, 'locations'));
+          const spots = snapshot.docs.map(docSnap => ({
+            id: docSnap.id,
+            ...docSnap.data()
+          }));
+
+          const calculated = spots
+            .map(spot => {
+              if (spot.latitude && spot.longitude) {
+                const dist = getDistance(latitude, longitude, spot.latitude, spot.longitude);
+                return { ...spot, distance: dist };
+              }
+              return { ...spot, distance: 99999 };
+            })
+            .filter(spot => spot.distance <= 100) // 100 meters limit
+            .sort((a, b) => a.distance - b.distance);
+
+          setNearbyLocations(calculated);
+        } catch (err) {
+          console.error('Error fetching nearby locations:', err);
+        }
+      },
+      (err) => {
+        toast.dismiss(toastId);
+        setUseGPS(false);
+        console.warn('Geolocation error:', err);
+        toast.error('Không thể lấy vị trí GPS. Vui lòng cấp quyền vị trí.');
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
 
   // 2. Start webcam stream
   useEffect(() => {
@@ -240,7 +261,7 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
       const blob = await resBlob.blob();
       const imageFile = new File([blob], 'locket_checkin.jpg', { type: 'image/jpeg' });
 
-      // Add as an instantly approved check-in location card
+      // Add check-in location card (needs admin approval unless created by admin)
       await addLocation(
         {
           name: spotName.trim(),
@@ -253,15 +274,14 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
           createdByAvatar: creatorAvatar,
           tags: selectedTags,
           isCheckIn: true,
-          status: 'approved', // Auto-approved for fast viral updates
         },
         imageFile,
         user.uid,
-        'user'
+        role
       );
 
       toast.dismiss(toastId);
-      toast.success('⚡ Đăng check-in thành công!');
+      toast.success(isAdmin ? '⚡ Đăng check-in thành công!' : '⚡ Đăng check-in thành công! Đang chờ Admin phê duyệt.');
       if (onUploadSuccess) onUploadSuccess();
       onClose();
     } catch (err) {
@@ -413,13 +433,31 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
         {/* Info Form */}
         {capturedImage && (
           <form onSubmit={handleSubmit} style={{ padding: '1.25rem', overflowY: 'auto', maxHeight: '280px' }}>
+            {/* GPS Toggle */}
+            <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem', background: '#1a1a1a', borderRadius: '0.75rem', border: '1px solid #2a2a2a' }}>
+              <input
+                type="checkbox"
+                id="locketUseGPS"
+                checked={useGPS}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setUseGPS(val);
+                  handleFetchGPS(val);
+                }}
+                style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#3b82f6' }}
+              />
+              <label htmlFor="locketUseGPS" style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e5e7eb', cursor: 'pointer', selectSpread: 'none' }}>
+                🛰️ Sử dụng vị trí GPS hiện tại
+              </label>
+            </div>
+
             {/* 1. Geolocation nearby suggestions */}
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#666', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
                 📍 Địa điểm của bạn
               </label>
               
-              {nearbyLocations.length > 0 ? (
+              {useGPS && nearbyLocations.length > 0 ? (
                 <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.4rem', scrollbarWidth: 'none' }}>
                   {nearbyLocations.map((loc) => (
                     <button
@@ -429,6 +467,9 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
                         setSpotName(loc.name);
                         setCategory(loc.category);
                         if (loc.address) setAddress(loc.address);
+                        if (loc.latitude && loc.longitude) {
+                          setCoords({ lat: loc.latitude, lng: loc.longitude });
+                        }
                       }}
                       style={{
                         padding: '0.35rem 0.8rem', borderRadius: '1rem',
@@ -443,8 +484,8 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
                   ))}
                 </div>
               ) : (
-                <p style={{ margin: '0 0 0.4rem', fontSize: '0.75rem', color: '#555', fontStyle: 'italic' }}>
-                  Không thấy quán nào đã lưu lân cận...
+                <p style={{ margin: '0 0 0.4rem', fontSize: '0.75rem', color: '#888', fontStyle: 'italic' }}>
+                  {useGPS ? 'Không thấy quán nào đã lưu lân cận...' : 'Bật GPS ở trên để tìm các quán gần bạn! 📍'}
                 </p>
               )}
 

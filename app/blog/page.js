@@ -1,20 +1,22 @@
 'use client';
 
 import '@/app/styles/blog.css';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { auth, db, onAuthStateChanged } from '@/lib/firebase';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import ThreadCard from '@/components/ThreadCard';
-import { getPosts } from '@/lib/firestore';
+import { getPosts, getTrendingTags, addPost } from '@/lib/firestore';
 import toast from 'react-hot-toast';
-import { doc, getDoc, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
+import useUserRole from '@/lib/useUserRole';
 
-const SORT_OPTIONS = [
-  { key: 'hot', label: '🔥 Hot', desc: 'Trending' },
-  { key: 'new', label: '🕐 Mới nhất', desc: 'Recent' },
-  { key: 'top', label: '⬆️ Top', desc: 'Most upvoted' },
+const FEED_TABS = [
+  { key: 'forYou', label: 'Dành cho bạn' },
+  { key: 'trending', label: 'Thịnh hành' },
+  { key: 'new', label: 'Mới nhất' },
 ];
 
 const CATEGORIES = [
@@ -27,15 +29,24 @@ const CATEGORIES = [
 ];
 
 export default function BlogList() {
+  const router = useRouter();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
-  const [featuredLocations, setFeaturedLocations] = useState([]);
-  const [sortBy, setSortBy] = useState('hot');
+  const [activeTab, setActiveTab] = useState('forYou');
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [user, setUser] = useState(null);
+  const [trendingTags, setTrendingTags] = useState([]);
+  const { role, isAdmin } = useUserRole();
 
-  // Auth listener for user state
+  // Composer state
+  const [composerText, setComposerText] = useState('');
+  const [composerTitle, setComposerTitle] = useState('');
+  const [composing, setComposing] = useState(false);
+  const [showComposerTitle, setShowComposerTitle] = useState(false);
+  const composerRef = useRef(null);
+
+  // Auth listener
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
@@ -55,32 +66,28 @@ export default function BlogList() {
     return () => unsub();
   }, []);
 
-  // Fetch featured locations for sidebar
+  // Fetch trending tags
   useEffect(() => {
-    const fetchFeatured = async () => {
+    const fetchTrending = async () => {
       try {
-        const q = query(
-          collection(db, 'locations'),
-          orderBy('averageRating', 'desc'),
-          limit(2)
-        );
-        const snapshot = await getDocs(q);
-        setFeaturedLocations(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (error) {
-        console.error('Error fetching featured locations:', error);
+        const tags = await getTrendingTags(6);
+        setTrendingTags(tags);
+      } catch (err) {
+        console.error('Error fetching trending:', err);
       }
     };
-    fetchFeatured();
+    fetchTrending();
   }, []);
 
-  // Fetch posts when sort/category changes
+  // Fetch posts when tab/category changes
   useEffect(() => {
     fetchPosts();
-  }, [sortBy, categoryFilter]);
+  }, [activeTab, categoryFilter]);
 
   const fetchPosts = async () => {
     setLoading(true);
     try {
+      const sortBy = activeTab === 'new' ? 'new' : activeTab === 'trending' ? 'top' : 'hot';
       const data = await getPosts(sortBy, categoryFilter);
       setPosts(data);
     } catch (error) {
@@ -91,177 +98,103 @@ export default function BlogList() {
     }
   };
 
-  const userInitial = user?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U';
-  const userName = user?.displayName || user?.email?.split('@')[0] || 'Bạn';
+  // Inline compose submit
+  const handleQuickPost = async () => {
+    if (!user) return toast.error('Vui lòng đăng nhập');
+    if (!composerText.trim()) return;
+    setComposing(true);
+    try {
+      const title = composerTitle.trim() || composerText.substring(0, 60);
+      await addPost(
+        user.uid,
+        userData?.name || user.displayName || user.email,
+        title,
+        composerText,
+        null,
+        role,
+        'discussion',
+        'general',
+        null,
+        false,
+        userData?.avatarUrl || null,
+        userData?.badges || [],
+        []
+      );
+      toast.success(isAdmin ? 'Đã đăng bài!' : 'Đã gửi! Bài viết đang chờ duyệt.');
+      setComposerText('');
+      setComposerTitle('');
+      setShowComposerTitle(false);
+      fetchPosts();
+    } catch (err) {
+      toast.error(err.message || 'Lỗi đăng bài');
+    } finally {
+      setComposing(false);
+    }
+  };
 
-  // Find featured post (most upvoted or pinned, with image preferred)
-  const featuredPost = posts.find(p => p.isPinned && p.imageUrl)
-    || posts.find(p => p.isPinned)
-    || posts.find(p => p.imageUrl && (p.upvotes || 0) > 0)
-    || (posts.length > 0 && posts[0].imageUrl ? posts[0] : null);
+  const userInitial = userData?.name?.charAt(0).toUpperCase() || user?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U';
+  const userName = userData?.name || user?.displayName || user?.email?.split('@')[0] || 'Bạn';
 
   return (
     <ProtectedRoute>
       <div className="blog-root">
         <Navbar />
 
-        {/* ───── Hero Banner ───── */}
-        <div className="blog-hero">
-          <div className="blog-hero-bg"></div>
-          <div className="blog-hero-content">
-            <div className="blog-hero-badge">💬 Cộng đồng sinh viên</div>
-            <h1 className="blog-hero-title">
-              Diễn đàn <span>CityZ</span>
-            </h1>
-            <p className="blog-hero-desc">
-              Nơi sinh viên chia sẻ kinh nghiệm, hỏi đáp và kết nối — từ review quán ăn đến tips thuê nhà trọ.
-            </p>
-            <div className="blog-hero-stats">
-              <div className="blog-hero-stat">
-                <span className="blog-hero-stat-num">{posts.length}</span>
-                <span className="blog-hero-stat-label">Bài viết</span>
-              </div>
-              <div className="blog-hero-stat">
-                <span className="blog-hero-stat-num">{posts.reduce((s, p) => s + (p.commentCount || 0), 0)}</span>
-                <span className="blog-hero-stat-label">Bình luận</span>
-              </div>
-              <div className="blog-hero-stat">
-                <span className="blog-hero-stat-num">{posts.reduce((s, p) => s + (p.upvotes || 0), 0)}</span>
-                <span className="blog-hero-stat-label">Upvotes</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <main className="max-w-7xl mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <main style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr', gap: '0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '280px minmax(0, 600px) 350px', gap: '0', justifyContent: 'center' }}>
 
             {/* ═══════ LEFT SIDEBAR ═══════ */}
-            <aside className="lg:col-span-3 hidden lg:flex flex-col gap-6 sticky top-20">
-              {/* User Profile Card */}
-              {userData ? (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition hover:shadow-md">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-2xl mb-3 shadow-inner">
-                      {userData.name?.charAt(0).toUpperCase() || 'U'}
+            <aside style={{ display: 'none', position: 'sticky', top: '64px', height: 'fit-content', padding: '1rem 0.5rem 1rem 0' }}
+              className="blog-left-sidebar"
+            >
+              {/* User card */}
+              {userData && (
+                <div className="blog-user-card">
+                  <div className="blog-user-card-header">
+                    <div className="blog-user-card-avatar">
+                      {userData.avatarUrl ? (
+                        <img src={userData.avatarUrl} alt={userName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : userInitial}
                     </div>
-                    <h3 className="font-bold text-gray-900 text-lg leading-tight mb-1">{userData.name}</h3>
-                    <p className="text-xs text-gray-500 font-medium mb-3">
-                      {userData.role === 'admin' ? '🛡️ Quản trị viên' : '🎓 Sinh viên'}
-                    </p>
-
-                    {/* Badges */}
-                    {userData.badges && userData.badges.length > 0 ? (
-                      <div className="flex flex-wrap justify-center gap-1.5 mt-2 pt-3 border-t border-gray-100 w-full">
-                        {userData.badges.map((badge, i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border border-blue-100 shadow-sm"
-                            title={badge.name}
-                          >
-                            <span>{badge.icon}</span>
-                            {badge.name}
-                          </span>
-                        ))}
+                    <div>
+                      <div className="blog-user-card-name">{userName}</div>
+                      <div className="blog-user-card-role">
+                        {userData.role === 'admin' ? '🛡️ Quản trị viên' : '🎓 Sinh viên'}
                       </div>
-                    ) : (
-                      <p className="text-xs text-gray-400 mt-2 italic pt-2 border-t border-gray-100 w-full">Chưa có huy hiệu</p>
-                    )}
-
-                    <Link
-                      href="/profile"
-                      className="mt-4 w-full text-center text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 py-2.5 rounded-xl transition-all"
-                    >
-                      Xem chi tiết hồ sơ
-                    </Link>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 text-center animate-pulse">
-                  <div className="w-16 h-16 rounded-full bg-gray-200 mx-auto mb-3"></div>
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2 mx-auto"></div>
+                  {userData.badges && userData.badges.length > 0 && (
+                    <div className="blog-user-card-badges">
+                      {userData.badges.map((badge, i) => (
+                        <span key={i} className="blog-user-card-badge" title={badge.name}>
+                          {badge.icon} {badge.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <Link href="/profile" className="blog-user-card-link">
+                    Hồ sơ của tôi
+                  </Link>
                 </div>
               )}
-
-              {/* Trending Tags */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition hover:shadow-md">
-                <h4 className="font-bold text-gray-900 text-sm mb-4 flex items-center gap-2">
-                  <span>🏷️</span> Xu hướng tìm kiếm
-                </h4>
-                <div className="flex flex-col gap-3">
-                  {[
-                    { tag: 'reviewmonhoc', label: '#ReviewMonHoc', count: '142 bài viết' },
-                    { tag: 'giarebinhthanh', label: '#GiaReBinhThanh', count: '98 bài viết' },
-                    { tag: 'timphongtro', label: '#TimPhongTro', count: '76 bài viết' },
-                    { tag: 'tansinhvien', label: '#TanSinhVien', count: '55 bài viết' },
-                  ].map((item, idx) => (
-                    <Link
-                      key={idx}
-                      href={`/blog/tag/${item.tag}`}
-                      className="flex flex-col group py-1.5 border-b border-gray-50 last:border-0"
-                    >
-                      <span className="text-sm font-semibold text-gray-800 group-hover:text-blue-600 transition">
-                        {item.label}
-                      </span>
-                      <span className="text-[10px] text-gray-400">{item.count}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
             </aside>
 
-            {/* ═══════ CENTER COLUMN: FEED ═══════ */}
-            <div className="lg:col-span-6 flex flex-col gap-6 w-full">
+            {/* ═══════ CENTER FEED ═══════ */}
+            <div style={{ borderLeft: '1px solid var(--blog-divider)', borderRight: '1px solid var(--blog-divider)', minHeight: '100vh' }}>
 
-              {/* Featured Post */}
-              {featuredPost && (
-                <Link href={`/post/${featuredPost.id}`} className="blog-featured">
-                  <div className="blog-featured-image">
-                    {featuredPost.imageUrl ? (
-                      <img src={featuredPost.imageUrl} alt={featuredPost.title} />
-                    ) : (
-                      <div className="blog-featured-placeholder">
-                        <span>📝</span>
-                      </div>
-                    )}
-                    <div className="blog-featured-overlay">
-                      <span className="blog-featured-badge">⭐ Nổi bật</span>
-                    </div>
-                  </div>
-                  <div className="blog-featured-info">
-                    <h2 className="blog-featured-title">{featuredPost.title}</h2>
-                    <p className="blog-featured-preview">
-                      {featuredPost.content?.substring(0, 120)}{featuredPost.content?.length > 120 ? '...' : ''}
-                    </p>
-                    <div className="blog-featured-meta">
-                      <span>✍️ {featuredPost.authorName?.includes('@') ? featuredPost.authorName.split('@')[0] : featuredPost.authorName || 'Ẩn danh'}</span>
-                      {(featuredPost.upvotes || 0) > 0 && <span>⬆️ {featuredPost.upvotes} upvotes</span>}
-                      {(featuredPost.commentCount || 0) > 0 && <span>💬 {featuredPost.commentCount}</span>}
-                    </div>
-                  </div>
-                </Link>
-              )}
-
-              {/* Quick Post */}
-              <div className="blog-quick-post">
-                <div className="blog-quick-avatar">{userInitial}</div>
-                <Link href="/blog/create" className="blog-quick-input">
-                  Xin chào {userName}, chia sẻ gì đó nào...
-                </Link>
-              </div>
-
-              {/* Sort Tabs */}
-              <div className="blog-sort-tabs">
-                {SORT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.key}
-                    onClick={() => setSortBy(opt.key)}
-                    className={`blog-sort-btn ${sortBy === opt.key ? 'active' : ''}`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+              {/* Feed Tabs */}
+              <div className="blog-feed-header">
+                <div className="blog-feed-tabs">
+                  {FEED_TABS.map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key)}
+                      className={`blog-feed-tab ${activeTab === tab.key ? 'active' : ''}`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Category Filters */}
@@ -277,10 +210,63 @@ export default function BlogList() {
                 ))}
               </div>
 
-              {/* Posts List */}
+              {/* Inline Composer */}
+              <div className="blog-composer">
+                <div className="blog-composer-avatar">{userInitial}</div>
+                <div className="blog-composer-body">
+                  {showComposerTitle && (
+                    <input
+                      type="text"
+                      value={composerTitle}
+                      onChange={(e) => setComposerTitle(e.target.value)}
+                      placeholder="Tiêu đề (tùy chọn)"
+                      style={{
+                        width: '100%',
+                        background: 'none',
+                        border: 'none',
+                        outline: 'none',
+                        color: 'var(--blog-text-primary)',
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        fontFamily: 'inherit',
+                        padding: '0.25rem 0',
+                        marginBottom: '0.25rem',
+                      }}
+                    />
+                  )}
+                  <textarea
+                    ref={composerRef}
+                    className="blog-composer-input"
+                    placeholder={`${userName} ơi, bạn đang nghĩ gì?`}
+                    value={composerText}
+                    onChange={(e) => setComposerText(e.target.value)}
+                    rows={1}
+                    onFocus={() => setShowComposerTitle(true)}
+                    style={{ minHeight: showComposerTitle ? '4rem' : '2.5rem' }}
+                  />
+                  {showComposerTitle && (
+                    <div className="blog-composer-tools">
+                      <div className="blog-composer-icons">
+                        <Link href="/blog/create" className="blog-composer-icon-btn" title="Bài viết đầy đủ">📝</Link>
+                        <button className="blog-composer-icon-btn" title="Thêm ảnh" onClick={() => router.push('/blog/create')}>📸</button>
+                        <button className="blog-composer-icon-btn" title="Tạo khảo sát" onClick={() => router.push('/blog/create')}>📊</button>
+                      </div>
+                      <button
+                        className="blog-composer-submit"
+                        onClick={handleQuickPost}
+                        disabled={composing || !composerText.trim()}
+                      >
+                        {composing ? 'Đang đăng...' : 'Đăng'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Posts Feed */}
               {loading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                <div className="blog-loading">
+                  <div className="blog-spinner"></div>
                 </div>
               ) : posts.length === 0 ? (
                 <div className="blog-empty">
@@ -300,121 +286,115 @@ export default function BlogList() {
             </div>
 
             {/* ═══════ RIGHT SIDEBAR ═══════ */}
-            <aside className="lg:col-span-3 hidden lg:flex flex-col gap-6 sticky top-20">
-              {/* AI Gemini Mini Form */}
-              <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-2xl shadow-sm p-5 relative overflow-hidden group transition hover:shadow-md">
-                <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500"></div>
-
-                <h4 className="font-bold text-sm mb-2 flex items-center gap-2 relative z-10">
-                  <span>🤖</span> Trợ lý AI Gemini
-                </h4>
-                <p className="text-xs text-blue-100 leading-relaxed mb-4 relative z-10">
-                  Bạn cần tìm quán ăn ngon, nhà trọ giá rẻ hay quán cafe học bài? Nhập nhanh yêu cầu để nhận gợi ý tức thì!
-                </p>
-
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const q = e.target.query.value;
-                    if (q.trim()) {
-                      window.location.href = `/recommend?q=${encodeURIComponent(q)}`;
-                    }
-                  }}
-                  className="flex gap-2 relative z-10"
-                >
-                  <input
-                    type="text"
-                    name="query"
-                    placeholder="Bạn muốn hỏi gì..."
-                    className="flex-1 bg-white/15 hover:bg-white/20 focus:bg-white text-white focus:text-gray-900 placeholder-blue-100 focus:placeholder-gray-400 text-xs rounded-xl px-3 py-2 border border-white/10 focus:border-white focus:outline-none transition-all"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-white text-blue-600 hover:bg-blue-50 font-bold px-3 py-2 rounded-xl transition text-xs flex items-center justify-center shrink-0 shadow-sm"
-                    title="Gửi câu hỏi"
-                  >
-                    ⚡
-                  </button>
-                </form>
+            <aside style={{ display: 'none', position: 'sticky', top: '64px', height: 'fit-content', padding: '1rem 0 1rem 0.5rem' }}
+              className="blog-right-sidebar"
+            >
+              {/* AI Gemini Card */}
+              <div style={{ marginBottom: '1rem' }}>
+                <div className="blog-sidebar" style={{ background: 'linear-gradient(135deg, rgba(29,155,240,0.12), rgba(168,85,247,0.08))', border: '1px solid rgba(29,155,240,0.2)' }}>
+                  <div style={{ padding: '1rem' }}>
+                    <h4 style={{ fontSize: '0.94rem', fontWeight: 700, color: 'var(--blog-text-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      🤖 Trợ lý AI Gemini
+                    </h4>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--blog-text-secondary)', lineHeight: 1.5, marginBottom: '0.75rem' }}>
+                      Tìm quán ăn, nhà trọ, cafe? Hỏi AI ngay!
+                    </p>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const q = e.target.query.value;
+                        if (q.trim()) window.location.href = `/recommend?q=${encodeURIComponent(q)}`;
+                      }}
+                      style={{ display: 'flex', gap: '0.5rem' }}
+                    >
+                      <input
+                        type="text"
+                        name="query"
+                        placeholder="Bạn muốn hỏi gì..."
+                        style={{
+                          flex: 1,
+                          background: 'var(--blog-input-bg)',
+                          border: '1px solid var(--blog-divider)',
+                          borderRadius: '2rem',
+                          padding: '0.5rem 0.85rem',
+                          color: 'var(--blog-text-primary)',
+                          fontSize: '0.82rem',
+                          outline: 'none',
+                          fontFamily: 'inherit',
+                        }}
+                      />
+                      <button
+                        type="submit"
+                        style={{
+                          background: 'var(--blog-accent)',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '2.25rem',
+                          height: '2.25rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          flexShrink: 0,
+                        }}
+                      >
+                        ⚡
+                      </button>
+                    </form>
+                  </div>
+                </div>
               </div>
 
-              {/* Featured Student Spots */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition hover:shadow-md">
-                <h4 className="font-bold text-gray-900 text-sm mb-4 flex items-center gap-2">
-                  <span>📍</span> Điểm đến đề xuất
-                </h4>
-
-                {featuredLocations.length > 0 ? (
-                  <div className="flex flex-col gap-4">
-                    {featuredLocations.map((loc) => (
-                      <Link
-                        key={loc.id}
-                        href={`/location/${loc.id}`}
-                        className="flex gap-3 group border-b border-gray-50 pb-3 last:border-0 last:pb-0"
-                      >
-                        <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0">
-                          {loc.imageUrl ? (
-                            <img src={loc.imageUrl} alt={loc.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-blue-50 text-blue-500 font-bold">📍</div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h5 className="font-bold text-xs text-gray-800 leading-snug truncate group-hover:text-blue-600 transition">
-                            {loc.name}
-                          </h5>
-                          <p className="text-[10px] text-gray-500 truncate mb-1">📍 {loc.address}</p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-semibold text-yellow-500 flex items-center gap-0.5">
-                              ⭐ {loc.averageRating ? Number(loc.averageRating).toFixed(1) : '0.0'}
-                            </span>
-                            <span className="text-[9px] text-gray-400">({loc.reviewCount || 0} đánh giá)</span>
-                          </div>
-                        </div>
+              {/* Trending Tags */}
+              <div className="blog-sidebar">
+                <h3 className="blog-sidebar-title">🔥 Xu hướng</h3>
+                {trendingTags.length > 0 ? (
+                  trendingTags.map((item, idx) => (
+                    <Link key={idx} href={`/blog/tag/${item.tag}`} className="blog-sidebar-item">
+                      <span className="blog-sidebar-item-label">Xu hướng #{idx + 1}</span>
+                      <span className="blog-sidebar-item-tag">#{item.tag}</span>
+                      <span className="blog-sidebar-item-count">{item.postCount} bài viết</span>
+                    </Link>
+                  ))
+                ) : (
+                  <>
+                    {[
+                      { tag: 'reviewmonhoc', count: '142 bài viết' },
+                      { tag: 'giarebinhthanh', count: '98 bài viết' },
+                      { tag: 'timphongtro', count: '76 bài viết' },
+                      { tag: 'tansinhvien', count: '55 bài viết' },
+                    ].map((item, idx) => (
+                      <Link key={idx} href={`/blog/tag/${item.tag}`} className="blog-sidebar-item">
+                        <span className="blog-sidebar-item-label">Xu hướng #{idx + 1}</span>
+                        <span className="blog-sidebar-item-tag">#{item.tag}</span>
+                        <span className="blog-sidebar-item-count">{item.count}</span>
                       </Link>
                     ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-400 italic text-center py-4">Chưa có địa điểm nổi bật</p>
+                  </>
                 )}
-
-                <Link
-                  href="/dashboard"
-                  className="block text-center text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 py-2.5 rounded-xl mt-4 transition"
-                >
-                  Khám phá thêm địa điểm →
-                </Link>
-              </div>
-
-              {/* Active Members */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition hover:shadow-md">
-                <h4 className="font-bold text-gray-900 text-sm mb-4 flex items-center gap-2">
-                  <span>🏆</span> Đóng góp nhiều nhất
-                </h4>
-                <div className="flex flex-col gap-3">
-                  {[
-                    { name: 'Nguyen Ta', role: 'Đại sứ sinh viên', points: '120 đóng góp', badge: '👑' },
-                    { name: 'Minh Tran', role: 'Cộng tác viên', points: '95 đóng góp', badge: '🥈' },
-                  ].map((member, idx) => (
-                    <div key={idx} className="flex items-center gap-2.5 py-1">
-                      <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center font-bold text-xs text-blue-600 shrink-0">
-                        {member.name.charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
-                          <h5 className="font-bold text-xs text-gray-800 truncate">{member.name}</h5>
-                          <span className="text-xs shrink-0">{member.badge}</span>
-                        </div>
-                        <p className="text-[9px] text-gray-400">{member.role} · {member.points}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <Link href="/blog" className="blog-sidebar-more">Xem thêm</Link>
               </div>
             </aside>
 
           </div>
         </main>
+
+        {/* Responsive sidebar visibility via inline style + media query */}
+        <style jsx global>{`
+          @media (min-width: 1024px) {
+            .blog-left-sidebar { display: block !important; }
+            .blog-right-sidebar { display: block !important; }
+          }
+          @media (max-width: 1023px) {
+            .blog-left-sidebar,
+            .blog-right-sidebar { display: none !important; }
+            main > div {
+              grid-template-columns: minmax(0, 600px) !important;
+              justify-content: center !important;
+            }
+          }
+        `}</style>
       </div>
     </ProtectedRoute>
   );
