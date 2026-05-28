@@ -17,7 +17,11 @@ import {
   deletePost,
   updatePost,
   deleteLocation,
-  deleteReview
+  deleteReview,
+  getBookmarkedPosts,
+  getBookmarkedLocations,
+  bookmarkLocation,
+  bookmarkPost
 } from '@/lib/firestore';
 import { compressAndToBase64 } from '@/lib/imageHelper';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -78,6 +82,8 @@ export default function Profile() {
   const [posts, setPosts] = useState([]);
   const [locations, setLocations] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [savedPosts, setSavedPosts] = useState([]);
+  const [savedLocations, setSavedLocations] = useState([]);
   const [loadingContent, setLoadingContent] = useState(false);
 
   // Edit post states
@@ -93,14 +99,18 @@ export default function Profile() {
     try {
       const userUid = uid || user?.uid;
       if (!userUid) return;
-      const [userPosts, userLocations, userReviews] = await Promise.all([
+      const [userPosts, userLocations, userReviews, bookmarkedPosts, bookmarkedLocations] = await Promise.all([
         getUserPosts(userUid),
         getUserLocations(userUid),
-        getUserReviews(userUid)
+        getUserReviews(userUid),
+        getBookmarkedPosts(userUid),
+        getBookmarkedLocations(userUid)
       ]);
       setPosts(userPosts);
       setLocations(userLocations);
       setReviews(userReviews);
+      setSavedPosts(bookmarkedPosts);
+      setSavedLocations(bookmarkedLocations);
     } catch (err) {
       console.error('Error fetching user contents:', err);
       toast.error('Không thể tải danh sách nội dung đã đăng');
@@ -218,6 +228,28 @@ export default function Profile() {
       await refreshStatsAndContent(user.uid);
     } catch (err) {
       toast.error('Lỗi khi xóa đánh giá: ' + err.message);
+    }
+  };
+
+  const handleUnsavePost = async (postId) => {
+    if (!window.confirm('Bạn có muốn bỏ lưu bài viết này không?')) return;
+    try {
+      await bookmarkPost(postId, user.uid);
+      toast.success('Đã bỏ lưu bài viết!');
+      await fetchUserContents(user.uid);
+    } catch (err) {
+      toast.error('Lỗi khi bỏ lưu bài viết');
+    }
+  };
+
+  const handleUnsaveLocation = async (locationId) => {
+    if (!window.confirm('Bạn có muốn bỏ lưu địa điểm này không?')) return;
+    try {
+      await bookmarkLocation(locationId, user.uid);
+      toast.success('Đã bỏ lưu địa điểm!');
+      await fetchUserContents(user.uid);
+    } catch (err) {
+      toast.error('Lỗi khi bỏ lưu địa điểm');
     }
   };
 
@@ -492,6 +524,12 @@ export default function Profile() {
             >
               ⭐ Đánh giá <span className="pf-tab-count">{reviews.length}</span>
             </button>
+            <button 
+              className={`pf-tab-btn ${activeTab === 'saved' ? 'active' : ''}`}
+              onClick={() => setActiveTab('saved')}
+            >
+              📁 Đã lưu <span className="pf-tab-count">{savedPosts.length + savedLocations.length}</span>
+            </button>
           </div>
 
           <div className="pf-content-grid">
@@ -679,7 +717,7 @@ export default function Profile() {
                   </div>
                 ))
               )
-            ) : (
+            ) : activeTab === 'reviews' ? (
               reviews.length === 0 ? (
                 <div className="pf-empty-state">
                   <div className="pf-empty-icon">⭐</div>
@@ -716,6 +754,97 @@ export default function Profile() {
                     </div>
                   </div>
                 ))
+              )
+            ) : (
+              (savedPosts.length === 0 && savedLocations.length === 0) ? (
+                <div className="pf-empty-state">
+                  <div className="pf-empty-icon">📁</div>
+                  <div className="pf-empty-title">Chưa có mục nào được lưu</div>
+                  <div className="pf-empty-desc">Lưu bài viết hoặc địa điểm bạn yêu thích để xem lại nhanh chóng bất cứ lúc nào.</div>
+                  <Link href="/dashboard" className="pf-action-btn pf-action-btn-view" style={{ marginTop: '0.5rem', background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' }}>Khám phá ngay</Link>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
+                  {/* Saved Locations */}
+                  {savedLocations.length > 0 && (
+                    <div>
+                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, textTransform: 'uppercase', color: '#8e8e8e', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        📍 Địa điểm đã lưu ({savedLocations.length})
+                      </h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {savedLocations.map(loc => (
+                          <div key={loc.id} className="pf-card">
+                            <div className="pf-card-header">
+                              <h3 className="pf-card-title">
+                                <Link href={`/location/${loc.id}`}>{loc.name}</Link>
+                              </h3>
+                              <span className="pf-card-category">
+                                {loc.category === 'Food' ? '🍜 Ăn uống' :
+                                 loc.category === 'Housing' ? '🏠 Nhà trọ' :
+                                 loc.category === 'Cafe' ? '☕ Cafe' :
+                                 loc.category === 'Play' ? '🎡 Vui chơi' : `🏷️ ${loc.category}`}
+                              </span>
+                            </div>
+                            <p className="pf-card-meta">📍 {loc.address}</p>
+                            <p className="pf-card-body">{loc.description && loc.description.length > 150 ? `${loc.description.substring(0, 150)}...` : loc.description}</p>
+                            <div className="pf-card-footer">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <RatingStars rating={loc.averageRating || 0} />
+                                <span style={{ fontSize: '0.8rem', color: '#8e8e8e' }}>({loc.reviewCount || 0} nhận xét)</span>
+                              </div>
+                              <div className="pf-card-actions">
+                                <Link href={`/location/${loc.id}`} className="pf-action-btn pf-action-btn-view">🔗 Xem</Link>
+                                <button onClick={() => handleUnsaveLocation(loc.id)} className="pf-action-btn pf-action-btn-delete">Bỏ lưu</button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Saved Posts */}
+                  {savedPosts.length > 0 && (
+                    <div>
+                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, textTransform: 'uppercase', color: '#8e8e8e', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: savedLocations.length > 0 ? '1.5rem' : '0' }}>
+                        📝 Bài viết đã lưu ({savedPosts.length})
+                      </h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {savedPosts.map(post => (
+                          <div key={post.id} className="pf-card">
+                            <div className="pf-card-header">
+                              <h3 className="pf-card-title">
+                                <Link href={`/post/${post.id}`}>{post.title}</Link>
+                              </h3>
+                              <span className="pf-card-category">
+                                {post.category === 'housing' ? '🏠 Nhà trọ' : 
+                                 post.category === 'food' ? '🍜 Ẩm thực' :
+                                 post.category === 'academic' ? '📚 Học tập' :
+                                 post.category === 'social' ? '🎉 Xã hội' : '💬 Tổng hợp'}
+                              </span>
+                            </div>
+                            <p className="pf-card-meta">
+                              <span>Tác giả: {post.authorName || post.realAuthorName}</span>
+                              <span>•</span>
+                              <span>Đăng ngày {post.createdAt ? (post.createdAt.toDate ? post.createdAt.toDate().toLocaleDateString('vi-VN') : new Date(post.createdAt).toLocaleDateString('vi-VN')) : '—'}</span>
+                            </p>
+                            <p className="pf-card-body">{post.content && post.content.length > 150 ? `${post.content.substring(0, 150)}...` : post.content}</p>
+                            <div className="pf-card-footer">
+                              <div className="pf-card-stats">
+                                <span>👍 {post.likes || post.upvotes || 0} thích</span>
+                                <span>💬 {post.commentCount || 0} bình luận</span>
+                              </div>
+                              <div className="pf-card-actions">
+                                <Link href={`/post/${post.id}`} className="pf-action-btn pf-action-btn-view">🔗 Xem</Link>
+                                <button onClick={() => handleUnsavePost(post.id)} className="pf-action-btn pf-action-btn-delete">Bỏ lưu</button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )
             )}
           </div>

@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { uploadToCloudinary } from '@/lib/cloudinary';
-import { addReview, updateLocation, deleteLocation, getPostsByLocationId } from '@/lib/firestore';
+import { addReview, updateLocation, deleteLocation, getPostsByLocationId, bookmarkLocation } from '@/lib/firestore';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import toast from 'react-hot-toast';
@@ -136,6 +136,7 @@ export default function LocationDetail() {
   const [editMediaFiles, setEditMediaFiles] = useState([]);
   const [saving, setSaving] = useState(false);
   const [discussionPosts, setDiscussionPosts] = useState([]);
+  const [savingBookmark, setSavingBookmark] = useState(false);
 
   const startEditing = () => {
     if (!location) return;
@@ -365,6 +366,24 @@ export default function LocationDetail() {
     }
   };
 
+  const handleSaveLocation = async () => {
+    if (!user) {
+      toast.error('Vui lòng đăng nhập để lưu địa điểm');
+      return;
+    }
+    if (savingBookmark) return;
+    setSavingBookmark(true);
+    try {
+      const isSaved = await bookmarkLocation(id, user.uid);
+      toast.success(isSaved ? 'Đã lưu địa điểm!' : 'Đã bỏ lưu địa điểm!');
+      await fetchLocation();
+    } catch (err) {
+      toast.error('Lỗi khi lưu địa điểm: ' + err.message);
+    } finally {
+      setSavingBookmark(false);
+    }
+  };
+
   const handleUploadPanelFileChange = (e) => {
     const files = Array.from(e.target.files || []);
     const currentMediaCount = location.media ? location.media.length : (location.imageUrl ? 1 : 0);
@@ -436,6 +455,8 @@ export default function LocationDetail() {
   const currentMediaCount = location.media ? location.media.length : (location.imageUrl ? 1 : 0);
   const canEdit = user && location && (location.createdBy === user.uid || isAdmin);
   const canAddMore = canEdit && currentMediaCount < 9;
+  const hasSavedLocation = location?.bookmarkedBy?.includes(user?.uid);
+
 
   return (
     <ProtectedRoute>
@@ -707,8 +728,29 @@ export default function LocationDetail() {
                       </div>
                     </div>
                   )}
-                  <p className="text-gray-600 mb-1"><span className="font-semibold">Danh mục:</span> {location.category}</p>
                   <p className="text-gray-600 mb-1"><span className="font-semibold">Địa chỉ:</span> {location.address}</p>
+
+                  <div className="flex items-center gap-3 mt-3 mb-4 flex-wrap">
+                    <span className="bg-slate-100 text-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold">
+                      Danh mục: {
+                        location.category === 'Food' ? '🍜 Ăn uống' :
+                        location.category === 'Housing' ? '🏠 Nhà trọ' :
+                        location.category === 'Cafe' ? '☕ Cafe' :
+                        location.category === 'Play' ? '🎡 Vui chơi' : `🏷️ ${location.category}`
+                      }
+                    </span>
+                    <button
+                      onClick={handleSaveLocation}
+                      disabled={savingBookmark}
+                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        hasSavedLocation
+                          ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100/50'
+                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      {hasSavedLocation ? '🔖 Đã lưu địa điểm' : '📁 Lưu địa điểm'}
+                    </button>
+                  </div>
                   <p className="text-gray-700 mt-4">{location.description}</p>
                   <div className="mt-4 flex items-center">
                     <span className="font-semibold text-gray-700 mr-2">Đánh giá:</span>
