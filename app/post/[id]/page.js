@@ -401,6 +401,39 @@ export default function PostDetail() {
                   </div>
                 </div>
 
+                {/* Reference Location Banner */}
+                {post.locationId && post.locationName && (
+                  <div style={{ padding: '0.75rem 1rem 0' }}>
+                    <Link
+                      href={`/location/${post.locationId}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        background: 'rgba(99, 102, 241, 0.08)',
+                        border: '1px solid rgba(99, 102, 241, 0.25)',
+                        padding: '0.6rem 0.85rem',
+                        borderRadius: '0.75rem',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        color: '#6366f1',
+                        textDecoration: 'none',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(99, 102, 241, 0.08)';
+                      }}
+                    >
+                      <span>📍 Bản đồ & Review:</span>
+                      <span style={{ textDecoration: 'underline' }}>{post.locationName}</span>
+                      <span>➔</span>
+                    </Link>
+                  </div>
+                )}
+
                 {/* Title */}
                 <div style={{ padding: '0.5rem 1rem 0' }}>
                   <h1 className="pd-title">{post.title}</h1>

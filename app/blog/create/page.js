@@ -134,7 +134,20 @@ export default function CreatePost() {
   const [isDragging, setIsDragging] = useState(false);
   const [autocompleteQuery, setAutocompleteQuery] = useState('');
   const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [referencedLocation, setReferencedLocation] = useState(null);
   const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const locId = params.get('locationId');
+      const locName = params.get('locationName');
+      if (locId && locName) {
+        setReferencedLocation({ id: locId, name: locName });
+        setCategory('general'); // Default or tag
+      }
+    }
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -305,7 +318,9 @@ export default function CreatePost() {
         isAnonymous,
         userProfile.avatarUrl,
         userProfile.badges,
-        uploadedMedia
+        uploadedMedia,
+        referencedLocation?.id || null,
+        referencedLocation?.name || null
       );
 
       toast.success(isAdmin ? 'Đã đăng bài thành công!' : 'Đã gửi! Bài viết đang chờ kiểm duyệt từ Admin.');
@@ -442,6 +457,49 @@ export default function CreatePost() {
                   ))}
                 </div>
               </div>
+
+              {/* Tagged Location Badge */}
+              {referencedLocation && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '1rem',
+                  marginBottom: '1.25rem',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.1rem' }}>📍</span>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        BÀI VIẾT LIÊN QUAN ĐẾN ĐỊA ĐIỂM
+                      </div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--blog-text-primary)' }}>
+                        {referencedLocation.name}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReferencedLocation(null)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#ef4444',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.2rem',
+                    }}
+                  >
+                    ✕ Gỡ thẻ
+                  </button>
+                </div>
+              )}
 
               {/* Title */}
               <div style={{ marginBottom: '1.25rem' }}>

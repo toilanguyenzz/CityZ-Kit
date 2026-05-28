@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import '@/app/styles/blog.css';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { uploadToCloudinary } from '@/lib/cloudinary';
-import { addReview, updateLocation, deleteLocation } from '@/lib/firestore';
+import { addReview, updateLocation, deleteLocation, getPostsByLocationId } from '@/lib/firestore';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import toast from 'react-hot-toast';
@@ -133,6 +134,7 @@ export default function LocationDetail() {
   const [currentMediaList, setCurrentMediaList] = useState([]);
   const [editMediaFiles, setEditMediaFiles] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [discussionPosts, setDiscussionPosts] = useState([]);
 
   const startEditing = () => {
     if (!location) return;
@@ -287,8 +289,18 @@ export default function LocationDetail() {
     };
   }, [additionalFiles, editMediaFiles]);
 
+  const fetchDiscussions = async () => {
+    try {
+      const posts = await getPostsByLocationId(id);
+      setDiscussionPosts(posts);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchLocation();
+    fetchDiscussions();
   }, [id]);
 
   const fetchLocation = async () => {
@@ -852,6 +864,68 @@ export default function LocationDetail() {
           <div className="mt-8 bg-white rounded-xl shadow-md p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Các nhận xét ({location.reviewCount || 0})</h2>
             <CommentSection reviews={location.reviews || []} locationId={id} onRefresh={fetchLocation} />
+          </div>
+
+          {/* Community Discussions Area */}
+          <div className="mt-8 bg-white rounded-xl shadow-md p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">💬 Thảo luận cộng đồng</h2>
+                <p className="text-xs text-gray-400 mt-1">Cùng chia sẻ kinh nghiệm, hỏi đáp hoặc thảo luận sâu về địa điểm này.</p>
+              </div>
+              <Link
+                href={`/blog/create?locationId=${id}&locationName=${encodeURIComponent(location.name)}`}
+                className="inline-flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-semibold text-xs px-4 py-2.5 rounded-xl transition-all"
+              >
+                📝 Tạo bài thảo luận
+              </Link>
+            </div>
+
+            {discussionPosts.length === 0 ? (
+              <div className="text-center py-8 text-gray-400 text-sm italic">
+                Chưa có bài viết thảo luận nào về địa điểm này. Hãy là người đầu tiên chia sẻ cảm nghĩ nhé! ✨
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {discussionPosts.map((post) => (
+                  <Link
+                    key={post.id}
+                    href={`/post/${post.id}`}
+                    className="block p-4 rounded-xl border border-gray-100 hover:border-indigo-100 hover:bg-indigo-50/20 transition-all duration-200"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-bold text-gray-800 text-[14px] sm:text-base line-clamp-1 hover:text-indigo-600 transition-colors">
+                        {post.title}
+                      </h3>
+                      {post.flair && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-gray-100 text-gray-600">
+                          {post.flair}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 line-clamp-2 mt-1.5 leading-relaxed">
+                      {post.content}
+                    </p>
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 text-[11px] text-gray-400">
+                      <div className="flex items-center gap-1.5">
+                        {post.authorAvatar ? (
+                          <img src={post.authorAvatar} alt="" className="w-4 h-4 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[8px]">
+                            {post.authorName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="font-medium text-gray-500">{post.authorName}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span>👍 {post.upvotes || 0}</span>
+                        <span>💬 {post.commentCount || 0}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Lightbox Modal with Zoom & Pan */}
