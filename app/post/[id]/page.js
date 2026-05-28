@@ -366,6 +366,14 @@ export default function PostDetail() {
                     {/* Avatar */}
                     {post.isAnonymous ? (
                       <div className="tc-avatar" style={{ background: '#536471' }}>👤</div>
+                    ) : post.userId ? (
+                      <Link href={`/profile?uid=${post.userId}`} className="tc-avatar-link" style={{ textDecoration: 'none' }}>
+                        {post.authorAvatar ? (
+                          <div className="tc-avatar hover:scale-105 transition-transform"><img src={post.authorAvatar} alt={displayName(post.authorName)} /></div>
+                        ) : (
+                          <div className="tc-avatar hover:scale-105 transition-transform">{displayName(post.authorName).charAt(0).toUpperCase()}</div>
+                        )}
+                      </Link>
                     ) : post.authorAvatar ? (
                       <div className="tc-avatar"><img src={post.authorAvatar} alt={displayName(post.authorName)} /></div>
                     ) : (
@@ -374,15 +382,27 @@ export default function PostDetail() {
 
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 700, color: 'var(--blog-text-primary)', fontSize: '0.94rem' }}>
-                          {displayName(post.authorName)}
-                          {!post.isAnonymous && post.authorBadges && post.authorBadges.map((badge, idx) => (
-                            <span key={idx} title={badge.name} style={{ marginLeft: '0.2rem', fontSize: '0.85rem' }}>{badge.icon}</span>
-                          ))}
-                        </span>
+                        {!post.isAnonymous && post.userId ? (
+                          <Link href={`/profile?uid=${post.userId}`} className="tc-author-link" style={{ textDecoration: 'none' }}>
+                            <span style={{ fontWeight: 700, color: 'var(--blog-text-primary)', fontSize: '0.94rem' }} className="hover:underline">
+                              {displayName(post.authorName)}
+                              {post.authorBadges && post.authorBadges.map((badge, idx) => (
+                                <span key={idx} title={badge.name} style={{ marginLeft: '0.2rem', fontSize: '0.85rem' }}>{badge.icon}</span>
+                              ))}
+                            </span>
+                          </Link>
+                        ) : (
+                          <span style={{ fontWeight: 700, color: 'var(--blog-text-primary)', fontSize: '0.94rem' }}>
+                            {displayName(post.authorName)}
+                            {!post.isAnonymous && post.authorBadges && post.authorBadges.map((badge, idx) => (
+                              <span key={idx} title={badge.name} style={{ marginLeft: '0.2rem', fontSize: '0.85rem' }}>{badge.icon}</span>
+                            ))}
+                          </span>
+                        )}
                         {post.isAnonymous && isAdmin && (
                           <span style={{ color: '#ef4444', fontSize: '0.78rem', fontWeight: 600 }}>({post.realAuthorName || '?'})</span>
                         )}
+
                         <span style={{ color: 'var(--blog-text-tertiary)', fontSize: '0.25rem' }}>•</span>
                         <span style={{ color: 'var(--blog-text-secondary)', fontSize: '0.88rem' }}>{timeAgo(post.createdAt)}</span>
 

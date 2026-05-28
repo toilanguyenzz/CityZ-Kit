@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { auth, db, onAuthStateChanged } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { upvoteComment, downvoteComment, addCommentToPost, deleteComment, reactToComment } from '@/lib/firestore';
@@ -153,18 +154,22 @@ function SingleComment({ comment, postId, depth = 0, onRefresh }) {
     <div className={`ct-comment ${depth > 0 ? 'ct-reply' : ''}`} style={{ '--depth': depth }}>
       <div className="ct-comment-inner">
         {/* Avatar on the left */}
-        <span className="ct-avatar" style={{ flexShrink: 0, marginTop: '0.2rem' }}>
-          {comment.userAvatar ? (
-            <img src={comment.userAvatar} alt={comment.userName} />
-          ) : (
-            comment.userName?.charAt(0).toUpperCase() || 'U'
-          )}
-        </span>
+        <Link href={`/profile?uid=${comment.userId}`} className="ct-avatar-link" style={{ flexShrink: 0, marginTop: '0.2rem', textDecoration: 'none' }}>
+          <span className="ct-avatar">
+            {comment.userAvatar ? (
+              <img src={comment.userAvatar} alt={comment.userName} />
+            ) : (
+              comment.userName?.charAt(0).toUpperCase() || 'U'
+            )}
+          </span>
+        </Link>
 
         {/* Content on the right */}
         <div className="ct-content">
           <div className="ct-meta">
-            <span className="ct-author">{comment.userName || 'Ẩn danh'}</span>
+            <Link href={`/profile?uid=${comment.userId}`} className="ct-author-link" style={{ textDecoration: 'none' }}>
+              <span className="ct-author" style={{ cursor: 'pointer' }}>{comment.userName || 'Ẩn danh'}</span>
+            </Link>
             <span className="ct-time">{timeAgo(comment.createdAt)}</span>
           </div>
           <p className="ct-text">{comment.comment}</p>

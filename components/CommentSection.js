@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { deleteReview, reactToReview, updateReview } from '@/lib/firestore';
 import useUserRole from '@/lib/useUserRole';
 import toast from 'react-hot-toast';
@@ -12,10 +15,27 @@ function SingleReview({ review, locationId, onRefresh }) {
   const [editComment, setEditComment] = useState(review.comment || '');
   const [editRating, setEditRating] = useState(review.rating || 5);
   const [savingReview, setSavingReview] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
   
   const { user, isAdmin } = useUserRole();
   const pickerRef = useRef(null);
-  console.log('[SingleReview] user:', user, 'isAdmin:', isAdmin, 'review:', review);
+
+  useEffect(() => {
+    if (review.userId) {
+      const fetchProfile = async () => {
+        try {
+          const docRef = doc(db, 'users', review.userId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setUserProfile(docSnap.data());
+          }
+        } catch (error) {
+          console.error('Error fetching reviewer profile:', error);
+        }
+      };
+      fetchProfile();
+    }
+  }, [review.userId]);
 
   useEffect(() => {
     if (!showPicker) return;
@@ -120,16 +140,33 @@ function SingleReview({ review, locationId, onRefresh }) {
   }
 
   return (
-    <div className="border-b pb-4 last:border-0">
+    <div className="border-b pb-4 last:border-0 pt-3">
       <div className="flex justify-between items-start mb-2">
-        <div>
-          <p className="font-medium text-gray-900">{review.userName}</p>
-          <div className="flex items-center mt-1">
-            <span className="text-yellow-500">★</span>
-            <span className="ml-1 text-sm text-gray-600">{review.rating}/5</span>
+        <div className="flex items-center gap-3">
+          <Link href={`/profile?uid=${review.userId}`}>
+            {userProfile?.avatarUrl ? (
+              <img 
+                src={userProfile.avatarUrl} 
+                alt={review.userName} 
+                className="w-10 h-10 rounded-full object-cover border border-gray-100 hover:scale-105 transition-transform" 
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm border border-gray-100 hover:scale-105 transition-transform">
+                {(review.userName || 'U').charAt(0).toUpperCase()}
+              </div>
+            )}
+          </Link>
+          <div>
+            <Link href={`/profile?uid=${review.userId}`} className="font-semibold text-gray-900 hover:underline hover:text-blue-600 transition-colors block leading-tight">
+              {review.userName}
+            </Link>
+            <div className="flex items-center mt-1">
+              <span className="text-yellow-500 text-xs">★</span>
+              <span className="ml-1 text-xs text-gray-500 font-medium">{review.rating}/5</span>
+            </div>
           </div>
         </div>
-        <span className="text-sm text-gray-500">{formatDate(review.createdAt)}</span>
+        <span className="text-xs text-gray-400">{formatDate(review.createdAt)}</span>
       </div>
       <p className="text-gray-700 mb-3">{review.comment}</p>
 

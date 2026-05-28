@@ -1,8 +1,9 @@
 'use client';
 
 import '@/app/styles/profile.css';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { auth, db, onAuthStateChanged } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { 
@@ -64,7 +65,10 @@ function CountUp({ end, duration = 1000 }) {
   return <span className="pf-countup">{value}</span>;
 }
 
-export default function Profile() {
+function ProfileContent() {
+  const searchParams = useSearchParams();
+  const profileUid = searchParams.get('uid');
+
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -79,6 +83,15 @@ export default function Profile() {
   const coverInputRef = useRef(null);
   const [uploadingCover, setUploadingCover] = useState(false);
 
+  const isOwnProfile = !profileUid || (user && user.uid === profileUid);
+
+  // Reset activeTab if guest user attempts to view private saved items
+  useEffect(() => {
+    if (!isOwnProfile && activeTab === 'saved') {
+      setActiveTab('posts');
+    }
+  }, [isOwnProfile]);
+
   // States for user-generated content tabs
   const [activeTab, setActiveTab] = useState('posts');
   const [posts, setPosts] = useState([]);
@@ -87,6 +100,9 @@ export default function Profile() {
   const [savedPosts, setSavedPosts] = useState([]);
   const [savedLocations, setSavedLocations] = useState([]);
   const [loadingContent, setLoadingContent] = useState(false);
+
+  const displayPosts = isOwnProfile ? posts : posts.filter(p => p.status === 'approved' || !p.status);
+  const displayLocations = isOwnProfile ? locations : locations.filter(l => l.status === 'approved' || !l.status);
 
   // Edit post states
   const [editingPostId, setEditingPostId] = useState(null);
@@ -99,7 +115,7 @@ export default function Profile() {
   const fetchUserContents = async (uid) => {
     setLoadingContent(true);
     try {
-      const userUid = uid || user?.uid;
+      const userUid = uid || profileUid || user?.uid;
       if (!userUid) return;
       const [userPosts, userLocations, userReviews, bookmarkedPosts, bookmarkedLocations] = await Promise.all([
         getUserPosts(userUid),
@@ -115,14 +131,14 @@ export default function Profile() {
       setSavedLocations(bookmarkedLocations);
     } catch (err) {
       console.error('Error fetching user contents:', err);
-      toast.error('Không thể tải danh sách nội dung đã đăng');
+      toast.error('Không thể tải danh sách nội dung');
     } finally {
       setLoadingContent(false);
     }
   };
 
   const refreshStatsAndContent = async (uid) => {
-    const userUid = uid || user?.uid;
+    const userUid = uid || profileUid || user?.uid;
     if (!userUid) return;
     try {
       const userStats = await getUserStats(userUid);
@@ -136,25 +152,26 @@ export default function Profile() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      if (u) {
+      const targetUid = profileUid || u?.uid;
+      if (targetUid) {
         try {
-          const docRef = doc(db, 'users', u.uid);
+          const docRef = doc(db, 'users', targetUid);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             const data = docSnap.data();
             setUserData(data);
-            setNewName(data.name || u.displayName || '');
+            setNewName(data.name || '');
             setNewBio(data.bio || '');
           } else {
             toast.error('Không tìm thấy thông tin tài khoản');
           }
 
           // Fetch real stats
-          const userStats = await getUserStats(u.uid);
+          const userStats = await getUserStats(targetUid);
           setStats(userStats);
 
           // Fetch user-generated contents
-          await fetchUserContents(u.uid);
+          await fetchUserContents(targetUid);
 
           // Trigger progress bar animation
           setTimeout(() => setXpAnimated(true), 350);
@@ -162,11 +179,15 @@ export default function Profile() {
           toast.error('Lỗi khi tải hồ sơ');
           console.error(error);
         }
+      } else {
+        if (!profileUid && !u) {
+          setUserData(null);
+        }
       }
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [profileUid]);
 
 
   const handleDeletePost = async (postId) => {
@@ -350,16 +371,20 @@ export default function Profile() {
           {/* Cover Photo */}
           <div className="pf-cover" style={{ backgroundImage: userData?.coverUrl ? `url(${userData.coverUrl})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' }}>
             <div className="pf-cover-shimmer" />
-            <button className="pf-cover-upload-btn" onClick={() => coverInputRef.current?.click()} title="Đổi ảnh bìa">
-              📷 Chỉnh sửa ảnh bìa
-            </button>
-            <input
-              ref={coverInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleCoverUpload}
-              style={{ display: 'none' }}
-            />
+            {isOwnProfile && (
+              <>
+                <button className="pf-cover-upload-btn" onClick={() => coverInputRef.current?.click()} title="Đổi ảnh bìa">
+                  📷 Chỉnh sửa ảnh bìa
+                </button>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCoverUpload}
+                  style={{ display: 'none' }}
+                />
+              </>
+            )}
             {uploadingCover && (
               <div style={{
                 position: 'absolute', inset: 0,
@@ -378,24 +403,29 @@ export default function Profile() {
             <div className="pf-avatar-box">
               <div
                 className="pf-avatar"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={isOwnProfile ? () => fileInputRef.current?.click() : undefined}
                 style={{
                   backgroundImage: userData?.avatarUrl ? `url(${userData.avatarUrl})` : 'none',
                   fontSize: userData?.avatarUrl ? 0 : undefined,
+                  cursor: isOwnProfile ? 'pointer' : 'default',
                 }}
               >
                 {!userData?.avatarUrl && initial}
               </div>
-              <div className="pf-avatar-upload-btn" onClick={() => fileInputRef.current?.click()} title="Đổi ảnh đại diện">
-                📷
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarUpload}
-                style={{ display: 'none' }}
-              />
+              {isOwnProfile && (
+                <>
+                  <div className="pf-avatar-upload-btn" onClick={() => fileInputRef.current?.click()} title="Đổi ảnh đại diện">
+                    📷
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    style={{ display: 'none' }}
+                  />
+                </>
+              )}
               {uploading && (
                 <div style={{
                   position: 'absolute', inset: 0, borderRadius: '50%',
@@ -410,7 +440,7 @@ export default function Profile() {
             {/* Info Section */}
             <div className="pf-info-box">
               <div className="pf-meta-row">
-                {editingName ? (
+                {editingName && isOwnProfile ? (
                   <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                     <input
                       value={newName}
@@ -422,8 +452,8 @@ export default function Profile() {
                     <button onClick={() => setEditingName(false)} className="pf-btn-cancel">Hủy</button>
                   </div>
                 ) : (
-                  <h1 className="pf-name" onClick={() => setEditingName(true)} title="Nhấp để đổi tên">
-                    {displayName} ✏️
+                  <h1 className="pf-name" onClick={isOwnProfile ? () => setEditingName(true) : undefined} style={{ cursor: isOwnProfile ? 'pointer' : 'default' }} title={isOwnProfile ? "Nhấp để đổi tên" : undefined}>
+                    {displayName} {isOwnProfile && '✏️'}
                   </h1>
                 )}
 
@@ -431,7 +461,7 @@ export default function Profile() {
                   {levelInfo.icon} Level {levelInfo.level} ({levelInfo.name})
                 </span>
 
-                {!editingName && !editingBio && (
+                {isOwnProfile && !editingName && !editingBio && (
                   <button className="pf-btn-edit" onClick={() => setEditingBio(true)}>
                     Chỉnh sửa tiểu sử
                   </button>
@@ -456,8 +486,8 @@ export default function Profile() {
 
               {/* Bio Box */}
               <div className="pf-bio-box">
-                <div className="pf-email">{userData?.email || user?.email}</div>
-                {editingBio ? (
+                {isOwnProfile && <div className="pf-email">{userData?.email || user?.email}</div>}
+                {editingBio && isOwnProfile ? (
                   <div>
                     <textarea
                       value={newBio}
@@ -476,13 +506,15 @@ export default function Profile() {
                 ) : (
                   <p
                     className={`pf-bio-text ${!userData?.bio ? 'pf-bio-placeholder' : ''}`}
-                    onClick={() => setEditingBio(true)}
-                    title="Nhấp để thêm tiểu sử"
+                    onClick={isOwnProfile ? () => setEditingBio(true) : undefined}
+                    style={{ cursor: isOwnProfile ? 'pointer' : 'default' }}
+                    title={isOwnProfile ? "Nhấp để thêm tiểu sử" : undefined}
                   >
-                    {userData?.bio || '+ Thêm giới thiệu ngắn để mọi người hiểu hơn về bạn'}
+                    {userData?.bio || (isOwnProfile ? '+ Thêm giới thiệu ngắn để mọi người hiểu hơn về bạn' : 'Chưa có giới thiệu.')}
                   </p>
                 )}
               </div>
+
             </div>
           </div>
 
@@ -554,13 +586,13 @@ export default function Profile() {
               className={`pf-tab-btn ${activeTab === 'posts' ? 'active' : ''}`}
               onClick={() => setActiveTab('posts')}
             >
-              📝 Bài viết <span className="pf-tab-count">{posts.length}</span>
+              📝 Bài viết <span className="pf-tab-count">{displayPosts.length}</span>
             </button>
             <button 
               className={`pf-tab-btn ${activeTab === 'locations' ? 'active' : ''}`}
               onClick={() => setActiveTab('locations')}
             >
-              📍 Địa điểm <span className="pf-tab-count">{locations.length}</span>
+              📍 Địa điểm <span className="pf-tab-count">{displayLocations.length}</span>
             </button>
             <button 
               className={`pf-tab-btn ${activeTab === 'reviews' ? 'active' : ''}`}
@@ -568,12 +600,14 @@ export default function Profile() {
             >
               ⭐ Đánh giá <span className="pf-tab-count">{reviews.length}</span>
             </button>
-            <button 
-              className={`pf-tab-btn ${activeTab === 'saved' ? 'active' : ''}`}
-              onClick={() => setActiveTab('saved')}
-            >
-              📁 Đã lưu <span className="pf-tab-count">{savedPosts.length + savedLocations.length}</span>
-            </button>
+            {isOwnProfile && (
+              <button 
+                className={`pf-tab-btn ${activeTab === 'saved' ? 'active' : ''}`}
+                onClick={() => setActiveTab('saved')}
+              >
+                📁 Đã lưu <span className="pf-tab-count">{savedPosts.length + savedLocations.length}</span>
+              </button>
+            )}
           </div>
 
           <div className="pf-content-grid">
@@ -582,15 +616,21 @@ export default function Profile() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
             ) : activeTab === 'posts' ? (
-              posts.length === 0 ? (
+              displayPosts.length === 0 ? (
                 <div className="pf-empty-state">
                   <div className="pf-empty-icon">📝</div>
-                  <div className="pf-empty-title">Bạn chưa đăng bài viết nào</div>
-                  <div className="pf-empty-desc">Chia sẻ ý kiến, câu hỏi hoặc kinh nghiệm của bạn với cộng đồng ngay nhé.</div>
-                  <Link href="/blog" className="pf-action-btn pf-action-btn-view" style={{ marginTop: '0.5rem', background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' }}>Đăng bài ngay</Link>
+                  <div className="pf-empty-title">
+                    {isOwnProfile ? 'Bạn chưa đăng bài viết nào' : `${displayName} chưa đăng bài viết nào`}
+                  </div>
+                  {isOwnProfile && (
+                    <>
+                      <div className="pf-empty-desc">Chia sẻ ý kiến, câu hỏi hoặc kinh nghiệm của bạn với cộng đồng ngay nhé.</div>
+                      <Link href="/blog" className="pf-action-btn pf-action-btn-view" style={{ marginTop: '0.5rem', background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' }}>Đăng bài ngay</Link>
+                    </>
+                  )}
                 </div>
               ) : (
-                posts.map(post => (
+                displayPosts.map(post => (
                   <div key={post.id} className="pf-card">
                     {editingPostId === post.id ? (
                       <form onSubmit={handleSaveEditPost} className="pf-edit-card-form">
@@ -654,13 +694,15 @@ export default function Profile() {
                           <h3 className="pf-card-title">
                             <Link href={`/post/${post.id}`}>{post.title}</Link>
                           </h3>
-                          <span className={`pf-status-badge ${
-                            post.status === 'rejected' ? 'pf-status-rejected' : 
-                            post.status === 'pending' ? 'pf-status-pending' : 'pf-status-approved'
-                          }`}>
-                            {post.status === 'rejected' ? '❌ Từ chối' : 
-                             post.status === 'pending' ? '⏳ Chờ duyệt' : '✓ Đã duyệt'}
-                          </span>
+                          {isOwnProfile && (
+                            <span className={`pf-status-badge ${
+                              post.status === 'rejected' ? 'pf-status-rejected' : 
+                              post.status === 'pending' ? 'pf-status-pending' : 'pf-status-approved'
+                            }`}>
+                              {post.status === 'rejected' ? '❌ Từ chối' : 
+                               post.status === 'pending' ? '⏳ Chờ duyệt' : '✓ Đã duyệt'}
+                            </span>
+                          )}
                         </div>
                         
                         <div className="pf-card-meta">
@@ -691,12 +733,16 @@ export default function Profile() {
                             <Link href={`/post/${post.id}`} className="pf-action-btn pf-action-btn-view">
                               🔗 Xem
                             </Link>
-                            <button onClick={() => handleStartEditPost(post)} className="pf-action-btn pf-action-btn-edit">
-                              ✏️ Sửa
-                            </button>
-                            <button onClick={() => handleDeletePost(post.id)} className="pf-action-btn pf-action-btn-delete">
-                              🗑️ Xóa
-                            </button>
+                            {isOwnProfile && (
+                              <>
+                                <button onClick={() => handleStartEditPost(post)} className="pf-action-btn pf-action-btn-edit">
+                                  ✏️ Sửa
+                                </button>
+                                <button onClick={() => handleDeletePost(post.id)} className="pf-action-btn pf-action-btn-delete">
+                                  🗑️ Xóa
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
                       </>
@@ -705,27 +751,35 @@ export default function Profile() {
                 ))
               )
             ) : activeTab === 'locations' ? (
-              locations.length === 0 ? (
+              displayLocations.length === 0 ? (
                 <div className="pf-empty-state">
                   <div className="pf-empty-icon">📍</div>
-                  <div className="pf-empty-title">Bạn chưa thêm địa điểm nào</div>
-                  <div className="pf-empty-desc">Giới thiệu những địa điểm chất lượng quanh trường cho các bạn khác nhé.</div>
-                  <Link href="/add-location" className="pf-action-btn pf-action-btn-view" style={{ marginTop: '0.5rem', background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' }}>Thêm địa điểm ngay</Link>
+                  <div className="pf-empty-title">
+                    {isOwnProfile ? 'Bạn chưa thêm địa điểm nào' : `${displayName} chưa thêm địa điểm nào`}
+                  </div>
+                  {isOwnProfile && (
+                    <>
+                      <div className="pf-empty-desc">Giới thiệu những địa điểm chất lượng quanh trường cho các bạn khác nhé.</div>
+                      <Link href="/add-location" className="pf-action-btn pf-action-btn-view" style={{ marginTop: '0.5rem', background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' }}>Thêm địa điểm ngay</Link>
+                    </>
+                  )}
                 </div>
               ) : (
-                locations.map(loc => (
+                displayLocations.map(loc => (
                   <div key={loc.id} className="pf-card">
                     <div className="pf-card-header">
                       <h3 className="pf-card-title">
                         <Link href={`/location/${loc.id}`}>{loc.name}</Link>
                       </h3>
-                      <span className={`pf-status-badge ${
-                        loc.status === 'rejected' ? 'pf-status-rejected' : 
-                        loc.status === 'pending' ? 'pf-status-pending' : 'pf-status-approved'
-                      }`}>
-                        {loc.status === 'rejected' ? '❌ Từ chối' : 
-                         loc.status === 'pending' ? '⏳ Chờ duyệt' : '✓ Đã duyệt'}
-                      </span>
+                      {isOwnProfile && (
+                        <span className={`pf-status-badge ${
+                          loc.status === 'rejected' ? 'pf-status-rejected' : 
+                          loc.status === 'pending' ? 'pf-status-pending' : 'pf-status-approved'
+                        }`}>
+                          {loc.status === 'rejected' ? '❌ Từ chối' : 
+                           loc.status === 'pending' ? '⏳ Chờ duyệt' : '✓ Đã duyệt'}
+                        </span>
+                      )}
                     </div>
 
                     <div className="pf-card-meta">
@@ -750,12 +804,16 @@ export default function Profile() {
                         <Link href={`/location/${loc.id}`} className="pf-action-btn pf-action-btn-view">
                           🔗 Xem
                         </Link>
-                        <Link href={`/location/${loc.id}`} className="pf-action-btn pf-action-btn-edit">
-                          ✏️ Sửa
-                        </Link>
-                        <button onClick={() => handleDeleteLocation(loc.id)} className="pf-action-btn pf-action-btn-delete">
-                          🗑️ Xóa
-                        </button>
+                        {isOwnProfile && (
+                          <>
+                            <Link href={`/location/${loc.id}`} className="pf-action-btn pf-action-btn-edit">
+                              ✏️ Sửa
+                            </Link>
+                            <button onClick={() => handleDeleteLocation(loc.id)} className="pf-action-btn pf-action-btn-delete">
+                              🗑️ Xóa
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -765,9 +823,15 @@ export default function Profile() {
               reviews.length === 0 ? (
                 <div className="pf-empty-state">
                   <div className="pf-empty-icon">⭐</div>
-                  <div className="pf-empty-title">Bạn chưa viết đánh giá nào</div>
-                  <div className="pf-empty-desc">Nhận xét của bạn sẽ giúp các bạn sinh viên khác có cái nhìn chân thực hơn.</div>
-                  <Link href="/dashboard" className="pf-action-btn pf-action-btn-view" style={{ marginTop: '0.5rem', background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' }}>Khám phá địa điểm</Link>
+                  <div className="pf-empty-title">
+                    {isOwnProfile ? 'Bạn chưa viết đánh giá nào' : `${displayName} chưa viết đánh giá nào`}
+                  </div>
+                  {isOwnProfile && (
+                    <>
+                      <div className="pf-empty-desc">Nhận xét của bạn sẽ giúp các bạn sinh viên khác có cái nhìn chân thực hơn.</div>
+                      <Link href="/dashboard" className="pf-action-btn pf-action-btn-view" style={{ marginTop: '0.5rem', background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' }}>Khám phá địa điểm</Link>
+                    </>
+                  )}
                 </div>
               ) : (
                 reviews.map(rev => (
@@ -790,15 +854,18 @@ export default function Profile() {
                     </p>
 
                     <div className="pf-card-footer" style={{ justifyContent: 'flex-end', borderTop: 'none', paddingTop: 0 }}>
-                      <div className="pf-card-actions">
-                        <button onClick={() => handleDeleteReview(rev.locationId, rev.id)} className="pf-action-btn pf-action-btn-delete">
-                          🗑️ Xóa đánh giá
-                        </button>
-                      </div>
+                      {isOwnProfile && (
+                        <div className="pf-card-actions">
+                          <button onClick={() => handleDeleteReview(rev.locationId, rev.id)} className="pf-action-btn pf-action-btn-delete">
+                            🗑️ Xóa đánh giá
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))
               )
+
             ) : (
               (savedPosts.length === 0 && savedLocations.length === 0) ? (
                 <div className="pf-empty-state">
@@ -898,3 +965,19 @@ export default function Profile() {
     </ProtectedRoute>
   );
 }
+
+export default function Profile() {
+  return (
+    <Suspense fallback={
+      <div className="pf-root">
+        <Navbar />
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '6rem 0' }}>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    }>
+      <ProfileContent />
+    </Suspense>
+  );
+}
+

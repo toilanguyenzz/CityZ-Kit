@@ -91,16 +91,18 @@ function ShortItem({ location }) {
       {/* 1:1 Camera Viewport / Locket Widget Frame */}
       <div className="locket-viewport">
         {/* Locket Live Capture badge */}
-        <div className="locket-badge">
-          {location.createdByAvatar ? (
-            <img src={location.createdByAvatar} alt={location.createdByName} className="locket-badge-avatar" />
-          ) : (
-            <div className="locket-badge-placeholder">
-              {(location.createdByName || 'U').charAt(0).toUpperCase()}
-            </div>
-          )}
-          <span>⚡ Live from {location.createdByName || 'Sinh viên'}</span>
-        </div>
+        <Link href={`/profile?uid=${location.createdBy}`} className="locket-badge-link" style={{ textDecoration: 'none' }}>
+          <div className="locket-badge hover:scale-102 transition-transform">
+            {location.createdByAvatar ? (
+              <img src={location.createdByAvatar} alt={location.createdByName} className="locket-badge-avatar" />
+            ) : (
+              <div className="locket-badge-placeholder">
+                {(location.createdByName || 'U').charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span>⚡ Live from {location.createdByName || 'Sinh viên'}</span>
+          </div>
+        </Link>
 
         <img
           src={location.imageUrl}
@@ -133,9 +135,13 @@ function ShortItem({ location }) {
       {/* User Caption */}
       {location.description && (
         <div className="locket-caption-text">
-          <span className="caption-author">@{location.createdByName || 'Sinh viên'}:</span> {location.description}
+          <Link href={`/profile?uid=${location.createdBy}`} className="caption-author-link" style={{ textDecoration: 'none' }}>
+            <span className="caption-author hover:underline">@{location.createdByName || 'Sinh viên'}:</span>
+          </Link>{' '}
+          {location.description}
         </div>
       )}
+
 
       {/* Locket Live Emoji Reactions Tool-bar */}
       <div className="locket-reactions-bar">
@@ -478,19 +484,22 @@ function TikTokShortItem({ location, isActive }) {
 
         {/* TikTok Bottom Info Overlay */}
         <div className="tiktok-overlay-bottom">
-          <div className="tiktok-author-row">
-            {location.createdByAvatar ? (
-              <img src={location.createdByAvatar} alt={location.createdByName} className="tiktok-avatar" />
-            ) : (
-              <div className="tiktok-avatar bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
-                {(location.createdByName || 'U').charAt(0).toUpperCase()}
-              </div>
-            )}
-            <span className="tiktok-author-name">@{location.createdByName || 'Sinh viên'}</span>
-            <span className="bg-indigo-600/80 text-[10px] px-2.5 py-0.5 rounded-full font-bold">
+          <div className="tiktok-author-row-container" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.4rem' }}>
+            <Link href={`/profile?uid=${location.createdBy}`} className="tiktok-author-row" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {location.createdByAvatar ? (
+                <img src={location.createdByAvatar} alt={location.createdByName} className="tiktok-avatar hover:scale-105 transition-transform" />
+              ) : (
+                <div className="tiktok-avatar bg-indigo-600 text-white flex items-center justify-center font-bold text-xs hover:scale-105 transition-transform">
+                  {(location.createdByName || 'U').charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span className="tiktok-author-name hover:underline" style={{ margin: 0 }}>@{location.createdByName || 'Sinh viên'}</span>
+            </Link>
+            <span className="bg-indigo-600/80 text-[10px] px-2.5 py-0.5 rounded-full font-bold text-white">
               {cat.emoji} {cat.label}
             </span>
           </div>
+
 
           <Link href={`/location/${location.id}`} className="tiktok-location-tag">
             <span>📍</span> {location.name} (Xem Review) ›

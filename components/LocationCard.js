@@ -1,7 +1,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function LocationCard({ location, averageRating }) {
+  const router = useRouter();
   const getCategoryLabel = (category) => {
     switch(category) {
       case 'Food': return '🍜 Ăn uống';
@@ -75,18 +77,29 @@ export default function LocationCard({ location, averageRating }) {
           </div>
 
           {/* Creator avatar + name */}
-          <div className="flex items-center gap-1.5 max-w-[45%]">
+          <div 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (location.createdBy) {
+                router.push(`/profile?uid=${location.createdBy}`);
+              }
+            }}
+            className="flex items-center gap-1.5 max-w-[45%] cursor-pointer group/creator hover:opacity-80 transition-opacity"
+            title="Xem trang cá nhân"
+          >
             {location.createdByAvatar ? (
-              <img src={location.createdByAvatar} alt="" className="w-4 h-4 rounded-full object-cover flex-shrink-0" />
+              <img src={location.createdByAvatar} alt="" className="w-4 h-4 rounded-full object-cover flex-shrink-0 group-hover/creator:scale-105 transition-transform" />
             ) : (
-              <div className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[8px] flex-shrink-0">
+              <div className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[8px] flex-shrink-0 group-hover/creator:scale-105 transition-transform">
                 {(location.createdByName || 'U').charAt(0).toUpperCase()}
               </div>
             )}
-            <span className="text-[11px] text-gray-400 truncate">
+            <span className="text-[11px] text-gray-400 truncate group-hover/creator:text-indigo-600 group-hover/creator:underline transition-colors">
               {location.createdByName || 'Ẩn danh'}
             </span>
           </div>
+
         </div>
       </div>
     </Link>

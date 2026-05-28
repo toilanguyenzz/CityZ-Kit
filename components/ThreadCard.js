@@ -157,6 +157,16 @@ export default function ThreadCard({ post, onVoteUpdate }) {
         {/* Avatar */}
         {post.isAnonymous ? (
           <div className="tc-avatar" style={{ background: '#536471' }}>👤</div>
+        ) : post.userId ? (
+          <Link href={`/profile?uid=${post.userId}`} className="tc-avatar-link" style={{ textDecoration: 'none' }}>
+            {post.authorAvatar ? (
+              <div className="tc-avatar hover:scale-105 transition-transform">
+                <img src={post.authorAvatar} alt={displayName(post.authorName)} />
+              </div>
+            ) : (
+              <div className="tc-avatar hover:scale-105 transition-transform">{displayName(post.authorName).charAt(0).toUpperCase()}</div>
+            )}
+          </Link>
         ) : post.authorAvatar ? (
           <div className="tc-avatar">
             <img src={post.authorAvatar} alt={displayName(post.authorName)} />
@@ -169,14 +179,27 @@ export default function ThreadCard({ post, onVoteUpdate }) {
         <div className="tc-content">
           {/* Header: Name · Handle · Time */}
           <div className="tc-header">
-            <span className="tc-display-name">
-              {displayName(post.authorName)}
-              {!post.isAnonymous && post.authorBadges && post.authorBadges.map((badge, idx) => (
-                <span key={idx} title={badge.name} style={{ marginLeft: '0.2rem', fontSize: '0.85rem', cursor: 'help' }}>
-                  {badge.icon}
+            {!post.isAnonymous && post.userId ? (
+              <Link href={`/profile?uid=${post.userId}`} className="tc-author-link" style={{ textDecoration: 'none' }}>
+                <span className="tc-display-name hover:underline" style={{ color: 'var(--blog-text-primary)', fontWeight: 700 }}>
+                  {displayName(post.authorName)}
+                  {post.authorBadges && post.authorBadges.map((badge, idx) => (
+                    <span key={idx} title={badge.name} style={{ marginLeft: '0.2rem', fontSize: '0.85rem', cursor: 'help' }}>
+                      {badge.icon}
+                    </span>
+                  ))}
                 </span>
-              ))}
-            </span>
+              </Link>
+            ) : (
+              <span className="tc-display-name">
+                {displayName(post.authorName)}
+                {!post.isAnonymous && post.authorBadges && post.authorBadges.map((badge, idx) => (
+                  <span key={idx} title={badge.name} style={{ marginLeft: '0.2rem', fontSize: '0.85rem', cursor: 'help' }}>
+                    {badge.icon}
+                  </span>
+                ))}
+              </span>
+            )}
             {post.isAnonymous && isAdmin && (
               <span style={{ color: '#ef4444', fontSize: '0.78rem', fontWeight: 600 }}>
                 ({post.realAuthorName || '?'})
