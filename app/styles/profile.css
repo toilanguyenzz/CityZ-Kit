@@ -4,23 +4,81 @@
 
 .pf-root {
   min-height: 100vh;
-  background-color: #fafafa;
-  color: #262626;
+  background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 50%, #f5f3ff 100%);
+  color: #1e293b;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.pf-root::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  right: -10%;
+  width: 450px;
+  height: 450px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.07) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.pf-root::after {
+  content: '';
+  position: absolute;
+  bottom: 20%;
+  left: -10%;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.05) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
 }
 
 .pf-container {
   max-width: 935px;
   margin: 0 auto;
   padding: 0 0 3rem;
+  position: relative;
+  z-index: 10;
 }
 
 /* ── Cover Photo (Facebook style) ────────────────────────── */
 .pf-cover {
-  height: 180px;
-  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  height: 220px;
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
   position: relative;
-  border-bottom: 1px solid #dbdbdb;
+  border-bottom: none;
+  border-radius: 0 0 24px 24px;
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.12);
+  overflow: hidden;
+}
+
+.pf-cover-upload-btn {
+  position: absolute;
+  bottom: 15px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 0.5rem 1.2rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 10;
+}
+
+.pf-cover-upload-btn:hover {
+  background: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
 }
 
 .pf-cover-shimmer {
@@ -39,11 +97,11 @@
 .pf-header-wrap {
   position: relative;
   padding: 0 2rem;
-  margin-top: -60px; /* Overlap cover */
+  margin-top: -70px; /* Overlap cover */
   display: flex;
   gap: 2.5rem;
   align-items: flex-end;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
 }
 
 /* Avatar styling */
@@ -53,26 +111,27 @@
 }
 
 .pf-avatar {
-  width: 130px;
-  height: 130px;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
   border: 4px solid #fff;
   background-color: #f3f4f6;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15), 0 8px 24px rgba(99, 102, 241, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #3b82f6;
-  font-size: 3rem;
+  font-size: 3.5rem;
   font-weight: bold;
   cursor: pointer;
   background-size: cover;
   background-position: center;
-  transition: transform 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .pf-avatar:hover {
-  transform: scale(1.02);
+  transform: scale(1.05) rotate(2deg);
+  box-shadow: 0 0 0 6px rgba(168, 85, 247, 0.3), 0 12px 30px rgba(168, 85, 247, 0.2);
 }
 
 .pf-avatar-upload-btn {
@@ -126,16 +185,17 @@
 }
 
 .pf-level-badge {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: 4px;
-  background-color: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  color: #4b5563;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 1px solid #fcd34d;
+  color: #d97706;
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.3rem;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.1);
 }
 
 .pf-btn-edit {
@@ -157,8 +217,8 @@
 /* Stats list (Instagram style) */
 .pf-stats-row {
   display: flex;
-  gap: 2rem;
-  margin-bottom: 0.75rem;
+  gap: 2.5rem;
+  margin-bottom: 1rem;
   list-style: none;
   padding: 0;
   margin-top: 0;
@@ -166,11 +226,18 @@
 
 .pf-stat-item {
   font-size: 0.95rem;
-  color: #262626;
+  color: #4b5563;
+  transition: color 0.2s;
+}
+
+.pf-stat-item:hover {
+  color: #1e293b;
 }
 
 .pf-stat-val {
-  font-weight: 600;
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: #4f46e5;
 }
 
 /* Bio */
@@ -181,9 +248,36 @@
 }
 
 .pf-email {
-  color: #8e8e8e;
+  color: #64748b;
   font-size: 0.85rem;
   margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.pf-meta-sub {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.4rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.pf-join-date {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.pf-role-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  background-color: rgba(99, 102, 241, 0.08);
+  color: #4f46e5;
+  border: 1px solid rgba(99, 102, 241, 0.15);
 }
 
 .pf-bio-text {
@@ -257,43 +351,309 @@
 }
 
 
-/* ── XP Progress Bar (Clean & Minimal) ───────────────────── */
-.pf-xp-section {
-  padding: 0 2rem;
-  margin-bottom: 2.5rem;
-  max-width: 500px;
+/* ── XP Progress Bar INLINE (inside header) ──────────────── */
+.pf-xp-inline {
+  margin-top: 0.75rem;
+  max-width: 350px;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 0.6rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid rgba(229, 231, 235, 0.4);
 }
 
 .pf-xp-info {
   display: flex;
   justify-content: space-between;
-  font-size: 0.82rem;
-  color: #8e8e8e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4b5563;
   margin-bottom: 0.35rem;
 }
 
 .pf-xp-bar-bg {
   width: 100%;
-  height: 6px;
-  background-color: #efefef;
-  border-radius: 3px;
+  height: 8px;
+  background-color: #e5e7eb;
+  border-radius: 6px;
   overflow: hidden;
 }
 
 .pf-xp-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #60a5fa);
-  border-radius: 3px;
-  transition: width 1s cubic-bezier(0.19, 1, 0.22, 1);
+  background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+  border-radius: 6px;
+  transition: width 1.2s cubic-bezier(0.19, 1, 0.22, 1);
 }
 
+/* ── Bento Grid Layout ───────────────────────────────────── */
+.pf-bento-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  padding: 0 2rem;
+  margin-bottom: 2rem;
+}
 
-/* ── Badges Section (Instagram story highlight style) ───── */
+.pf-bento-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  border-radius: 24px;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.03);
+  z-index: 1;
+}
+
+.pf-bento-card-taste {
+  border-left: 5px solid #6366f1;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(240, 244, 255, 0.85) 100%);
+}
+
+.pf-bento-card-taste:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(99, 102, 241, 0.12);
+  border-left-color: #4f46e5;
+}
+
+.pf-bento-card-timeline {
+  border-left: 5px solid #ec4899;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(253, 242, 248, 0.85) 100%);
+}
+
+.pf-bento-card-timeline:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(236, 72, 153, 0.12);
+  border-left-color: #db2777;
+}
+
+.pf-bento-card-shared {
+  grid-column: span 2;
+  border-left: 5px solid #10b981;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(240, 253, 250, 0.85) 100%);
+}
+
+.pf-bento-card-shared:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.12);
+  border-left-color: #059669;
+}
+
+.pf-bento-card-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pf-bento-card-taste .pf-bento-card-title {
+  color: #4f46e5;
+}
+
+.pf-bento-card-timeline .pf-bento-card-title {
+  color: #db2777;
+}
+
+.pf-bento-card-shared .pf-bento-card-title {
+  color: #059669;
+}
+
+/* ── Highlights Card (Insights + Badges merged) ──────────── */
+.pf-highlights-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.pf-highlight-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fafbff, #f0f1ff);
+  border: 1px solid #e8eaff;
+}
+
+.pf-highlight-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.pf-highlight-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pf-highlight-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #8e8e8e;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pf-highlight-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Inline badges row */
+.pf-badges-inline-header {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+}
+
+.pf-badge-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.pf-badge-chip:hover {
+  transform: translateY(-1px);
+}
+
+.pf-badge-chip-unlocked {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #4f46e5;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.05);
+}
+
+.pf-badge-chip-unlocked:hover {
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.15);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.18));
+}
+
+.pf-badge-chip-locked {
+  background: rgba(229, 231, 235, 0.4);
+  border: 1px solid rgba(209, 213, 219, 0.5);
+  color: #9ca3af;
+  opacity: 0.65;
+}
+
+.pf-badge-chip-emoji {
+  font-size: 0.95rem;
+}
+
+/* ── Compact Timeline (inside bento card) ────────────────── */
+.pf-timeline-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.pf-timeline-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.pf-timeline-dot-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 28px;
+}
+
+.pf-timeline-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #eff0ff, #e0e2ff);
+  border: 2px solid #c7c9ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.pf-timeline-line {
+  width: 2px;
+  flex: 1;
+  background: linear-gradient(to bottom, #c7c9ff, #e5e7eb);
+  min-height: 14px;
+}
+
+.pf-timeline-body {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0.85rem;
+  min-width: 0;
+}
+
+.pf-timeline-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.pf-timeline-desc {
+  font-size: 0.72rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.pf-timeline-date {
+  font-size: 0.65rem;
+  color: #9ca3af;
+}
+
+.pf-timeline-toggle {
+  background: none;
+  border: none;
+  color: #6366f1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.35rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+  font-family: inherit;
+}
+
+.pf-timeline-toggle:hover {
+  text-decoration: underline;
+}
+
+/* ── Section Divider ─────────────────────────────────────── */
 .pf-section-divider {
   border-top: 1px solid #dbdbdb;
-  margin: 0 2rem 2rem;
+  margin: 0 2rem 1.5rem;
 }
 
+/* ── Badges Section (legacy — kept for fallback) ─────────── */
 .pf-badges-wrap {
   padding: 0 2rem;
 }
@@ -312,11 +672,11 @@
   gap: 1.5rem;
   overflow-x: auto;
   padding: 0.5rem 0;
-  scrollbar-width: none; /* Hide scrollbar Firefox */
+  scrollbar-width: none;
 }
 
 .pf-badge-row::-webkit-scrollbar {
-  display: none; /* Hide scrollbar Chrome/Safari */
+  display: none;
 }
 
 .pf-badge-item {
@@ -391,12 +751,12 @@
   display: block;
 }
 
-
-/* ── Join Date & Meta info ───────────────────────────────── */
+/* ── Join Date & Meta info (compact) ─────────────────────── */
 .pf-footer-meta {
   padding: 0 2rem;
-  margin-top: 3rem;
-  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.78rem;
   color: #8e8e8e;
   display: flex;
   gap: 1.5rem;
@@ -407,7 +767,6 @@
   align-items: center;
   gap: 0.3rem;
 }
-
 
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 735px) {
@@ -464,13 +823,21 @@
     font-size: 1.1rem;
   }
 
-  .pf-xp-section {
-    padding: 0 1.5rem;
-    margin: 0 auto 2rem;
+  .pf-xp-inline {
+    max-width: 100%;
+  }
+
+  .pf-bento-grid {
+    grid-template-columns: 1fr;
+    padding: 0 1rem;
+  }
+
+  .pf-bento-card-shared {
+    grid-column: span 1;
   }
 
   .pf-section-divider {
-    margin: 0 1.5rem 1.5rem;
+    margin: 0 1rem 1rem;
   }
 
   .pf-badges-wrap {
@@ -483,7 +850,11 @@
 
   .pf-footer-meta {
     justify-content: center;
-    padding: 0 1.5rem;
+    padding: 0 1rem;
+  }
+
+  .pf-timeline-desc {
+    max-width: 160px;
   }
 }
 
@@ -491,49 +862,50 @@
 .pf-tabs {
   display: flex;
   justify-content: center;
-  gap: 2.5rem;
-  margin: 2rem 2rem 1.5rem;
-  border-bottom: 1px solid #dbdbdb;
+  gap: 3rem;
+  margin: 2.5rem 2rem 1.5rem;
+  border-bottom: 2px solid rgba(229, 231, 235, 0.5);
 }
 
 .pf-tab-btn {
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
-  color: #8e8e8e;
-  padding: 0.75rem 0.5rem;
-  font-size: 0.82rem;
-  font-weight: 600;
+  border-bottom: 3px solid transparent;
+  color: #64748b;
+  padding: 0.85rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
 }
 
 .pf-tab-btn:hover {
-  color: #262626;
+  color: #4f46e5;
 }
 
 .pf-tab-btn.active {
-  color: #262626;
-  border-bottom-color: #3b82f6;
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
 }
 
 .pf-tab-count {
-  background-color: #f3f4f6;
-  color: #4b5563;
-  padding: 0.1rem 0.4rem;
-  border-radius: 10px;
-  font-size: 0.7rem;
+  background-color: #f1f5f9;
+  color: #64748b;
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.72rem;
   font-weight: 700;
+  transition: all 0.25s ease;
 }
 
 .pf-tab-btn.active .pf-tab-count {
-  background-color: #eff6ff;
-  color: #3b82f6;
+  background-color: #e0e7ff;
+  color: #4f46e5;
 }
 
 /* ── Content Grid & Cards ────────────────────────────────── */
@@ -546,21 +918,24 @@
 }
 
 .pf-card {
-  background-color: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(229, 231, 235, 0.6);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.85rem;
   position: relative;
 }
 
 .pf-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.2);
 }
 
 .pf-card-header {

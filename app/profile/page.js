@@ -524,6 +524,13 @@ function ProfileContent() {
               {/* Bio Box */}
               <div className="pf-bio-box">
                 {isOwnProfile && <div className="pf-email">{userData?.email || user?.email}</div>}
+                
+                {/* Join Date & Role tag */}
+                <div className="pf-meta-sub">
+                  <span className="pf-join-date">📅 Tham gia: {userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('vi-VN') : '—'}</span>
+                  <span className="pf-role-tag">{userData?.role === 'admin' ? '🛡️ Admin' : '🎓 Thành viên'}</span>
+                </div>
+
                 {editingBio && isOwnProfile ? (
                   <div>
                     <textarea
@@ -552,115 +559,98 @@ function ProfileContent() {
                 )}
               </div>
 
-            </div>
-          </div>
-
-          {/* XP Progress Bar Section */}
-          <div className="pf-xp-section">
-            <div className="pf-xp-info">
-              {levelInfo.nextLevel ? (
-                <>
-                  <span>Tiến trình cấp độ: {Math.round(levelInfo.progress)}%</span>
-                  <span>Còn {levelInfo.xpToNext} XP đến Level {levelInfo.nextLevel.level}</span>
-                </>
-              ) : (
-                <span>🎉 Bạn đã đạt cấp độ tối đa (Huyền thoại)</span>
-              )}
-            </div>
-            <div className="pf-xp-bar-bg">
-              <div
-                className="pf-xp-bar-fill"
-                style={{
-                  width: xpAnimated ? `${levelInfo.progress}%` : '0%',
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="pf-section-divider" />
-
-          {/* 🧬 Taste DNA Section */}
-          <TasteDNA
-            locations={displayLocations}
-            posts={displayPosts}
-            reviews={reviews}
-            allLocations={allLocations}
-          />
-
-          <div className="pf-section-divider" />
-
-          {/* 🤝 Shared Vibes — only when viewing someone else's profile */}
-          {!isOwnProfile && user && (() => {
-            const theirDna = computeTasteDNA(displayLocations, displayPosts, reviews, allLocations);
-            const theirVibeData = {
-              tasteScores: theirDna.scores,
-              reviews: reviews,
-              allLocations: allLocations,
-              level: levelInfo.level,
-            };
-            return (
-              <SharedVibes
-                myData={myVibeData}
-                theirData={theirVibeData}
-                theirName={displayName}
-              />
-            );
-          })()}
-
-          {/* 📊 Insights Card */}
-          <InsightsCard
-            locations={displayLocations}
-            posts={displayPosts}
-            reviews={reviews}
-          />
-
-          <div className="pf-section-divider" />
-
-          {/* Badges Story Highlight Section */}
-          <div className="pf-badges-wrap">
-            <h2 className="pf-section-title">🏆 Danh hiệu cộng đồng ({earnedBadgeNames.length}/{ALL_BADGES.length})</h2>
-            <div className="pf-badge-row">
-              {ALL_BADGES.map((badge) => {
-                const isUnlocked = earnedBadgeNames.includes(badge.name);
-                return (
+              {/* XP Progress — Inline */}
+              <div className="pf-xp-inline">
+                <div className="pf-xp-info">
+                  {levelInfo.nextLevel ? (
+                    <>
+                      <span>Tiến trình: {Math.round(levelInfo.progress)}%</span>
+                      <span>Còn {levelInfo.xpToNext} XP → Lv.{levelInfo.nextLevel.level}</span>
+                    </>
+                  ) : (
+                    <span>🎉 Cấp độ tối đa!</span>
+                  )}
+                </div>
+                <div className="pf-xp-bar-bg">
                   <div
-                    key={badge.name}
-                    className={`pf-badge-item ${isUnlocked ? 'pf-badge-item-unlocked' : 'pf-badge-item-locked'}`}
-                    style={{ '--badge-color': badge.color }}
-                  >
-                    <div className="pf-badge-circle" title={isUnlocked ? `Đã mở khóa: ${badge.desc}` : `Chưa mở khóa: ${badge.desc}`}>
-                      <span>{badge.icon}</span>
-                      {!isUnlocked && <span className="pf-badge-lock-icon">🔒</span>}
+                    className="pf-xp-bar-fill"
+                    style={{
+                      width: xpAnimated ? `${levelInfo.progress}%` : '0%',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Badges chip inline row */}
+              <div className="pf-badges-inline-header">
+                {ALL_BADGES.map((badge) => {
+                  const isUnlocked = earnedBadgeNames.includes(badge.name);
+                  return (
+                    <div
+                      key={badge.name}
+                      className={`pf-badge-chip ${isUnlocked ? 'pf-badge-chip-unlocked' : 'pf-badge-chip-locked'}`}
+                      title={isUnlocked ? `✅ ${badge.desc}` : `🔒 ${badge.desc}`}
+                    >
+                      <span className="pf-badge-chip-emoji">{badge.icon}</span>
+                      <span>{badge.name}</span>
                     </div>
-                    <span className="pf-badge-label">{badge.name}</span>
-                    <span className="pf-badge-desc">{badge.desc}</span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+
             </div>
           </div>
 
-          {/* 🏅 Milestone Timeline */}
-          <MilestoneTimeline
-            userData={userData}
-            locations={displayLocations}
-            posts={displayPosts}
-            reviews={reviews}
-          />
+          {/* ═══ BENTO GRID — Compact Personalization ═══ */}
+          <div className="pf-bento-grid">
+            {/* ── Card 1: Taste DNA (Radar Chart) ──────────── */}
+            <div className="pf-bento-card pf-bento-card-taste">
+              <h3 className="pf-bento-card-title">🧬 Taste DNA</h3>
+              <TasteDNA
+                locations={displayLocations}
+                posts={displayPosts}
+                reviews={reviews}
+                allLocations={allLocations}
+                compact
+              />
+            </div>
 
-          {/* Join Date & Meta information */}
-          <div className="pf-footer-meta">
-            <div className="pf-meta-item">
-              <span>📅</span>
-              <span>Đã tham gia: <strong>{userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('vi-VN') : '—'}</strong></span>
+            {/* ── Card 2: Hành trình (Timeline compact) ────── */}
+            <div className="pf-bento-card pf-bento-card-timeline">
+              <h3 className="pf-bento-card-title">🏅 Hành trình</h3>
+              <MilestoneTimeline
+                userData={userData}
+                locations={displayLocations}
+                posts={displayPosts}
+                reviews={reviews}
+                compact
+                maxItems={3}
+              />
             </div>
-            <div className="pf-meta-item">
-              <span>👤</span>
-              <span>Vai trò: <strong>{userData?.role === 'admin' ? 'Quản trị viên' : 'Thành viên'}</strong></span>
-            </div>
+
+            {/* ── Card 3: Điểm chung (SharedVibes) — Chỉ hiện khi xem profile người khác ── */}
+            {!isOwnProfile && user && (
+              <div className="pf-bento-card pf-bento-card-shared">
+                <h3 className="pf-bento-card-title">🤝 Điểm chung</h3>
+                {(() => {
+                  const theirDna = computeTasteDNA(displayLocations, displayPosts, reviews, allLocations);
+                  const theirVibeData = {
+                    tasteScores: theirDna.scores,
+                    reviews: reviews,
+                    allLocations: allLocations,
+                    level: levelInfo.level,
+                  };
+                  return (
+                    <SharedVibes
+                      myData={myVibeData}
+                      theirData={theirVibeData}
+                      theirName={displayName}
+                    />
+                  );
+                })()}
+              </div>
+            )}
           </div>
-
-          <div className="pf-section-divider" />
 
           {/* Facebook/Instagram Style Manage Content Section */}
           <div className="pf-tabs">
