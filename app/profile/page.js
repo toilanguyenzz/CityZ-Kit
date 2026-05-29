@@ -88,6 +88,7 @@ function ProfileContent() {
   const fileInputRef = useRef(null);
   const coverInputRef = useRef(null);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   const isOwnProfile = !profileUid || (user && user.uid === profileUid);
 
@@ -354,6 +355,23 @@ function ProfileContent() {
       toast.error('Lỗi tải ảnh: ' + err.message);
     } finally {
       setUploading(false);
+      setShowAvatarModal(false);
+      e.target.value = ''; // Reset file input
+    }
+  };
+
+  const handleAvatarDelete = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa ảnh đại diện này không?')) return;
+    setUploading(true);
+    try {
+      await updateUserAvatar(user.uid, null);
+      setUserData(prev => ({ ...prev, avatarUrl: null }));
+      toast.success('Đã xóa ảnh đại diện thành công!');
+    } catch (err) {
+      toast.error('Lỗi khi xóa ảnh đại diện: ' + err.message);
+    } finally {
+      setUploading(false);
+      setShowAvatarModal(false);
     }
   };
 
@@ -440,7 +458,7 @@ function ProfileContent() {
             <div className="pf-avatar-box">
               <div
                 className="pf-avatar"
-                onClick={isOwnProfile ? () => fileInputRef.current?.click() : undefined}
+                onClick={isOwnProfile ? () => setShowAvatarModal(true) : undefined}
                 style={{
                   backgroundImage: userData?.avatarUrl ? `url(${userData.avatarUrl})` : 'none',
                   fontSize: userData?.avatarUrl ? 0 : undefined,
@@ -451,7 +469,7 @@ function ProfileContent() {
               </div>
               {isOwnProfile && (
                 <>
-                  <div className="pf-avatar-upload-btn" onClick={() => fileInputRef.current?.click()} title="Đổi ảnh đại diện">
+                  <div className="pf-avatar-upload-btn" onClick={() => setShowAvatarModal(true)} title="Đổi ảnh đại diện">
                     📷
                   </div>
                   <input
@@ -1033,6 +1051,46 @@ function ProfileContent() {
           </div>
 
         </div>
+
+        {showAvatarModal && isOwnProfile && (
+          <div className="avatar-modal-overlay" onClick={() => setShowAvatarModal(false)}>
+            <div className="avatar-modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="avatar-modal-header">
+                <h3 className="avatar-modal-title">Ảnh đại diện</h3>
+                <p className="avatar-modal-desc">Thay đổi hoặc xóa ảnh đại diện của bạn</p>
+              </div>
+              <div className="avatar-modal-options">
+                <button
+                  type="button"
+                  className="avatar-modal-btn avatar-modal-btn-upload"
+                  onClick={() => {
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  📷 Tải ảnh mới lên
+                </button>
+                
+                {userData?.avatarUrl && (
+                  <button
+                    type="button"
+                    className="avatar-modal-btn avatar-modal-btn-delete"
+                    onClick={handleAvatarDelete}
+                  >
+                    🗑️ Xóa ảnh hiện tại
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="avatar-modal-btn avatar-modal-btn-cancel"
+                  onClick={() => setShowAvatarModal(false)}
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </ProtectedRoute>
   );

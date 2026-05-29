@@ -401,7 +401,7 @@ export default function AddLocation() {
         user.uid,
         creatorName,
         rating,
-        formData.description || 'Khởi tạo địa điểm'
+        'Khởi tạo địa điểm'
       );
 
       toast.success(isAdmin ? 'Đã thêm địa điểm và đánh giá thành công!' : 'Đã gửi! Địa điểm đang chờ kiểm duyệt từ Admin.');
