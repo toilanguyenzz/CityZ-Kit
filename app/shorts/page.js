@@ -90,7 +90,7 @@ function ShortItem({ location }) {
     <div className="short-item">
       {/* 1:1 Camera Viewport / Locket Widget Frame */}
       <div className="locket-viewport">
-        {/* Locket Live Capture badge */}
+        {/* SnapZ Live Capture badge */}
         <Link href={`/profile?uid=${location.createdBy}`} className="locket-badge-link" style={{ textDecoration: 'none' }}>
           <div className="locket-badge hover:scale-102 transition-transform">
             {location.createdByAvatar ? (
@@ -100,7 +100,7 @@ function ShortItem({ location }) {
                 {(location.createdByName || 'U').charAt(0).toUpperCase()}
               </div>
             )}
-            <span>⚡ Live from {location.createdByName || 'Sinh viên'}</span>
+            <span>⚡ SnapZ từ {location.createdByName || 'Sinh viên'}</span>
           </div>
         </Link>
 
@@ -373,9 +373,9 @@ function TikTokShortItem({ location, isActive }) {
               }}>
                 <span style={{ fontSize: '1.8rem', color: '#fff' }}>🎬</span>
               </div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: '#fff' }}>Video TikTok</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: '#fff' }}>Video ReelZ</h3>
               <p style={{ fontSize: '0.78rem', color: '#ccc', margin: 0, maxWidth: '240px', lineHeight: 1.4 }}>
-                Trình duyệt không thể phát trực tiếp link chia sẻ TikTok. Bấm nút dưới để xem clip.
+                Trình duyệt không thể phát trực tiếp link Reels. Bấm nút dưới để xem clip.
               </p>
               <a
                 href={resolvedInfo.originalUrl}
@@ -392,7 +392,7 @@ function TikTokShortItem({ location, isActive }) {
                 onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                 onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
-                ▶ Xem trên TikTok
+                ▶ Xem Reels
               </a>
             </div>
           </div>
@@ -695,7 +695,7 @@ export default function ShortsPage() {
                 gap: '0.35rem',
               }}
             >
-              <span>⚡</span> Locket Check-in ({locketLocations.length})
+              <span>⚡</span> SnapZ Check-in ({locketLocations.length})
             </button>
             <button
               onClick={() => setActiveTab('tiktok')}
@@ -714,12 +714,12 @@ export default function ShortsPage() {
                 gap: '0.35rem',
               }}
             >
-              <span>🎬</span> TikTok Video ({tiktokLocations.length})
+              <span>🎬</span> ReelZ Video ({tiktokLocations.length})
             </button>
           </div>
         </div>
 
-        {/* Floating Locket Camera Button */}
+        {/* Floating SnapZ Camera Button */}
         <button
           onClick={() => setShowCameraModal(true)}
           style={{
@@ -744,7 +744,7 @@ export default function ShortsPage() {
             fontFamily: 'inherit',
           }}
           className="locket-shoot-btn"
-          title="Chụp ảnh Locket Live!"
+          title="Chụp ảnh SnapZ Live!"
         >
           <span style={{
             display: 'flex',
@@ -761,7 +761,7 @@ export default function ShortsPage() {
             📸
           </span>
           <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Chụp Locket
+            Chụp SnapZ
           </span>
         </button>
 

@@ -739,6 +739,18 @@ export default function LocationDetail() {
                         location.category === 'Play' ? '🎡 Vui chơi' : `🏷️ ${location.category}`
                       }
                     </span>
+                    {location.priceRange && (() => {
+                      const priceMap = {
+                        '0-20k': 'Dưới 20.000₫', '20-50k': '20k – 50k', '50-100k': '50k – 100k',
+                        '100-200k': '100k – 200k', '200-500k': '200k – 500k', '500k-1tr': '500k – 1tr',
+                        '1tr-2tr': '1tr – 2tr', '2tr-5tr': '2tr – 5tr', '5tr+': 'Trên 5tr',
+                      };
+                      return (
+                        <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold">
+                          💰 Giá: {priceMap[location.priceRange] || location.priceRange}
+                        </span>
+                      );
+                    })()}
                     <button
                       onClick={handleSaveLocation}
                       disabled={savingBookmark}

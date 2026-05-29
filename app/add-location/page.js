@@ -107,6 +107,7 @@ export default function AddLocation() {
     address: '',
     description: '',
     videoUrl: '',
+    priceRange: '',
   });
   const [coords, setCoords] = useState({ lat: 10.7769, lng: 106.7009 }); // Mặc định TT TP.HCM
   const [isMapManuallyPinned, setIsMapManuallyPinned] = useState(false);
@@ -117,6 +118,9 @@ export default function AddLocation() {
   const [debounceTimeout, setDebounceTimeout] = useState(null);
 
   const [mediaFiles, setMediaFiles] = useState([]);
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoPreview, setVideoPreview] = useState(null);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const [uploadProgress, setUploadProgress] = useState({});
   const [uploadStatus, setUploadStatus] = useState('');
   const [loading, setLoading] = useState(false);
@@ -129,8 +133,34 @@ export default function AddLocation() {
           URL.revokeObjectURL(item.preview);
         }
       });
+      if (videoPreview) URL.revokeObjectURL(videoPreview);
     };
-  }, [mediaFiles]);
+  }, [mediaFiles, videoPreview]);
+
+  const handleVideoFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('video/')) {
+      toast.error('Vui lòng chọn file video (mp4, mov, webm...)');
+      return;
+    }
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error('Video không được vượt quá 100MB');
+      return;
+    }
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideoFile(file);
+    setVideoPreview(URL.createObjectURL(file));
+    // Clear the link field since we're using a file
+    setFormData(prev => ({ ...prev, videoUrl: '' }));
+  };
+
+  const removeVideoFile = () => {
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideoFile(null);
+    setVideoPreview(null);
+    setVideoUploadProgress(0);
+  };
 
   // Đóng danh sách gợi ý khi bấm ra ngoài
   useEffect(() => {
@@ -339,10 +369,26 @@ export default function AddLocation() {
         uploadedMedia.push(uploadedItem);
       }
 
+      // Upload video file nếu có
+      let finalVideoUrl = formData.videoUrl || null;
+      if (videoFile) {
+        setUploadStatus('Đang tải video lên...');
+        try {
+          const videoResult = await uploadLocationFile(videoFile, user.uid, (progress) => {
+            setVideoUploadProgress(Math.round(progress));
+          });
+          finalVideoUrl = videoResult.url;
+        } catch (videoErr) {
+          console.error('Video upload error:', videoErr);
+          toast.error('Lỗi tải video: ' + videoErr.message);
+        }
+      }
+
       setUploadStatus('Đang tạo địa điểm...');
 
       const newLocationId = await addLocation({
         ...formData,
+        videoUrl: finalVideoUrl,
         latitude: finalCoords.lat,
         longitude: finalCoords.lng,
         createdByName: creatorName,
@@ -585,26 +631,129 @@ export default function AddLocation() {
                     onChange={handleChange}
                     rows="4"
                     required
-                    placeholder="Chia sẻ thêm về giá cả, chất lượng, lưu ý khi đến đây..."
+                    placeholder="Chia sẻ thêm về chất lượng, lưu ý khi đến đây..."
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none placeholder-gray-400"
                   />
                 </div>
 
-                {/* Video URL */}
+                {/* Mức giá tham khảo */}
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
-                    Link video ngắn (tùy chọn) 🎬
+                    Mức giá tham khảo 💰
                   </label>
-                  <input
-                    type="url"
-                    name="videoUrl"
-                    value={formData.videoUrl}
-                    onChange={handleChange}
-                    placeholder="https://... (link video .mp4 hoặc YouTube Shorts)"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none placeholder-gray-400"
-                  />
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-400 text-sm">₫</span>
+                    </div>
+                    <select
+                      name="priceRange"
+                      value={formData.priceRange}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none appearance-none"
+                    >
+                      <option value="">— Chọn mức giá (tùy chọn) —</option>
+                      <option value="0-20k">Dưới 20.000₫</option>
+                      <option value="20-50k">20.000₫ – 50.000₫</option>
+                      <option value="50-100k">50.000₫ – 100.000₫</option>
+                      <option value="100-200k">100.000₫ – 200.000₫</option>
+                      <option value="200-500k">200.000₫ – 500.000₫</option>
+                      <option value="500k-1tr">500.000₫ – 1.000.000₫</option>
+                      <option value="1tr-2tr">1.000.000₫ – 2.000.000₫</option>
+                      <option value="2tr-5tr">2.000.000₫ – 5.000.000₫</option>
+                      <option value="5tr+">Trên 5.000.000₫</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-gray-400 ml-1">
+                    Giá tham khảo giúp sinh viên ước lượng chi phí trước khi đến.
+                  </p>
+                </div>
+
+                {/* Video Section — Upload từ máy hoặc dán link */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-gray-700 ml-1">
+                    Video ngắn (tùy chọn) 🎬
+                  </label>
+
+                  {/* Nếu đã chọn video file → hiển thị preview */}
+                  {videoFile ? (
+                    <div className="relative rounded-xl overflow-hidden border-2 border-indigo-200 bg-black">
+                      <video
+                        src={videoPreview}
+                        controls
+                        playsInline
+                        className="w-full max-h-[240px] object-contain"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeVideoFile}
+                        className="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shadow-lg transition-colors"
+                      >
+                        ✕
+                      </button>
+                      <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 flex items-center gap-2">
+                        <span className="text-xs text-green-600 font-semibold">✅ {videoFile.name}</span>
+                        <span className="text-[10px] text-gray-400">({(videoFile.size / 1024 / 1024).toFixed(1)} MB)</span>
+                      </div>
+                      {videoUploadProgress > 0 && videoUploadProgress < 100 && (
+                        <div className="px-3 pb-2 bg-gray-50">
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div
+                              className="bg-indigo-500 h-1.5 rounded-full transition-all"
+                              style={{ width: `${videoUploadProgress}%` }}
+                            />
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-1">Đang tải: {videoUploadProgress}%</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Option 1: Upload từ máy */}
+                      <div className="relative group">
+                        <input
+                          type="file"
+                          accept="video/*"
+                          onChange={handleVideoFileChange}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="w-full py-4 border-2 border-dashed border-gray-300 bg-gray-50 rounded-xl group-hover:border-indigo-400 group-hover:bg-indigo-50/30 transition-all flex items-center justify-center gap-3 text-center">
+                          <div className="p-2 bg-indigo-100 rounded-full text-indigo-600 group-hover:scale-110 transition-transform">
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <div className="text-left">
+                            <p className="text-xs font-semibold text-gray-700">📱 Chọn video từ máy</p>
+                            <p className="text-[10px] text-gray-400">MP4, MOV, WebM (tối đa 100MB)</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Divider */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-px bg-gray-200" />
+                        <span className="text-xs text-gray-400 font-medium">hoặc</span>
+                        <div className="flex-1 h-px bg-gray-200" />
+                      </div>
+
+                      {/* Option 2: Dán link */}
+                      <input
+                        type="url"
+                        name="videoUrl"
+                        value={formData.videoUrl}
+                        onChange={handleChange}
+                        placeholder="Dán link video .mp4 trực tiếp"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none placeholder-gray-400"
+                      />
+                    </div>
+                  )}
                   <p className="text-xs text-gray-400 ml-1">
-                    💡 Gắn video ngắn để địa điểm xuất hiện trên CityZ Shorts. Hỗ trợ link .mp4 trực tiếp.
+                    💡 Video ngắn giúp địa điểm xuất hiện trên CityZ VibeZ và thu hút nhiều người xem hơn.
                   </p>
                 </div>
 

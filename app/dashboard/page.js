@@ -219,7 +219,7 @@ export default function Dashboard() {
                 href="/shorts"
                 className="text-xs font-semibold text-indigo-500 hover:text-indigo-700 transition-colors"
               >
-                Xem Shorts →
+                Xem VibeZ →
               </Link>
             </div>
 

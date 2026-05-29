@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
@@ -27,10 +28,14 @@ function useFadeIn() {
 }
 
 export default function Home() {
-  /* seed user profile on first login */
+  const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
+
+  /* Kiểm tra auth → nếu đã đăng nhập thì vào thẳng Dashboard (giống Facebook) */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Seed user profile nếu lần đầu
         try {
           const snap = await getDoc(doc(db, 'users', user.uid));
           if (!snap.exists()) {
@@ -46,15 +51,43 @@ export default function Home() {
         } catch (error) {
           console.error('Error seeding user profile:', error);
         }
+        // Đã đăng nhập → chuyển thẳng vào Dashboard
+        router.replace('/dashboard');
+        return;
       }
+      // Chưa đăng nhập → hiện trang Welcome
+      setAuthChecked(true);
     });
     return () => unsub();
-  }, []);
+  }, [router]);
 
   /* section refs */
   const featRef = useFadeIn();
   const howRef = useFadeIn();
   const ctaRef = useFadeIn();
+
+  /* Đang kiểm tra trạng thái đăng nhập — hiện loading nhẹ để tránh flash */
+  if (!authChecked) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0f0c29, #1a1245, #24243e)',
+      }}>
+        <div style={{
+          width: 40,
+          height: 40,
+          border: '3px solid rgba(255,255,255,0.15)',
+          borderTopColor: '#8b5cf6',
+          borderRadius: '50%',
+          animation: 'spin .7s linear infinite',
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="landing-root">

@@ -15,9 +15,19 @@ export default function LocationCard({ location, averageRating }) {
     }
   };
 
+  const getPriceLabel = (range) => {
+    const map = {
+      '0-20k': 'Dưới 20k', '20-50k': '20k–50k', '50-100k': '50k–100k',
+      '100-200k': '100k–200k', '200-500k': '200k–500k', '500k-1tr': '500k–1tr',
+      '1tr-2tr': '1tr–2tr', '2tr-5tr': '2tr–5tr', '5tr+': 'Trên 5tr',
+    };
+    return map[range] || null;
+  };
+
   const rating = parseFloat(averageRating) || 0;
   const reviewCount = location.reviewCount || 0;
   const shortAddress = (location.address || '').split(',').slice(0, 2).join(', ');
+  const priceLabel = getPriceLabel(location.priceRange);
 
   return (
     <Link
@@ -45,6 +55,13 @@ export default function LocationCard({ location, averageRating }) {
         <span className="absolute top-2.5 left-2.5 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-700 px-2 py-1 rounded-lg shadow-sm">
           {getCategoryLabel(location.category)}
         </span>
+
+        {/* Price badge - floating bottom-left */}
+        {priceLabel && (
+          <span className="absolute bottom-2.5 left-2.5 bg-emerald-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-lg shadow-sm">
+            💰 {priceLabel}
+          </span>
+        )}
 
         {/* Verified badge - floating top-right */}
         {reviewCount >= 3 && (

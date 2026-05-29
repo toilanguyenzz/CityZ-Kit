@@ -259,7 +259,7 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
       // Convert captured base64 string to a File object for addLocation function
       const resBlob = await fetch(capturedImage);
       const blob = await resBlob.blob();
-      const imageFile = new File([blob], 'locket_checkin.jpg', { type: 'image/jpeg' });
+      const imageFile = new File([blob], 'snapz_checkin.jpg', { type: 'image/jpeg' });
 
       // Add check-in location card (needs admin approval unless created by admin)
       await addLocation(
@@ -437,7 +437,7 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
             <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem', background: '#1a1a1a', borderRadius: '0.75rem', border: '1px solid #2a2a2a' }}>
               <input
                 type="checkbox"
-                id="locketUseGPS"
+                id="snapzUseGPS"
                 checked={useGPS}
                 onChange={(e) => {
                   const val = e.target.checked;
@@ -446,7 +446,7 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
                 }}
                 style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#3b82f6' }}
               />
-              <label htmlFor="locketUseGPS" style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e5e7eb', cursor: 'pointer', selectSpread: 'none' }}>
+              <label htmlFor="snapzUseGPS" style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e5e7eb', cursor: 'pointer', selectSpread: 'none' }}>
                 🛰️ Sử dụng vị trí GPS hiện tại
               </label>
             </div>
@@ -585,7 +585,7 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
                 boxShadow: '0 4px 15px rgba(59,130,246,0.3)'
               }}
             >
-              {loading ? 'Đang tải lên...' : '⚡ Đăng lên Shorts'}
+              {loading ? 'Đang tải lên...' : '⚡ Đăng lên VibeZ'}
             </button>
           </form>
         )}
