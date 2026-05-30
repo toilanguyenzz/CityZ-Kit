@@ -8,7 +8,7 @@ import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import toast from 'react-hot-toast';
 import useUserRole from '@/lib/useUserRole';
-import { updateBuddyRequest, deleteBuddyRequest, createBuddyConnection, getBuddyConnections, autoModerateContent } from '@/lib/firestore';
+import { updateBuddyRequest, deleteBuddyRequest, createBuddyConnection, getBuddyConnections, autoModerateContent, getUserProfile } from '@/lib/firestore';
 
 const TYPES = [
   { key: 'roommate', label: '🏠 Tìm bạn ở ghép', color: 'bg-green-100 text-green-700' },
@@ -37,6 +37,13 @@ export default function BuddyFinderPage() {
   const [connectingId, setConnectingId] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
+
+  // Modal connections list states
+  const [showConnectionsModal, setShowConnectionsModal] = useState(false);
+  const [activeRequestForConnections, setActiveRequestForConnections] = useState(null);
+  const [connectedUserProfiles, setConnectedUserProfiles] = useState([]);
+  const [connectionsMap, setConnectionsMap] = useState({});
+  const [loadingProfiles, setLoadingProfiles] = useState(false);
 
   // Form states
   const [formType, setFormType] = useState('roommate');
@@ -126,6 +133,69 @@ export default function BuddyFinderPage() {
       setConnectingId(null);
     }
   };
+
+  const handleShowConnectionsModal = async (req) => {
+    setActiveRequestForConnections(req);
+    setShowConnectionsModal(true);
+    setLoadingProfiles(true);
+    try {
+      const profiles = [];
+      const uids = req.connectedBy || [];
+      
+      await Promise.all(
+        uids.map(async (uid) => {
+          try {
+            const profile = await getUserProfile(uid);
+            if (profile) {
+              profiles.push({ uid, ...profile });
+            } else {
+              profiles.push({ uid, name: 'Người dùng ẩn danh', email: '' });
+            }
+          } catch (err) {
+            console.error(err);
+            profiles.push({ uid, name: 'Lỗi tải thông tin', email: '' });
+          }
+        })
+      );
+      setConnectedUserProfiles(profiles);
+      
+      const allConns = await getBuddyConnections(user.uid);
+      const requestConns = allConns.filter(c => c.requestId === req.id);
+      setConnectionsMap(requestConns.reduce((map, c) => {
+        const otherId = c.participants.find(id => id !== user.uid);
+        map[otherId] = c.id;
+        return map;
+      }, {}));
+      
+    } catch (err) {
+      toast.error('Lỗi khi tải danh sách kết nối');
+    } finally {
+      setLoadingProfiles(false);
+    }
+  };
+
+  const handleSelectBuddy = async (req, selectedUser) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn chốt chọn ${selectedUser.name || 'bạn này'} làm bạn đồng hành và đóng yêu cầu tìm kiếm này?`)) return;
+    
+    try {
+      await updateBuddyRequest(req.id, {
+        status: 'closed',
+        matchedWith: {
+          uid: selectedUser.uid,
+          name: selectedUser.name || 'Ẩn danh',
+          avatarUrl: selectedUser.avatarUrl || null,
+        }
+      });
+      
+      toast.success('🎉 Đã chốt bạn đồng hành thành công!');
+      setShowConnectionsModal(false);
+      fetchRequests();
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi khi chốt bạn đồng hành');
+    }
+  };
+
 
   const fetchRequests = async () => {
     try {
@@ -223,9 +293,9 @@ export default function BuddyFinderPage() {
     }
   };
 
-  // Chỉ hiển thị yêu cầu đã duyệt (open) + yêu cầu pending của chính user
+  // Chỉ hiển thị yêu cầu đã duyệt (open/closed) + yêu cầu pending của chính user
   const visibleRequests = requests.filter(r => {
-    if (r.status === 'open' || r.status === 'approved') return true;
+    if (r.status === 'open' || r.status === 'approved' || r.status === 'closed') return true;
     if (r.status === 'pending' && user && r.userId === user.uid) return true;
     if (isAdmin) return true; // Admin thấy tất cả
     return false;
@@ -390,32 +460,81 @@ export default function BuddyFinderPage() {
                       {(req.interests || []).map(i => <span key={i} className="text-xs bg-purple-50 text-purple-600 px-2 py-1 rounded-full">{i}</span>)}
                     </div>
 
-                    {req.status === 'open' && (
-                      <button
-                        onClick={() => handleConnect(req)}
-                        disabled={connectingId === req.id || (user && req.userId === user.uid)}
-                        className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                          user && req.userId === user.uid
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : connectingId === req.id
+                    {/* Badge đã chốt (hiển thị khi status là closed và có thông tin matchedWith) */}
+                    {req.status === 'closed' && req.matchedWith && (
+                      <div className="mb-4 p-3 bg-green-50 rounded-xl border border-green-100 flex items-center gap-2">
+                        <span className="text-base">🎉</span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">ĐÃ CHỐT BẠN ĐỒNG HÀNH</p>
+                          <p className="text-xs text-green-800 font-semibold truncate">Cùng với: {req.matchedWith.name}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Điều khiển các nút hành động */}
+                    {user && req.userId === user.uid ? (
+                      // Nếu là chủ bài đăng
+                      req.status === 'closed' ? (
+                        // Đã chốt xong
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleShowConnectionsModal(req)}
+                            className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold transition"
+                          >
+                            👥 Xem kết nối ({req.connectedBy?.length || 0})
+                          </button>
+                        </div>
+                      ) : (
+                        // Đang mở tìm kiếm
+                        req.connectedBy?.length > 0 ? (
+                          <button
+                            onClick={() => handleShowConnectionsModal(req)}
+                            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition shadow-md hover:shadow-lg active:scale-[0.98]"
+                          >
+                            👥 Xem kết nối ({req.connectedBy.length})
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="w-full py-2.5 bg-gray-100 text-gray-400 rounded-lg text-sm font-semibold cursor-not-allowed"
+                          >
+                            👥 Chưa có kết nối
+                          </button>
+                        )
+                      )
+                    ) : (
+                      // Nếu là người xem khác
+                      req.status === 'closed' ? (
+                        <button
+                          disabled
+                          className="w-full py-2.5 bg-gray-100 text-gray-400 rounded-lg text-sm font-semibold cursor-not-allowed"
+                        >
+                          🔒 Yêu cầu đã đóng
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleConnect(req)}
+                          disabled={connectingId === req.id}
+                          className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                            connectingId === req.id
                               ? 'bg-blue-500 text-white cursor-wait'
                               : 'bg-gray-900 hover:bg-gray-800 text-white hover:shadow-lg active:scale-[0.98]'
-                        }`}
-                      >
-                        {connectingId === req.id ? (
-                          <span className="flex items-center justify-center gap-2">
-                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            Đang kết nối...
-                          </span>
-                        ) : user && req.userId === user.uid ? (
-                          '📌 Yêu cầu của bạn'
-                        ) : (
-                          '💬 Kết nối ngay'
-                        )}
-                      </button>
+                          }`}
+                        >
+                          {connectingId === req.id ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Đang kết nối...
+                            </span>
+                          ) : (
+                            '💬 Kết nối ngay'
+                          )}
+                        </button>
+                      )
                     )}
-                    {req.connectedBy?.length > 0 && (
-                      <p className="text-xs text-gray-400 mt-1.5 text-center">
+
+                    {req.status === 'open' && req.connectedBy?.length > 0 && (
+                      <p className="text-xs text-gray-400 mt-2 text-center">
                         ✅ {req.connectedBy.length} người đã kết nối
                       </p>
                     )}
@@ -424,8 +543,115 @@ export default function BuddyFinderPage() {
               })}
             </div>
           )}
+          {/* Modal Xem danh sách kết nối */}
+          {showConnectionsModal && activeRequestForConnections && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300">
+              <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-scaleUp">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center text-white">
+                  <div>
+                    <h3 className="font-bold text-lg">👥 Danh sách người kết nối</h3>
+                    <p className="text-xs text-blue-100 mt-0.5">Yêu cầu tại: {activeRequestForConnections.university}</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setShowConnectionsModal(false)}
+                    className="text-white/80 hover:text-white hover:bg-white/10 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                  {loadingProfiles ? (
+                    <div className="flex flex-col items-center justify-center py-12 gap-3">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="text-sm text-gray-500 font-medium">Đang tải hồ sơ...</span>
+                    </div>
+                  ) : connectedUserProfiles.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400">
+                      <p className="text-4xl mb-3">👥</p>
+                      <p className="text-sm">Chưa có ai kết nối với yêu cầu này.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {connectedUserProfiles.map((p) => {
+                        const connectionId = connectionsMap[p.uid];
+                        return (
+                          <div 
+                            key={p.uid}
+                            className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-colors"
+                          >
+                            {/* Avatar */}
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-base overflow-hidden flex-shrink-0">
+                              {p.avatarUrl ? (
+                                <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                (p.name || '?').charAt(0).toUpperCase()
+                              )}
+                            </div>
+
+                            {/* User details */}
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-gray-800 text-sm truncate">{p.name || 'Người dùng ẩn danh'}</h4>
+                              <p className="text-xs text-gray-500 truncate">{p.email || 'Ẩn email'}</p>
+                              {p.bio && <p className="text-xs text-gray-400 truncate mt-0.5 italic">"{p.bio}"</p>}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {connectionId && (
+                                <button
+                                  type="button"
+                                  onClick={() => router.push(`/buddy-finder/chat/${connectionId}`)}
+                                  className="px-3 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+                                >
+                                  💬 Chat
+                                </button>
+                              )}
+                              {activeRequestForConnections.status !== 'closed' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectBuddy(activeRequestForConnections, p)}
+                                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+                                >
+                                  Chốt
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 flex justify-end border-t border-gray-100">
+                  <button 
+                    type="button"
+                    onClick={() => setShowConnectionsModal(false)}
+                    className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-semibold transition"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
+
+      <style jsx global>{`
+        @keyframes scaleUp {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-scaleUp {
+          animation: scaleUp 0.15s ease-out forwards;
+        }
+      `}</style>
     </ProtectedRoute>
   );
 }
