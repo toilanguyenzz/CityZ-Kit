@@ -460,13 +460,12 @@ export default function BuddyFinderPage() {
                       {(req.interests || []).map(i => <span key={i} className="text-xs bg-purple-50 text-purple-600 px-2 py-1 rounded-full">{i}</span>)}
                     </div>
 
-                    {/* Badge đã chốt (hiển thị khi status là closed và có thông tin matchedWith) */}
-                    {req.status === 'closed' && req.matchedWith && (
+                    {/* Badge đã chốt (hiển thị khi status là closed) */}
+                    {req.status === 'closed' && (
                       <div className="mb-4 p-3 bg-green-50 rounded-xl border border-green-100 flex items-center gap-2">
                         <span className="text-base">🎉</span>
                         <div className="min-w-0">
                           <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">ĐÃ CHỐT BẠN ĐỒNG HÀNH</p>
-                          <p className="text-xs text-green-800 font-semibold truncate">Cùng với: {req.matchedWith.name}</p>
                         </div>
                       </div>
                     )}
