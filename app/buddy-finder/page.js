@@ -229,50 +229,44 @@ export default function BuddyFinderPage() {
         note: formNote,
       };
 
+      const modResult = autoModerateContent(formNote);
+
       if (editingRequestId) {
-        // Khi chỉnh sửa, cũng chạy lại moderation
-        const modResult = autoModerateContent(formNote);
-        const updateData = { ...requestData };
-        if (modResult.status === 'pending') {
-          updateData.status = 'pending';
-          updateData.moderationFlags = modResult.flags;
-          updateData.riskScore = modResult.riskScore;
-        }
+        // Cập nhật yêu cầu tìm bạn
+        // Nếu là admin thì được duyệt luôn (open), còn user thường thì luôn phải chờ duyệt lại (pending)
+        const updateData = {
+          ...requestData,
+          status: isAdmin ? 'open' : 'pending',
+          moderationFlags: modResult.flags || [],
+          riskScore: modResult.riskScore || 0,
+        };
         await updateBuddyRequest(editingRequestId, updateData);
-        toast.success('Đã cập nhật yêu cầu tìm bạn thành công!');
+        if (isAdmin) {
+          toast.success('Đã cập nhật yêu cầu tìm bạn thành công!');
+        } else {
+          toast.success('Đã cập nhật! Yêu cầu của bạn đã được chuyển sang trạng thái chờ admin duyệt lại. ⏳', { duration: 5000 });
+        }
       } else {
-        // Auto-moderation: quét nội dung ghi chú
-        const modResult = autoModerateContent(formNote);
-        
+        // Đăng yêu cầu tìm bạn mới
+        // Nếu là admin thì được tự động duyệt (open), còn user thường thì luôn đi vào trạng thái chờ duyệt (pending)
         const docData = {
           ...requestData,
           userId: user.uid,
           userName: user.displayName || user.email,
           createdAt: serverTimestamp(),
+          status: isAdmin ? 'open' : 'pending',
+          moderationFlags: modResult.flags || [],
+          riskScore: modResult.riskScore || 0,
+          autoApproved: isAdmin,
         };
-
-        if (modResult.status === 'approved') {
-          // ✅ Nội dung sạch → auto-approve
-          docData.status = 'open';
-          docData.moderationFlags = [];
-          docData.riskScore = 0;
-          docData.autoApproved = true;
-        } else {
-          // ⚠️ Phát hiện nội dung nghi ngờ → chờ admin duyệt
-          docData.status = 'pending';
-          docData.moderationFlags = modResult.flags;
-          docData.riskScore = modResult.riskScore;
-          docData.autoApproved = false;
-        }
 
         await addDoc(collection(db, 'buddyRequests'), docData);
 
-        if (modResult.status === 'approved') {
+        if (isAdmin) {
           toast.success('Đã đăng yêu cầu tìm bạn!');
         } else {
-          toast('Yêu cầu đang chờ admin duyệt do phát hiện nội dung cần kiểm tra.', {
-            icon: '⏳',
-            duration: 5000,
+          toast.success('Đã gửi yêu cầu! Bài viết của bạn đang chờ Admin duyệt để hiển thị công khai. ⏳', {
+            duration: 6000,
           });
         }
       }
