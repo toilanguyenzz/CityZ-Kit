@@ -205,35 +205,37 @@ export default function Dashboard() {
         <Navbar />
 
         {/* ═══ Section 1: Locket Stories Strip (Instagram-style) ═══ */}
-        <div className="bg-white border-b border-gray-100 db-fade-in">
-          <div className="max-w-6xl mx-auto px-4 py-3">
+        <div className="bg-white border-b border-gray-100/90 shadow-sm db-fade-in relative z-20">
+          <div className="max-w-6xl mx-auto px-4 py-3.5">
             {/* Strip header */}
-            <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-gray-800">⚡ Check-in</span>
-                <span className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full tracking-wide">
-                  Live
-                </span>
+                <span className="text-sm font-extrabold text-gray-800 tracking-tight">⚡ Khoảnh khắc Sinh viên</span>
+                <div className="flex items-center gap-1 bg-rose-50 text-rose-600 text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border border-rose-100 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 live-dot-ping"></span>
+                  <span>Live</span>
+                </div>
               </div>
               <Link
                 href="/shorts"
-                className="text-xs font-semibold text-indigo-500 hover:text-indigo-700 transition-colors"
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-0.5"
               >
-                Xem tất cả →
+                Xem tất cả <span>→</span>
               </Link>
             </div>
 
             {/* Horizontal stories scroll */}
-            <div ref={storiesRef} className="stories-strip flex gap-3 overflow-x-auto pb-1">
+            <div ref={storiesRef} className="stories-strip flex gap-3.5 overflow-x-auto pb-1.5 pt-0.5">
               {/* Add Story (Camera) button */}
               <button
                 onClick={() => setShowCameraModal(true)}
-                className="flex flex-col items-center gap-1 flex-shrink-0 group"
+                className="flex flex-col items-center gap-1.5 flex-shrink-0 story-add-button group"
               >
-                <div className="relative w-16 h-16 rounded-full border-2 border-dashed border-indigo-300 bg-indigo-50 flex items-center justify-center group-hover:border-indigo-500 group-hover:bg-indigo-100 transition-all duration-200 story-add-ring">
-                  <span className="text-xl">📸</span>
+                <div className="relative w-16 h-16 rounded-full story-add-gradient flex items-center justify-center story-add-ring">
+                  <span className="text-2xl camera-emoji">📸</span>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black border-2 border-white shadow-md transition-transform group-hover:scale-110">+</div>
                 </div>
-                <span className="text-[10px] font-semibold text-gray-500 group-hover:text-indigo-600 transition-colors">
+                <span className="text-[10px] font-bold text-gray-500 group-hover:text-indigo-600 transition-colors">
                   Chụp ngay
                 </span>
               </button>
@@ -250,23 +252,23 @@ export default function Dashboard() {
                     <Link
                       key={loc.id}
                       href={`/shorts?activeId=${loc.id}`}
-                      className="flex flex-col items-center gap-1 flex-shrink-0 group"
+                      className="flex flex-col items-center gap-1.5 flex-shrink-0 story-item"
                     >
                       {/* Avatar ring with image preview */}
-                      <div className="relative w-16 h-16 rounded-full p-0.5 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 group-hover:scale-105 transition-transform duration-200">
-                        <div className="w-full h-full rounded-full overflow-hidden border-2 border-white">
+                      <div className="relative w-16 h-16 rounded-full p-0.5 story-neon-ring">
+                        <div className="w-full h-full rounded-full overflow-hidden border-2 border-white bg-gray-50 shadow-inner">
                           <img
                             src={loc.imageUrl}
                             alt={loc.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
                           />
                         </div>
                         {/* Tiny avatar badge */}
-                        <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border-2 border-white overflow-hidden bg-white shadow-sm">
+                        <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border-2 border-white overflow-hidden bg-white shadow-md">
                           <img src={avatar} alt="" className="w-full h-full object-cover" />
                         </div>
                       </div>
-                      <span className="text-[10px] font-medium text-gray-600 max-w-[64px] truncate text-center group-hover:text-indigo-600 transition-colors">
+                      <span className="text-[10px] font-bold text-gray-600 max-w-[68px] truncate text-center group-hover:text-indigo-600 transition-colors">
                         {loc.name}
                       </span>
                     </Link>
