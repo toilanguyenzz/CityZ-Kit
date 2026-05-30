@@ -1,0 +1,377 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { db } from '@/lib/firebase';
+import { collection, doc, getDoc, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { sendBuddyChatMessage, markBuddyChatAsRead, closeBuddyConnection } from '@/lib/firestore';
+import Navbar from '@/components/Navbar';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import useUserRole from '@/lib/useUserRole';
+import toast from 'react-hot-toast';
+
+const TYPES = {
+  roommate: { label: 'Tìm bạn ở ghép', icon: '🏠', color: 'bg-green-100 text-green-700' },
+  study_buddy: { label: 'Tìm bạn cùng học', icon: '📚', color: 'bg-blue-100 text-blue-700' },
+  hobby: { label: 'Tìm bạn cùng sở thích', icon: '🎯', color: 'bg-purple-100 text-purple-700' },
+};
+
+function formatTime(timestamp) {
+  if (!timestamp) return '';
+  const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+  if (isNaN(date)) return '';
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+
+  const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  if (isToday) return time;
+  if (isYesterday) return `Hôm qua ${time}`;
+  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) + ' ' + time;
+}
+
+function formatDateSeparator(timestamp) {
+  if (!timestamp) return '';
+  const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+  if (isNaN(date)) return '';
+  const now = new Date();
+  if (date.toDateString() === now.toDateString()) return 'Hôm nay';
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return 'Hôm qua';
+  return date.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+export default function BuddyChatPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { user } = useUserRole();
+  const connectionId = params.connectionId;
+
+  const [connection, setConnection] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [loadingConn, setLoadingConn] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
+
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Fetch connection info
+  useEffect(() => {
+    if (!connectionId) return;
+    const fetchConnection = async () => {
+      try {
+        const connRef = doc(db, 'buddyConnections', connectionId);
+        const connSnap = await getDoc(connRef);
+        if (connSnap.exists()) {
+          setConnection({ id: connSnap.id, ...connSnap.data() });
+        } else {
+          toast.error('Không tìm thấy cuộc trò chuyện');
+          router.push('/buddy-finder');
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error('Lỗi tải cuộc trò chuyện');
+      } finally {
+        setLoadingConn(false);
+      }
+    };
+    fetchConnection();
+  }, [connectionId, router]);
+
+  // Real-time messages listener
+  useEffect(() => {
+    if (!connectionId) return;
+    const messagesRef = collection(db, 'buddyConnections', connectionId, 'messages');
+    const q = query(messagesRef, orderBy('createdAt', 'asc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setMessages(msgs);
+    });
+
+    return () => unsubscribe();
+  }, [connectionId]);
+
+  // Mark as read when opening chat
+  useEffect(() => {
+    if (user && connectionId) {
+      markBuddyChatAsRead(connectionId, user.uid).catch(console.error);
+    }
+  }, [user, connectionId, messages.length]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Access control
+  const isParticipant = connection?.participants?.includes(user?.uid);
+  const otherUserId = connection?.participants?.find(id => id !== user?.uid);
+  const otherUserName = connection?.participantNames?.[otherUserId] || 'Người dùng';
+  const typeInfo = TYPES[connection?.requestType] || TYPES.roommate;
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    const text = newMessage.trim();
+    if (!text || sending || !user) return;
+
+    setSending(true);
+    try {
+      await sendBuddyChatMessage(
+        connectionId,
+        user.uid,
+        user.displayName || user.email || 'Ẩn danh',
+        text
+      );
+      setNewMessage('');
+      inputRef.current?.focus();
+    } catch (err) {
+      console.error(err);
+      toast.error('Không thể gửi tin nhắn');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleCloseChat = async () => {
+    if (!window.confirm('Bạn có chắc muốn đóng cuộc trò chuyện này? Bạn sẽ không thể gửi tin nhắn nữa.')) return;
+    try {
+      await closeBuddyConnection(connectionId);
+      toast.success('Đã đóng cuộc trò chuyện');
+      setConnection(prev => ({ ...prev, status: 'closed' }));
+    } catch (err) {
+      toast.error('Lỗi khi đóng cuộc trò chuyện');
+    }
+  };
+
+  // Group messages by date
+  const groupedMessages = messages.reduce((groups, msg) => {
+    const date = msg.createdAt?.toDate ? msg.createdAt.toDate() : new Date(msg.createdAt);
+    const dateKey = isNaN(date) ? 'unknown' : date.toDateString();
+    if (!groups[dateKey]) groups[dateKey] = [];
+    groups[dateKey].push(msg);
+    return groups;
+  }, {});
+
+  if (loadingConn) {
+    return (
+      <ProtectedRoute>
+        <Navbar />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (!isParticipant) {
+    return (
+      <ProtectedRoute>
+        <Navbar />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-5xl mb-4">🔒</p>
+            <p className="text-lg font-semibold text-gray-700">Bạn không có quyền truy cập cuộc trò chuyện này</p>
+            <button onClick={() => router.push('/buddy-finder')} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+              Quay lại Tìm bạn
+            </button>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  const isClosed = connection?.status === 'closed';
+
+  return (
+    <ProtectedRoute>
+      <Navbar />
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-3xl mx-auto flex flex-col" style={{ height: 'calc(100vh - 64px)' }}>
+          {/* Chat Header */}
+          <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-10 shadow-sm">
+            <button
+              onClick={() => router.push('/buddy-finder/conversations')}
+              className="p-2 hover:bg-gray-100 rounded-full transition"
+              title="Quay lại"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            <div className="flex-1 min-w-0" onClick={() => setShowInfo(!showInfo)} style={{ cursor: 'pointer' }}>
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                  {otherUserName.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="font-semibold text-gray-800 truncate">{otherUserName}</h2>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${typeInfo.color}`}>
+                      {typeInfo.icon} {typeInfo.label}
+                    </span>
+                    {isClosed && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-500">Đã đóng</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowInfo(!showInfo)}
+              className="p-2 hover:bg-gray-100 rounded-full transition"
+              title="Thông tin"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Info Panel */}
+          {showInfo && (
+            <div className="bg-blue-50 border-b border-blue-100 px-4 py-3 animate-fadeIn">
+              <p className="text-sm text-gray-700 mb-1">
+                <span className="font-medium">Trường:</span> {connection?.requestTitle}
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                <span className="font-medium">Loại:</span> {typeInfo.icon} {typeInfo.label}
+              </p>
+              {!isClosed && (
+                <button
+                  onClick={handleCloseChat}
+                  className="text-xs text-red-500 hover:text-red-700 font-medium transition"
+                >
+                  🚫 Đóng cuộc trò chuyện
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1" style={{ scrollBehavior: 'smooth' }}>
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mb-4">
+                  <span className="text-4xl">👋</span>
+                </div>
+                <p className="text-lg font-medium text-gray-600">Bắt đầu cuộc trò chuyện!</p>
+                <p className="text-sm mt-1">Hãy gửi lời chào đến {otherUserName}</p>
+              </div>
+            ) : (
+              Object.entries(groupedMessages).map(([dateKey, msgs]) => (
+                <div key={dateKey}>
+                  {/* Date separator */}
+                  <div className="flex items-center justify-center my-4">
+                    <div className="bg-gray-200 text-gray-500 text-xs px-3 py-1 rounded-full">
+                      {formatDateSeparator(msgs[0]?.createdAt)}
+                    </div>
+                  </div>
+
+                  {/* Messages */}
+                  {msgs.map((msg, idx) => {
+                    const isMe = msg.senderId === user?.uid;
+                    const showAvatar = !isMe && (idx === 0 || msgs[idx - 1]?.senderId !== msg.senderId);
+                    const isLastInGroup = idx === msgs.length - 1 || msgs[idx + 1]?.senderId !== msg.senderId;
+
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${isLastInGroup ? 'mb-3' : 'mb-0.5'}`}
+                      >
+                        {/* Other user avatar */}
+                        {!isMe && (
+                          <div className="w-8 mr-2 flex-shrink-0">
+                            {showAvatar ? (
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                                {otherUserName.charAt(0).toUpperCase()}
+                              </div>
+                            ) : (
+                              <div className="w-8" />
+                            )}
+                          </div>
+                        )}
+
+                        <div className={`max-w-[75%] ${isMe ? 'order-1' : 'order-2'}`}>
+                          <div
+                            className={`px-3.5 py-2 text-sm leading-relaxed break-words ${
+                              isMe
+                                ? 'bg-blue-600 text-white rounded-2xl rounded-br-md'
+                                : 'bg-white text-gray-800 rounded-2xl rounded-bl-md shadow-sm border border-gray-100'
+                            }`}
+                          >
+                            {msg.text}
+                          </div>
+                          {isLastInGroup && (
+                            <p className={`text-[10px] text-gray-400 mt-0.5 ${isMe ? 'text-right mr-1' : 'ml-1'}`}>
+                              {formatTime(msg.createdAt)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input Area */}
+          {isClosed ? (
+            <div className="bg-gray-100 border-t border-gray-200 px-4 py-3 text-center">
+              <p className="text-sm text-gray-500">🚫 Cuộc trò chuyện đã đóng</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSend} className="bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Nhập tin nhắn..."
+                className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full text-sm outline-none focus:bg-gray-50 focus:ring-2 focus:ring-blue-500 transition"
+                disabled={sending}
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={!newMessage.trim() || sending}
+                className={`p-2.5 rounded-full transition-all ${
+                  newMessage.trim()
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg scale-100'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed scale-95'
+                }`}
+              >
+                {sending ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                  </svg>
+                )}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out;
+        }
+      `}</style>
+    </ProtectedRoute>
+  );
+}

@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import { Inter } from 'next/font/google';
 import ToastProvider from '@/components/ToastProvider';
 import InAppBrowserBarrier from '@/components/InAppBrowserBarrier';
+import PresenceTracker from '@/components/PresenceTracker';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
@@ -29,6 +30,7 @@ export default function RootLayout({ children }) {
       <body className={`${inter.className} bg-gray-50`}>
         <ToastProvider />
         <InAppBrowserBarrier />
+        <PresenceTracker />
         {children}
         <Analytics />
         <SpeedInsights />

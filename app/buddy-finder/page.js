@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import toast from 'react-hot-toast';
 import useUserRole from '@/lib/useUserRole';
-import { updateBuddyRequest, deleteBuddyRequest } from '@/lib/firestore';
+import { updateBuddyRequest, deleteBuddyRequest, createBuddyConnection, getBuddyConnections, autoModerateContent } from '@/lib/firestore';
 
 const TYPES = [
   { key: 'roommate', label: '🏠 Tìm bạn ở ghép', color: 'bg-green-100 text-green-700' },
@@ -33,6 +34,9 @@ export default function BuddyFinderPage() {
   const [filterType, setFilterType] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [editingRequestId, setEditingRequestId] = useState(null);
+  const [connectingId, setConnectingId] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const router = useRouter();
 
   // Form states
   const [formType, setFormType] = useState('roommate');
@@ -79,6 +83,50 @@ export default function BuddyFinderPage() {
     fetchRequests();
   }, []);
 
+  // Fetch unread count for conversations badge
+  useEffect(() => {
+    if (!user) return;
+    const fetchUnread = async () => {
+      try {
+        const conns = await getBuddyConnections(user.uid);
+        const total = conns.reduce((sum, c) => sum + (c.unreadCount?.[user.uid] || 0), 0);
+        setUnreadCount(total);
+      } catch (err) {
+        console.error('Error fetching unread:', err);
+      }
+    };
+    fetchUnread();
+  }, [user]);
+
+  // Handle connect button
+  const handleConnect = async (req) => {
+    if (!user) return toast.error('Bạn cần đăng nhập!');
+    if (req.userId === user.uid) return toast.error('Bạn không thể kết nối với chính mình!');
+    
+    setConnectingId(req.id);
+    try {
+      const { connectionId, isNew } = await createBuddyConnection(
+        req.id,
+        req,
+        user,
+        req.userId
+      );
+      
+      if (isNew) {
+        toast.success('Đã kết nối thành công! Đang mở chat...');
+      } else {
+        toast('Đang mở cuộc trò chuyện...', { icon: '💬' });
+      }
+      
+      router.push(`/buddy-finder/chat/${connectionId}`);
+    } catch (err) {
+      console.error('Error connecting:', err);
+      toast.error('Có lỗi xảy ra khi kết nối. Vui lòng thử lại!');
+    } finally {
+      setConnectingId(null);
+    }
+  };
+
   const fetchRequests = async () => {
     try {
       const q = query(collection(db, 'buddyRequests'), orderBy('createdAt', 'desc'));
@@ -112,17 +160,51 @@ export default function BuddyFinderPage() {
       };
 
       if (editingRequestId) {
-        await updateBuddyRequest(editingRequestId, requestData);
+        // Khi chỉnh sửa, cũng chạy lại moderation
+        const modResult = autoModerateContent(formNote);
+        const updateData = { ...requestData };
+        if (modResult.status === 'pending') {
+          updateData.status = 'pending';
+          updateData.moderationFlags = modResult.flags;
+          updateData.riskScore = modResult.riskScore;
+        }
+        await updateBuddyRequest(editingRequestId, updateData);
         toast.success('Đã cập nhật yêu cầu tìm bạn thành công!');
       } else {
-        await addDoc(collection(db, 'buddyRequests'), {
+        // Auto-moderation: quét nội dung ghi chú
+        const modResult = autoModerateContent(formNote);
+        
+        const docData = {
           ...requestData,
           userId: user.uid,
           userName: user.displayName || user.email,
-          status: 'open',
           createdAt: serverTimestamp(),
-        });
-        toast.success('Đã đăng yêu cầu tìm bạn!');
+        };
+
+        if (modResult.status === 'approved') {
+          // ✅ Nội dung sạch → auto-approve
+          docData.status = 'open';
+          docData.moderationFlags = [];
+          docData.riskScore = 0;
+          docData.autoApproved = true;
+        } else {
+          // ⚠️ Phát hiện nội dung nghi ngờ → chờ admin duyệt
+          docData.status = 'pending';
+          docData.moderationFlags = modResult.flags;
+          docData.riskScore = modResult.riskScore;
+          docData.autoApproved = false;
+        }
+
+        await addDoc(collection(db, 'buddyRequests'), docData);
+
+        if (modResult.status === 'approved') {
+          toast.success('Đã đăng yêu cầu tìm bạn!');
+        } else {
+          toast('Yêu cầu đang chờ admin duyệt do phát hiện nội dung cần kiểm tra.', {
+            icon: '⏳',
+            duration: 5000,
+          });
+        }
       }
       
       setShowForm(false);
@@ -141,7 +223,14 @@ export default function BuddyFinderPage() {
     }
   };
 
-  const filtered = filterType ? requests.filter(r => r.type === filterType) : requests;
+  // Chỉ hiển thị yêu cầu đã duyệt (open) + yêu cầu pending của chính user
+  const visibleRequests = requests.filter(r => {
+    if (r.status === 'open' || r.status === 'approved') return true;
+    if (r.status === 'pending' && user && r.userId === user.uid) return true;
+    if (isAdmin) return true; // Admin thấy tất cả
+    return false;
+  });
+  const filtered = filterType ? visibleRequests.filter(r => r.type === filterType) : visibleRequests;
   const typeInfo = (key) => TYPES.find(t => t.key === key) || TYPES[0];
 
   return (
@@ -155,12 +244,25 @@ export default function BuddyFinderPage() {
               <h1 className="text-3xl font-bold text-gray-800">🤝 Tìm Bạn Đồng Hành</h1>
               <p className="text-gray-500 mt-1">Kết nối với sinh viên cùng trường, cùng sở thích tại TP.HCM</p>
             </div>
-            <button
-              onClick={toggleForm}
-              className="btn-primary flex items-center gap-2"
-            >
-              {showForm ? '✕ Đóng' : editingRequestId ? '✏️ Sửa yêu cầu' : '＋ Đăng yêu cầu'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => router.push('/buddy-finder/conversations')}
+                className="relative px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-sm font-medium text-gray-700"
+              >
+                💬 Tin nhắn
+                {unreadCount > 0 && (
+                  <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={toggleForm}
+                className="btn-primary flex items-center gap-2"
+              >
+                {showForm ? '✕ Đóng' : editingRequestId ? '✏️ Sửa yêu cầu' : '＋ Đăng yêu cầu'}
+              </button>
+            </div>
           </div>
 
           {/* Form */}
@@ -249,15 +351,29 @@ export default function BuddyFinderPage() {
               {filtered.map(req => {
                 const info = typeInfo(req.type);
                 return (
-                  <div key={req.id} className="card p-6 hover:shadow-lg transition-all duration-300">
+                  <div key={req.id} className={`card p-6 hover:shadow-lg transition-all duration-300 ${req.status === 'pending' ? 'border border-yellow-200 bg-yellow-50/30' : ''}`}>
                     <div className="flex justify-between items-start mb-3">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${info.color}`}>
                         {info.label}
                       </span>
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${req.status === 'open' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                        {req.status === 'open' ? '● Đang tìm' : '● Đã đóng'}
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        req.status === 'open' ? 'bg-green-50 text-green-600' : 
+                        req.status === 'pending' ? 'bg-yellow-50 text-yellow-600' :
+                        'bg-gray-100 text-gray-500'
+                      }`}>
+                        {req.status === 'open' ? '● Đang tìm' : req.status === 'pending' ? '⏳ Chờ duyệt' : '● Đã đóng'}
                       </span>
                     </div>
+                    {req.status === 'pending' && user && req.userId === user.uid && (
+                      <div className="mb-3 px-3 py-2 bg-yellow-100 rounded-lg text-xs text-yellow-700">
+                        ⚠️ Yêu cầu đang chờ admin kiểm duyệt. Chỉ bạn mới thấy yêu cầu này.
+                        {req.moderationFlags?.length > 0 && (
+                          <div className="mt-1 text-yellow-600">
+                            Lý do: {req.moderationFlags.join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <h3 className="text-lg font-bold text-gray-800 mb-1">🎓 {req.university || 'Chưa rõ trường'}</h3>
                     <p className="text-sm text-gray-500 mb-3">Bởi {req.userName || 'Ẩn danh'}</p>
                     {user && (req.userId === user.uid || isAdmin) && (
@@ -275,9 +391,33 @@ export default function BuddyFinderPage() {
                     </div>
 
                     {req.status === 'open' && (
-                      <button className="w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-semibold transition">
-                        💬 Kết nối ngay
+                      <button
+                        onClick={() => handleConnect(req)}
+                        disabled={connectingId === req.id || (user && req.userId === user.uid)}
+                        className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                          user && req.userId === user.uid
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : connectingId === req.id
+                              ? 'bg-blue-500 text-white cursor-wait'
+                              : 'bg-gray-900 hover:bg-gray-800 text-white hover:shadow-lg active:scale-[0.98]'
+                        }`}
+                      >
+                        {connectingId === req.id ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Đang kết nối...
+                          </span>
+                        ) : user && req.userId === user.uid ? (
+                          '📌 Yêu cầu của bạn'
+                        ) : (
+                          '💬 Kết nối ngay'
+                        )}
                       </button>
+                    )}
+                    {req.connectedBy?.length > 0 && (
+                      <p className="text-xs text-gray-400 mt-1.5 text-center">
+                        ✅ {req.connectedBy.length} người đã kết nối
+                      </p>
                     )}
                   </div>
                 );
