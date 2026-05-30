@@ -690,26 +690,100 @@
   }
 }
 
-/* ── Locket shoot button glow animations ────────────────── */
+/* ── Locket shoot button styling & glow animations ────────── */
 @keyframes locketGlow {
   0% {
     box-shadow: 0 8px 28px rgba(255, 144, 0, 0.5), 0 0 0px rgba(255, 208, 0, 0);
   }
   50% {
     box-shadow: 0 8px 28px rgba(255, 144, 0, 0.7), 0 0 20px rgba(255, 208, 0, 0.6);
-    transform: scale(1.04) translateY(-1px);
   }
   100% {
     box-shadow: 0 8px 28px rgba(255, 144, 0, 0.5), 0 0 0px rgba(255, 208, 0, 0);
   }
 }
 
-.locket-shoot-btn {
-  animation: locketGlow 2.5s infinite ease-in-out;
+.locket-shoot-wrapper {
+  position: absolute;
+  right: 1.25rem;
+  bottom: 6.5rem;
+  touch-action: none;
+  z-index: 100;
 }
+
+.locket-shoot-btn {
+  position: relative;
+  height: 56px;
+  background: linear-gradient(135deg, #ffd000, #ff9000);
+  border: 3px solid #fff;
+  color: #000;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 8px 28px rgba(255, 144, 0, 0.5), 0 0 15px rgba(255, 208, 0, 0.3);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  font-family: inherit;
+  animation: locketGlow 2.5s infinite ease-in-out;
+  box-sizing: border-box;
+}
+
 .locket-shoot-btn:hover {
   animation: none !important;
   transform: scale(1.08) translateY(-2px) !important;
   box-shadow: 0 12px 32px rgba(255, 144, 0, 0.8), 0 0 25px rgba(255, 208, 0, 0.8) !important;
 }
+
+.locket-shoot-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #000;
+  color: #ffd000;
+  font-size: 1.15rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  flex-shrink: 0;
+}
+
+.locket-shoot-text {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+}
+
+/* Desktop Styles */
+@media (min-width: 768px) {
+  .locket-shoot-btn {
+    padding: 0 1.25rem 0 0.85rem;
+    border-radius: 28px;
+    gap: 0.5rem;
+    width: auto;
+  }
+  .locket-shoot-text {
+    display: inline;
+  }
+}
+
+/* Mobile Styles */
+@media (max-width: 767px) {
+  .locket-shoot-wrapper {
+    right: 1rem;
+    bottom: 7.5rem;
+  }
+  .locket-shoot-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    padding: 0;
+    justify-content: center;
+    align-items: center;
+  }
+  .locket-shoot-text {
+    display: none;
+  }
+}
+
 

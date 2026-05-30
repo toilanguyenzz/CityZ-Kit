@@ -569,6 +569,7 @@ export default function ShortsPage() {
   const dragStart = useRef({ x: 0, y: 0 });
   const btnStart = useRef({ x: 0, y: 0 });
   const hasDragged = useRef(false);
+  const initialRect = useRef(null);
 
   const handlePointerDown = (e) => {
     if (e.button !== undefined && e.button !== 0) return;
@@ -576,6 +577,7 @@ export default function ShortsPage() {
     hasDragged.current = false;
     dragStart.current = { x: e.clientX, y: e.clientY };
     btnStart.current = { ...btnPosition };
+    initialRect.current = e.currentTarget.getBoundingClientRect();
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
@@ -586,10 +588,30 @@ export default function ShortsPage() {
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
       hasDragged.current = true;
     }
-    setBtnPosition({
-      x: btnStart.current.x + dx,
-      y: btnStart.current.y + dy
-    });
+    
+    if (initialRect.current) {
+      const initialLeft = initialRect.current.left;
+      const initialTop = initialRect.current.top;
+      const width = initialRect.current.width;
+      const height = initialRect.current.height;
+      const targetLeft = initialLeft + dx;
+      const targetTop = initialTop + dy;
+      
+      // Clamp to screen boundaries with 8px margin
+      // Top boundary has 72px margin to stay below the Navbar
+      const clampedLeft = Math.max(8, Math.min(window.innerWidth - width - 8, targetLeft));
+      const clampedTop = Math.max(72, Math.min(window.innerHeight - height - 8, targetTop));
+      
+      setBtnPosition({
+        x: btnStart.current.x + (clampedLeft - initialLeft),
+        y: btnStart.current.y + (clampedTop - initialTop)
+      });
+    } else {
+      setBtnPosition({
+        x: btnStart.current.x + dx,
+        y: btnStart.current.y + dy
+      });
+    }
   };
 
   const handlePointerUp = (e) => {
@@ -606,6 +628,15 @@ export default function ShortsPage() {
     }
     setShowCameraModal(true);
   };
+
+  // Reset FAB position on viewport resize to keep it in screen bounds
+  useEffect(() => {
+    const handleResize = () => {
+      setBtnPosition({ x: 0, y: 0 });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
 
   useEffect(() => {
@@ -769,55 +800,20 @@ export default function ShortsPage() {
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          className="locket-shoot-wrapper"
           style={{
-            position: 'absolute',
-            right: '1.25rem',
-            bottom: '6.5rem',
             transform: `translate(${btnPosition.x}px, ${btnPosition.y}px)`,
-            touchAction: 'none',
-            zIndex: 100,
           }}
         >
           <button
             onClick={handleButtonClick}
-            style={{
-              position: 'relative',
-              right: 'auto',
-              bottom: 'auto',
-              padding: '0 1.25rem 0 0.85rem',
-              height: '56px',
-              borderRadius: '28px',
-              background: 'linear-gradient(135deg, #ffd000, #ff9000)',
-              border: '3px solid #fff',
-              color: '#000',
-              fontSize: '0.85rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              boxShadow: '0 8px 28px rgba(255, 144, 0, 0.5), 0 0 15px rgba(255, 208, 0, 0.3)',
-              transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-              fontFamily: 'inherit',
-            }}
             className="locket-shoot-btn"
             title="Chụp ảnh SnapZ Live!"
           >
-            <span style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              background: '#000',
-              color: '#ffd000',
-              fontSize: '1.15rem',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-            }}>
+            <span className="locket-shoot-icon-wrapper">
               📸
             </span>
-            <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span className="locket-shoot-text">
               Chụp SnapZ
             </span>
           </button>
