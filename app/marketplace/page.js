@@ -8,6 +8,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import toast from 'react-hot-toast';
 import useUserRole from '@/lib/useUserRole';
 import { updateMarketplaceItem, deleteMarketplaceItem } from '@/lib/firestore';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
 const CATEGORIES = [
   { key: null, label: 'Tất cả', emoji: '🌐' },
@@ -40,11 +41,97 @@ export default function MarketplacePage() {
   const [formCondition, setFormCondition] = useState('used_good');
   const [formContact, setFormContact] = useState('');
 
+  // Image upload states
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [formImageUrl, setFormImageUrl] = useState('');
+  const [uploadStatus, setUploadStatus] = useState('');
+
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      if (!file || !file.type.startsWith('image/')) {
+        resolve(file);
+        return;
+      }
+      try {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              let width = img.width;
+              let height = img.height;
+              const MAX_WIDTH = 800;
+              const MAX_HEIGHT = 800;
+              if (width > height) {
+                if (width > MAX_WIDTH) {
+                  height *= MAX_WIDTH / width;
+                  width = MAX_WIDTH;
+                }
+              } else {
+                if (height > MAX_HEIGHT) {
+                  width *= MAX_HEIGHT / height;
+                  height = MAX_HEIGHT;
+                }
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+              canvas.toBlob((blob) => {
+                if (!blob) {
+                  resolve(file);
+                  return;
+                }
+                try {
+                  const compressedFile = new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                } catch (e) {
+                  resolve(blob);
+                }
+              }, 'image/jpeg', 0.8);
+            } catch (e) {
+              resolve(file);
+            }
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      } catch (e) {
+        resolve(file);
+      }
+    });
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Vui lòng chọn file ảnh!');
+      return;
+    }
+    setImageFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setPreviewUrl('');
+    setFormImageUrl('');
+  };
+
   const toggleForm = () => {
     if (showForm) {
       setEditingItemId(null);
       setFormTitle(''); setFormDesc(''); setFormPrice('');
       setFormCategory('textbook'); setFormCondition('used_good'); setFormContact('');
+      setImageFile(null);
+      setPreviewUrl('');
+      setFormImageUrl('');
     }
     setShowForm(!showForm);
   };
@@ -57,6 +144,9 @@ export default function MarketplacePage() {
     setFormCategory(item.category || 'textbook');
     setFormCondition(item.condition || 'used_good');
     setFormContact(item.contact || '');
+    setFormImageUrl(item.imageUrl || '');
+    setPreviewUrl(item.imageUrl || '');
+    setImageFile(null);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -95,7 +185,18 @@ export default function MarketplacePage() {
     if (!formPrice) return toast.error('Vui lòng nhập giá!');
 
     setSubmitting(true);
+    setUploadStatus('Đang xử lý...');
     try {
+      let finalImageUrl = formImageUrl;
+
+      if (imageFile) {
+        setUploadStatus('Đang nén ảnh...');
+        const compressed = await compressImage(imageFile);
+        setUploadStatus('Đang tải ảnh lên...');
+        const uploadResult = await uploadToCloudinary(compressed);
+        finalImageUrl = uploadResult.url;
+      }
+
       const itemData = {
         title: formTitle.trim(),
         description: formDesc.trim(),
@@ -103,6 +204,7 @@ export default function MarketplacePage() {
         category: formCategory,
         condition: formCondition,
         contact: formContact.trim() || user.email,
+        imageUrl: finalImageUrl,
       };
 
       if (editingItemId) {
@@ -123,12 +225,16 @@ export default function MarketplacePage() {
       setEditingItemId(null);
       setFormTitle(''); setFormDesc(''); setFormPrice('');
       setFormCategory('textbook'); setFormCondition('used_good'); setFormContact('');
+      setImageFile(null);
+      setPreviewUrl('');
+      setFormImageUrl('');
       fetchItems();
     } catch (error) {
       console.error(error);
-      toast.error('Có lỗi xảy ra!');
+      toast.error('Có lỗi xảy ra khi lưu sản phẩm!');
     } finally {
       setSubmitting(false);
+      setUploadStatus('');
     }
   };
 
@@ -185,6 +291,41 @@ export default function MarketplacePage() {
                 </div>
               </div>
               <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Hình ảnh sản phẩm (tùy chọn)</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-28 h-28 border-2 border-dashed border-gray-300 hover:border-blue-500 rounded-xl flex flex-col items-center justify-center overflow-hidden bg-gray-50 relative transition-colors duration-200">
+                    {previewUrl ? (
+                      <>
+                        <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold transition shadow-md border border-white"
+                        >
+                          ✕
+                        </button>
+                      </>
+                    ) : (
+                      <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 transition-colors">
+                        <span className="text-3xl">📸</span>
+                        <span className="text-xs font-medium mt-1.5">Tải ảnh lên</span>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleImageChange} 
+                          className="hidden" 
+                        />
+                      </label>
+                    )}
+                  </div>
+                  {imageFile && (
+                    <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg">
+                      📁 {imageFile.name} ({(imageFile.size / 1024).toFixed(0)} KB)
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
                 <textarea value={formDesc} onChange={e => setFormDesc(e.target.value)} rows={3}
                   className="input-field" placeholder="Mô tả sản phẩm chi tiết..." />
@@ -195,7 +336,7 @@ export default function MarketplacePage() {
                   className="input-field" placeholder="Để trống sẽ dùng email đăng nhập" />
               </div>
               <button type="submit" disabled={submitting} className="btn-primary w-full sm:w-auto">
-                {submitting ? 'Đang xử lý...' : editingItemId ? '💾 Cập nhật' : '🚀 Đăng bán'}
+                {submitting ? (uploadStatus || 'Đang xử lý...') : editingItemId ? '💾 Cập nhật' : '🚀 Đăng bán'}
               </button>
             </form>
           )}
@@ -224,8 +365,12 @@ export default function MarketplacePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filtered.map(item => (
                 <div key={item.id} className="card overflow-hidden hover:shadow-lg transition-all duration-300">
-                  <div className="h-40 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                    <span className="text-5xl">{catEmoji(item.category)}</span>
+                  <div className="h-40 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center relative overflow-hidden">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" />
+                    ) : (
+                      <span className="text-5xl">{catEmoji(item.category)}</span>
+                    )}
                   </div>
                   <div className="p-4">
                     <div className="flex justify-between items-start mb-2">
