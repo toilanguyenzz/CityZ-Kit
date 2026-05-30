@@ -26,6 +26,9 @@ const CATEGORIES = [
   { key: 'academic', label: 'Học tập', emoji: '📚' },
   { key: 'social', label: 'Xã hội', emoji: '🎉' },
   { key: 'general', label: 'Tổng hợp', emoji: '💬' },
+  { key: 'safety', label: 'Cảnh báo', emoji: '⚠️' },
+  { key: 'events', label: 'Sự kiện', emoji: '📅' },
+  { key: 'feedback', label: 'Góp ý', emoji: '💡' },
 ];
 
 export default function BlogList() {
@@ -208,6 +211,50 @@ export default function BlogList() {
                     {cat.emoji} {cat.label}
                   </button>
                 ))}
+              </div>
+
+              {/* Quick Access Links — merged features */}
+              <div style={{
+                display: 'flex', gap: '0.5rem', padding: '0.75rem 1rem',
+                borderBottom: '1px solid var(--blog-divider, #e5e7eb)',
+                overflowX: 'auto',
+              }}>
+                <Link href="/safety" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                  padding: '0.4rem 0.75rem', borderRadius: '2rem',
+                  background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)',
+                  color: '#dc2626', fontSize: '0.75rem', fontWeight: 600,
+                  textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.15s',
+                }}>
+                  🛡️ Bản đồ cảnh báo
+                </Link>
+                <Link href="/events" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                  padding: '0.4rem 0.75rem', borderRadius: '2rem',
+                  background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.2)',
+                  color: '#7c3aed', fontSize: '0.75rem', fontWeight: 600,
+                  textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.15s',
+                }}>
+                  📅 Lịch sự kiện đầy đủ
+                </Link>
+                <Link href="/recommend" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                  padding: '0.4rem 0.75rem', borderRadius: '2rem',
+                  background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)',
+                  color: '#2563eb', fontSize: '0.75rem', fontWeight: 600,
+                  textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.15s',
+                }}>
+                  🤖 AI Gợi ý
+                </Link>
+                <Link href="/shorts" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                  padding: '0.4rem 0.75rem', borderRadius: '2rem',
+                  background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)',
+                  color: '#059669', fontSize: '0.75rem', fontWeight: 600,
+                  textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.15s',
+                }}>
+                  🎬 VibeZ Shorts
+                </Link>
               </div>
 
               {/* Inline Composer */}

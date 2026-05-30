@@ -219,7 +219,7 @@ export default function Dashboard() {
                 href="/shorts"
                 className="text-xs font-semibold text-indigo-500 hover:text-indigo-700 transition-colors"
               >
-                Xem VibeZ →
+                Xem tất cả →
               </Link>
             </div>
 
@@ -398,10 +398,10 @@ export default function Dashboard() {
               <span className="font-semibold text-indigo-700">Góp ý ý kiến</span> — CityZ Kit luôn trân trọng và lắng nghe đóng góp từ bạn để cải tiến hệ thống ngày một tốt hơn!
             </p>
             <Link
-              href="/recommend"
+              href="/blog"
               className="text-xs font-bold text-indigo-600 hover:text-indigo-800 whitespace-nowrap transition-colors"
             >
-              Đóng góp ngay →
+              Cộng đồng →
             </Link>
           </div>
 
@@ -454,6 +454,25 @@ export default function Dashboard() {
             </div>
           )}
         </main>
+
+        {/* Floating Action Button — Thêm địa điểm */}
+        <Link
+          href="/add-location"
+          style={{
+            position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 40,
+            width: '56px', height: '56px', borderRadius: '50%',
+            background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
+            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 14px rgba(79, 70, 229, 0.4)',
+            textDecoration: 'none', fontSize: '1.5rem', fontWeight: 700,
+            transition: 'transform 0.2s, box-shadow 0.2s',
+          }}
+          title="Thêm địa điểm mới"
+          onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(79, 70, 229, 0.5)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(79, 70, 229, 0.4)'; }}
+        >
+          +
+        </Link>
 
         {/* Locket Camera Modal */}
         {showCameraModal && (

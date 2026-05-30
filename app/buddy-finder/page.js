@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import Navbar from '@/components/Navbar';
@@ -37,6 +38,9 @@ export default function BuddyFinderPage() {
   const [connectingId, setConnectingId] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
+
+  // Tab state for unified "Kết nối" hub
+  const [activeConnectTab, setActiveConnectTab] = useState('buddy');
 
   // Modal connections list states
   const [showConnectionsModal, setShowConnectionsModal] = useState(false);
@@ -302,6 +306,49 @@ export default function BuddyFinderPage() {
       <Navbar />
       <div className="min-h-screen bg-gray-50">
         <main className="max-w-6xl mx-auto py-8 px-4">
+
+          {/* ═══ Connect Hub Tab Switcher ═══ */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+            <div style={{
+              display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '0.75rem',
+              border: '1px solid #e2e8f0', gap: '2px'
+            }}>
+              {[
+                { key: 'buddy', label: '🏠 Tìm Bạn', count: filtered.length },
+                { key: 'market', label: '🛍️ Mua Bán', count: null },
+                { key: 'messages', label: '💬 Tin nhắn', count: unreadCount || null },
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveConnectTab(tab.key)}
+                  style={{
+                    padding: '0.55rem 1.1rem', borderRadius: '0.6rem', border: 'none',
+                    background: activeConnectTab === tab.key ? '#fff' : 'transparent',
+                    color: activeConnectTab === tab.key ? '#1e40af' : '#64748b',
+                    fontSize: '0.85rem', fontWeight: activeConnectTab === tab.key ? 700 : 500,
+                    cursor: 'pointer', transition: 'all 0.2s',
+                    boxShadow: activeConnectTab === tab.key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    display: 'flex', alignItems: 'center', gap: '0.35rem',
+                  }}
+                >
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span style={{
+                      background: activeConnectTab === tab.key ? '#3b82f6' : '#94a3b8',
+                      color: '#fff', fontSize: '0.65rem', fontWeight: 700,
+                      padding: '1px 6px', borderRadius: '1rem', minWidth: '18px', textAlign: 'center',
+                    }}>
+                      {tab.count > 99 ? '99+' : tab.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ═══ TAB: Tìm Bạn ═══ */}
+          {activeConnectTab === 'buddy' && (
+            <>
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
@@ -310,7 +357,7 @@ export default function BuddyFinderPage() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => router.push('/buddy-finder/conversations')}
+                onClick={() => setActiveConnectTab('messages')}
                 className="relative px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-sm font-medium text-gray-700"
               >
                 💬 Tin nhắn
@@ -536,83 +583,50 @@ export default function BuddyFinderPage() {
               })}
             </div>
           )}
-          {/* Modal Xem danh sách kết nối */}
-          {showConnectionsModal && activeRequestForConnections && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300">
-              <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-scaleUp">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center text-white">
-                  <div>
-                    <h3 className="font-bold text-lg">👥 Danh sách người kết nối</h3>
-                    <p className="text-xs text-blue-100 mt-0.5">Yêu cầu tại: {activeRequestForConnections.university}</p>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={() => setShowConnectionsModal(false)}
-                    className="text-white/80 hover:text-white hover:bg-white/10 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
-                  >
-                    ✕
-                  </button>
+
+          {/* Connections Modal */}
+          {showConnectionsModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowConnectionsModal(false)}>
+              <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[70vh] overflow-hidden animate-scaleUp" onClick={(e) => e.stopPropagation()}>
+                {/* Modal Header */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-100">
+                  <h3 className="text-lg font-bold text-gray-800">🤝 Đã kết nối ({connectedUserProfiles.length})</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Danh sách người đã kết nối với yêu cầu này</p>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6">
+                {/* Modal Content */}
+                <div className="overflow-y-auto max-h-[50vh] p-4">
                   {loadingProfiles ? (
-                    <div className="flex flex-col items-center justify-center py-12 gap-3">
+                    <div className="flex justify-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                      <span className="text-sm text-gray-500 font-medium">Đang tải hồ sơ...</span>
                     </div>
                   ) : connectedUserProfiles.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400">
-                      <p className="text-4xl mb-3">👥</p>
-                      <p className="text-sm">Chưa có ai kết nối với yêu cầu này.</p>
-                    </div>
+                    <p className="text-center text-gray-400 py-8 text-sm">Chưa có ai kết nối</p>
                   ) : (
-                    <div className="space-y-4">
-                      {connectedUserProfiles.map((p) => {
-                        const connectionId = connectionsMap[p.uid];
+                    <div className="space-y-2">
+                      {connectedUserProfiles.map((profile, idx) => {
+                        const connection = connectionsMap[profile.id];
                         return (
-                          <div 
-                            key={p.uid}
-                            className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-colors"
-                          >
-                            {/* Avatar */}
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-base overflow-hidden flex-shrink-0">
-                              {p.avatarUrl ? (
-                                <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          <div key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                              {profile.avatarUrl ? (
+                                <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full rounded-full object-cover" />
                               ) : (
-                                (p.name || '?').charAt(0).toUpperCase()
+                                (profile.name || 'U').charAt(0).toUpperCase()
                               )}
                             </div>
-
-                            {/* User details */}
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-bold text-gray-800 text-sm truncate">{p.name || 'Người dùng ẩn danh'}</h4>
-                              <p className="text-xs text-gray-500 truncate">{p.email || 'Ẩn email'}</p>
-                              {p.bio && <p className="text-xs text-gray-400 truncate mt-0.5 italic">"{p.bio}"</p>}
+                              <p className="text-sm font-semibold text-gray-800 truncate">{profile.name || 'Người dùng'}</p>
+                              {profile.university && <p className="text-xs text-gray-400 truncate">🎓 {profile.university}</p>}
                             </div>
-
-                            {/* Actions */}
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              {connectionId && (
-                                <button
-                                  type="button"
-                                  onClick={() => router.push(`/buddy-finder/chat/${connectionId}`)}
-                                  className="px-3 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
-                                >
-                                  💬 Chat
-                                </button>
-                              )}
-                              {activeRequestForConnections.status !== 'closed' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleSelectBuddy(activeRequestForConnections, p)}
-                                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition"
-                                >
-                                  Chốt
-                                </button>
-                              )}
-                            </div>
+                            {connection && (
+                              <button
+                                onClick={() => router.push(`/buddy-finder/conversations?connectionId=${connection.id}`)}
+                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition flex-shrink-0"
+                              >
+                                💬 Chat
+                              </button>
+                            )}
                           </div>
                         );
                       })}
@@ -633,6 +647,80 @@ export default function BuddyFinderPage() {
               </div>
             </div>
           )}
+            </>
+          )}
+
+          {/* ═══ TAB: Mua Bán ═══ */}
+          {activeConnectTab === 'market' && (
+            <div>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-800">🛍️ Chợ Đồ Cũ Sinh Viên</h1>
+                  <p className="text-gray-500 mt-1">Mua bán đồ cũ giá rẻ giữa các sinh viên</p>
+                </div>
+                <Link
+                  href="/marketplace"
+                  className="btn-primary flex items-center gap-2"
+                >
+                  🛍️ Mở Chợ đầy đủ →
+                </Link>
+              </div>
+
+              <div className="card p-8 text-center">
+                <div className="text-5xl mb-4">🛍️</div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Chợ Đồ Cũ Sinh Viên</h3>
+                <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
+                  Mua bán sách giáo khoa, đồ điện tử, nội thất và nhiều hơn nữa — tất cả từ sinh viên cho sinh viên.
+                </p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Link
+                    href="/marketplace"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
+                  >
+                    🛒 Xem sản phẩm
+                  </Link>
+                  <Link
+                    href="/marketplace?action=sell"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-semibold transition"
+                  >
+                    ＋ Đăng bán đồ
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ TAB: Tin nhắn ═══ */}
+          {activeConnectTab === 'messages' && (
+            <div>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-800">💬 Tin Nhắn</h1>
+                  <p className="text-gray-500 mt-1">Quản lý các cuộc hội thoại của bạn</p>
+                </div>
+              </div>
+
+              <div className="card p-8 text-center">
+                <div className="text-5xl mb-4">💬</div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Hộp Tin Nhắn</h3>
+                <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
+                  Xem và quản lý tất cả cuộc hội thoại với bạn bè, bạn ở ghép và người mua bán.
+                </p>
+                <Link
+                  href="/buddy-finder/conversations"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
+                >
+                  💬 Mở hộp tin nhắn
+                  {unreadCount > 0 && (
+                    <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Link>
+              </div>
+            </div>
+          )}
+
         </main>
       </div>
 
