@@ -303,7 +303,10 @@ export default function BlogList() {
                       onSubmit={(e) => {
                         e.preventDefault();
                         const q = e.target.query.value;
-                        if (q.trim()) window.location.href = `/recommend?q=${encodeURIComponent(q)}`;
+                        if (q.trim()) {
+                          toast.success('Trợ lý AI Gemini đang được nâng cấp, vui lòng quay lại sau! ✨');
+                          e.target.query.value = '';
+                        }
                       }}
                       style={{ display: 'flex', gap: '0.5rem' }}
                     >

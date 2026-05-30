@@ -391,17 +391,17 @@ export default function Dashboard() {
 
         {/* ═══ Section 3: Main Content ═══ */}
         <main className="max-w-6xl mx-auto px-4 pt-5 pb-24">
-          {/* AI Tip — compact inline banner */}
+          {/* Feedback Tip — compact inline banner */}
           <div className="flex items-center gap-3 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl px-4 py-2.5 mb-5 db-fade-in db-fade-in-2">
-            <span className="text-lg flex-shrink-0">🤖</span>
+            <span className="text-lg flex-shrink-0">📝</span>
             <p className="text-xs text-gray-600 flex-1">
-              <span className="font-semibold text-indigo-700">AI gợi ý</span> — Nhập ngân sách, khẩu vị để được gợi ý địa điểm phù hợp <span className="ml-1.5 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[9px] font-bold rounded-md uppercase">Sắp ra mắt</span>
+              <span className="font-semibold text-indigo-700">Góp ý ý kiến</span> — CityZ Kit luôn trân trọng và lắng nghe đóng góp từ bạn để cải tiến hệ thống ngày một tốt hơn!
             </p>
             <Link
               href="/recommend"
               className="text-xs font-bold text-indigo-600 hover:text-indigo-800 whitespace-nowrap transition-colors"
             >
-              Chi tiết →
+              Đóng góp ngay →
             </Link>
           </div>
 

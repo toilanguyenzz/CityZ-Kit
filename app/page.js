@@ -117,7 +117,7 @@ export default function Home() {
               <span>🚀</span> Khám phá ngay
             </Link>
             <Link href="/recommend" className="btn-hero-secondary">
-              <span>✨</span> Gợi ý AI
+              <span>📝</span> Gửi Góp Ý
             </Link>
             <Link href="/signup" className="btn-hero-outline">
               Tạo tài khoản miễn phí →
@@ -167,10 +167,10 @@ export default function Home() {
               desc: 'Quán ăn, nhà trọ, quán cà phê — tất cả đều được sinh viên thực tế đánh giá và xác minh. Không lo "ảo giá" hay review giả.',
             },
             {
-              icon: '🤖',
+              icon: '📝',
               color: '#8b5cf6',
-              title: 'Gợi ý AI thông minh',
-              desc: 'Nhập ngân sách, khẩu vị, khu vực — AI phân tích dữ liệu cộng đồng và đề xuất 3 địa điểm phù hợp nhất cho bạn.',
+              title: 'Góp ý & Phản hồi',
+              desc: 'Gửi ý kiến đóng góp và phản hồi trực tuyến để giúp CityZ Kit nâng cấp và phát triển các tính năng ngày một tốt hơn.',
             },
             {
               icon: '📝',
@@ -307,7 +307,7 @@ export default function Home() {
             <div>
               <h4>Khám phá</h4>
               <Link href="/dashboard">Địa điểm</Link>
-              <Link href="/recommend">Gợi ý AI</Link>
+              <Link href="/recommend">Gửi Góp Ý</Link>
               <Link href="/blog">Blog</Link>
             </div>
             <div>

@@ -4,134 +4,151 @@ import { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Link from 'next/link';
-import '@/app/styles/recommend.css';
 
 export default function RecommendPage() {
-  const [budget, setBudget] = useState('');
-  const [foodType, setFoodType] = useState('');
-  const [district, setDistrict] = useState('');
-  const [recommendations, setRecommendations] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [infoMessage, setInfoMessage] = useState('');
-  const [hasSearched, setHasSearched] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setInfoMessage('');
-    setRecommendations([]);
-    setHasSearched(false);
-    try {
-      const res = await fetch('/api/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ budget, foodType: foodType.toLowerCase(), district }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setRecommendations(data.recommendations || []);
-        if (data.message) {
-          setInfoMessage(data.message);
-        }
-        setHasSearched(true);
-      } else {
-        setError(data.error || 'Lỗi khi gọi AI');
-      }
-    } catch (err) {
-      setError('Lỗi kết nối API');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [iframeLoading, setIframeLoading] = useState(true);
 
   return (
     <ProtectedRoute>
-      <div className="recommend-root" style={{ background: 'linear-gradient(to bottom right, #f8fafc, #e0e7ff, #f3e8ff)' }}>
+      <div className="recommend-root" style={{ background: 'linear-gradient(to bottom right, #f8fafc, #e0e7ff, #f3e8ff)', minHeight: '100vh' }}>
         <Navbar />
 
-        <main className="rc-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', padding: '2rem', textAlign: 'center' }}>
+        <main className="rc-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2rem 1rem', minHeight: 'calc(100vh - 64px)' }}>
           <div style={{
-            maxWidth: '550px',
-            background: 'rgba(255, 255, 255, 0.7)',
+            width: '100%',
+            maxWidth: '760px',
+            background: 'rgba(255, 255, 255, 0.75)',
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
             border: '1px solid rgba(255, 255, 255, 0.4)',
-            borderRadius: '2.5rem',
-            padding: '3rem 2rem',
-            boxShadow: '0 20px 40px rgba(99, 102, 241, 0.08)'
+            borderRadius: '2rem',
+            padding: '2rem 1.5rem',
+            boxShadow: '0 20px 40px rgba(99, 102, 241, 0.08)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.5rem'
           }} className="db-fade-in">
-            {/* Pulsing AI Robot emoji */}
-            <div style={{
-              fontSize: '4.5rem',
-              marginBottom: '1.5rem',
-              animation: 'dbPulseRing 2s infinite ease-in-out',
-              display: 'inline-block'
-            }}>
-              🤖
+            
+            {/* Header info */}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: '3.5rem',
+                marginBottom: '1rem',
+                display: 'inline-block'
+              }}>
+                📝
+              </div>
+
+              <h1 style={{
+                fontSize: '1.75rem',
+                fontWeight: 900,
+                color: '#1e1b4b',
+                lineHeight: 1.3,
+                marginBottom: '0.5rem',
+                fontFamily: 'inherit'
+              }}>
+                Góp Ý & Phản Hồi
+              </h1>
+
+              <p style={{
+                fontSize: '0.9rem',
+                color: '#475569',
+                lineHeight: 1.6,
+                maxWidth: '560px',
+                margin: '0 auto 1.5rem'
+              }}>
+                CityZ Kit luôn trân trọng mọi đóng góp ý kiến của các bạn để nâng cấp và hoàn thiện ứng dụng ngày càng tốt hơn. Xin chân thành cảm ơn! 💖
+              </p>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link
+                  href="/dashboard"
+                  style={{
+                    background: '#f1f5f9',
+                    color: '#334155',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    padding: '0.65rem 1.25rem',
+                    borderRadius: '1rem',
+                    transition: 'background 0.2s',
+                    textDecoration: 'none',
+                    border: '1px solid #e2e8f0'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#e2e8f0'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                >
+                  ← Về Dashboard
+                </Link>
+                <a
+                  href="https://docs.google.com/forms/d/e/1FAIpQLSdoxpc78Zn3-Od7xn9SOnWa6tYgVDSXhQ6x2WG9Rnooi0VO4A/viewform?usp=sharing&ouid=109396857248025032833"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    padding: '0.65rem 1.25rem',
+                    borderRadius: '1rem',
+                    boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)',
+                    transition: 'opacity 0.2s',
+                    textDecoration: 'none'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = 0.9}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
+                >
+                  Mở trong tab mới ↗
+                </a>
+              </div>
             </div>
 
+            {/* Embedded Google Form Section */}
             <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              background: 'rgba(99, 102, 241, 0.1)',
-              color: '#4f46e5',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              padding: '0.35rem 0.8rem',
-              borderRadius: '2rem',
-              marginBottom: '1.25rem'
+              background: '#fff',
+              borderRadius: '1.25rem',
+              overflow: 'hidden',
+              border: '1px solid #e2e8f0',
+              position: 'relative',
+              minHeight: '400px'
             }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4f46e5', animation: 'ping 1s infinite' }}></span>
-              Feature Coming Soon
-            </div>
-
-            <h1 style={{
-              fontSize: '1.75rem',
-              fontWeight: 900,
-              color: '#1e1b4b',
-              lineHeight: 1.3,
-              marginBottom: '1rem',
-              fontFamily: 'inherit'
-            }}>
-              Tính Năng Gợi Ý AI <br />
-              <span style={{ background: 'linear-gradient(135deg, #4f46e5, #9333ea)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Đang Được Nâng Cấp</span>
-            </h1>
-
-            <p style={{
-              fontSize: '0.9rem',
-              color: '#475569',
-              lineHeight: 1.6,
-              marginBottom: '2rem',
-              padding: '0 1rem'
-            }}>
-              Hệ thống gợi ý thông minh dựa trên khẩu vị, vị trí GPS và phân tích ngân sách sinh viên đang được nâng cấp lên phiên bản 2.0. Hãy quay lại sau khi tính năng hoàn thành nhé! ✨
-            </p>
-
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-              <Link
-                href="/dashboard"
+              {iframeLoading && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: '#fff',
+                  gap: '1rem'
+                }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    border: '3px solid #e2e8f0',
+                    borderTopColor: '#4f46e5',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite'
+                  }}></div>
+                  <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 500 }}>Đang tải biểu mẫu...</span>
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
+              )}
+              
+              <iframe
+                src="https://docs.google.com/forms/d/e/1FAIpQLSdoxpc78Zn3-Od7xn9SOnWa6tYgVDSXhQ6x2WG9Rnooi0VO4A/viewform?embedded=true"
+                width="100%"
+                height="850"
                 style={{
-                  background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: '0.875rem',
-                  padding: '0.8rem 1.75rem',
-                  borderRadius: '1.25rem',
-                  boxShadow: '0 4px 15px rgba(79, 70, 229, 0.25)',
-                  transition: 'opacity 0.2s',
-                  textDecoration: 'none'
+                  border: 'none',
+                  display: iframeLoading ? 'none' : 'block'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.opacity = 0.9}
-                onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
+                onLoad={() => setIframeLoading(false)}
               >
-                ← Về Dashboard
-              </Link>
+                Đang tải...
+              </iframe>
             </div>
+
           </div>
         </main>
       </div>
