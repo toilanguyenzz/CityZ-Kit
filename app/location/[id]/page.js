@@ -130,6 +130,7 @@ export default function LocationDetail() {
   const [editAddress, setEditAddress] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editVideoUrl, setEditVideoUrl] = useState('');
+  const [editPriceRange, setEditPriceRange] = useState('');
   const [editCoords, setEditCoords] = useState({ lat: 10.7769, lng: 106.7009 });
   const [isEditMapManuallyPinned, setIsEditMapManuallyPinned] = useState(false);
   const [currentMediaList, setCurrentMediaList] = useState([]);
@@ -145,6 +146,7 @@ export default function LocationDetail() {
     setEditAddress(location.address || '');
     setEditDescription(location.description || '');
     setEditVideoUrl(location.videoUrl || '');
+    setEditPriceRange(location.priceRange || '');
     setEditCoords({ lat: location.latitude || 10.7769, lng: location.longitude || 106.7009 });
     setIsEditMapManuallyPinned(false);
     
@@ -201,6 +203,7 @@ export default function LocationDetail() {
         category: editCategory,
         address: editAddress.trim(),
         description: editDescription.trim(),
+        priceRange: editPriceRange,
         videoUrl: editVideoUrl.trim() || null,
         latitude: finalCoords.lat,
         longitude: finalCoords.lng,
@@ -479,7 +482,7 @@ export default function LocationDetail() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">Danh mục</label>
                     <select
@@ -492,6 +495,25 @@ export default function LocationDetail() {
                       <option value="Cafe">Cafe</option>
                       <option value="Play">Vui chơi</option>
                       <option value="Other">Khác</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Mức giá tham khảo 💰</label>
+                    <select
+                      value={editPriceRange}
+                      onChange={(e) => setEditPriceRange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                    >
+                      <option value="">— Chọn mức giá (tùy chọn) —</option>
+                      <option value="0-20k">Dưới 20.000₫</option>
+                      <option value="20-50k">20.000₫ – 50.000₫</option>
+                      <option value="50-100k">50.000₫ – 100.000₫</option>
+                      <option value="100-200k">100.000₫ – 200.000₫</option>
+                      <option value="200-500k">200.000₫ – 500.000₫</option>
+                      <option value="500k-1tr">500.000₫ – 1.000.000₫</option>
+                      <option value="1tr-2tr">1.000.000₫ – 2.000.000₫</option>
+                      <option value="2tr-5tr">2.000.000₫ – 5.000.000₫</option>
+                      <option value="5tr+">Trên 5.000.000₫</option>
                     </select>
                   </div>
                   <div>

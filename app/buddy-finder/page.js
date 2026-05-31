@@ -9,7 +9,21 @@ import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import toast from 'react-hot-toast';
 import useUserRole from '@/lib/useUserRole';
-import { updateBuddyRequest, deleteBuddyRequest, createBuddyConnection, getBuddyConnections, autoModerateContent, getUserProfile } from '@/lib/firestore';
+import { updateBuddyRequest, deleteBuddyRequest, createBuddyConnection, getBuddyConnections, autoModerateContent, getUserProfile, createMarketplaceConnection } from '@/lib/firestore';
+
+const MARKET_CATEGORIES = [
+  { key: null, label: 'Tất cả', emoji: '🌐' },
+  { key: 'textbook', label: 'Giáo trình', emoji: '📚' },
+  { key: 'dorm_item', label: 'Đồ dùng KTX', emoji: '🛏️' },
+  { key: 'electronic', label: 'Điện tử', emoji: '💻' },
+  { key: 'other', label: 'Khác', emoji: '🏷️' },
+];
+
+const MARKET_CONDITIONS = [
+  { key: 'like_new', label: 'Như mới' },
+  { key: 'used_good', label: 'Đã dùng - Tốt' },
+  { key: 'used_fair', label: 'Đã dùng - Khá' },
+];
 
 const TYPES = [
   { key: 'roommate', label: '🏠 Tìm bạn ở ghép', color: 'bg-green-100 text-green-700' },
@@ -37,6 +51,10 @@ export default function BuddyFinderPage() {
   const [editingRequestId, setEditingRequestId] = useState(null);
   const [connectingId, setConnectingId] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [marketItems, setMarketItems] = useState([]);
+  const [marketLoading, setMarketLoading] = useState(true);
+  const [marketFilterCat, setMarketFilterCat] = useState(null);
+  const [marketConnectingId, setMarketConnectingId] = useState(null);
   const router = useRouter();
 
   // Tab state for unified "Kết nối" hub
@@ -93,6 +111,53 @@ export default function BuddyFinderPage() {
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  const fetchMarketItems = async () => {
+    setMarketLoading(true);
+    try {
+      const q = query(collection(db, 'marketplaceItems'), orderBy('createdAt', 'desc'));
+      const snap = await getDocs(q);
+      setMarketItems(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (error) {
+      console.error('Error fetching marketplace items:', error);
+    } finally {
+      setMarketLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeConnectTab === 'market') {
+      fetchMarketItems();
+    }
+  }, [activeConnectTab]);
+
+  const handleConnectSeller = async (item) => {
+    if (!user) return toast.error('Bạn cần đăng nhập!');
+    if (item.sellerId === user.uid) return toast.error('Bạn không thể nhắn tin cho chính mình!');
+
+    setMarketConnectingId(item.id);
+    try {
+      const { connectionId, isNew } = await createMarketplaceConnection(
+        item.id,
+        item,
+        user,
+        item.sellerId
+      );
+
+      if (isNew) {
+        toast.success('Đã kết nối với người bán! Đang mở chat...');
+      } else {
+        toast('Đang mở cuộc trò chuyện...', { icon: '💬' });
+      }
+
+      router.push(`/messages/${connectionId}`);
+    } catch (err) {
+      console.error('Error connecting seller:', err);
+      toast.error('Có lỗi xảy ra khi kết nối. Vui lòng thử lại!');
+    } finally {
+      setMarketConnectingId(null);
+    }
+  };
 
   // Fetch unread count for conversations badge
   useEffect(() => {
@@ -357,7 +422,7 @@ export default function BuddyFinderPage() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setActiveConnectTab('messages')}
+                onClick={() => router.push('/messages')}
                 className="relative px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-sm font-medium text-gray-700"
               >
                 💬 Tin nhắn
@@ -621,8 +686,8 @@ export default function BuddyFinderPage() {
                             </div>
                             {connection && (
                               <button
-                                onClick={() => router.push(`/buddy-finder/conversations?connectionId=${connection.id}`)}
-                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition flex-shrink-0"
+                                onClick={() => router.push(`/messages/${connection}`)}
+                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition flex-shrink-0 cursor-pointer border-none"
                               >
                                 💬 Chat
                               </button>
@@ -658,35 +723,95 @@ export default function BuddyFinderPage() {
                   <h1 className="text-3xl font-bold text-gray-800">🛍️ Chợ Đồ Cũ Sinh Viên</h1>
                   <p className="text-gray-500 mt-1">Mua bán đồ cũ giá rẻ giữa các sinh viên</p>
                 </div>
-                <Link
-                  href="/marketplace"
-                  className="btn-primary flex items-center gap-2"
-                >
-                  🛍️ Mở Chợ đầy đủ →
-                </Link>
-              </div>
-
-              <div className="card p-8 text-center">
-                <div className="text-5xl mb-4">🛍️</div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">Chợ Đồ Cũ Sinh Viên</h3>
-                <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-                  Mua bán sách giáo khoa, đồ điện tử, nội thất và nhiều hơn nữa — tất cả từ sinh viên cho sinh viên.
-                </p>
-                <div className="flex flex-wrap justify-center gap-3">
-                  <Link
-                    href="/marketplace"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
-                  >
-                    🛒 Xem sản phẩm
-                  </Link>
+                <div className="flex items-center gap-2">
                   <Link
                     href="/marketplace?action=sell"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-semibold transition"
+                    className="btn-primary flex items-center gap-2"
                   >
-                    ＋ Đăng bán đồ
+                    ＋ Đăng bán
+                  </Link>
+                  <Link
+                    href="/marketplace"
+                    className="px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-sm font-medium text-gray-700"
+                  >
+                    🛍️ Chợ đầy đủ
                   </Link>
                 </div>
               </div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap gap-2 mb-6">
+                {MARKET_CATEGORIES.map(c => (
+                  <button key={c.key || 'all'} onClick={() => setMarketFilterCat(c.key)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition cursor-pointer border-none ${marketFilterCat === c.key ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    {c.emoji} {c.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Items Grid */}
+              {marketLoading ? (
+                <div className="flex justify-center py-20">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                </div>
+              ) : (marketFilterCat ? marketItems.filter(i => i.category === marketFilterCat) : marketItems).length === 0 ? (
+                <div className="text-center py-20 text-gray-400 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                  <p className="text-5xl mb-4">📦</p>
+                  <p className="text-lg font-medium">Chưa có sản phẩm nào thuộc danh mục này.</p>
+                  <Link href="/marketplace?action=sell" className="mt-4 inline-block text-blue-600 hover:underline font-semibold text-sm">Đăng bán ngay!</Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-fadeIn">
+                  {(marketFilterCat ? marketItems.filter(i => i.category === marketFilterCat) : marketItems).map(item => {
+                    const catEmoji = (key) => (MARKET_CATEGORIES.find(c => c.key === key) || MARKET_CATEGORIES[4]).emoji;
+                    const formatPrice = (price) => {
+                      if (!price) return 'Liên hệ';
+                      return Number(price).toLocaleString('vi-VN') + 'đ';
+                    };
+                    return (
+                      <div key={item.id} className="card overflow-hidden hover:shadow-lg transition-all duration-300 bg-white border border-gray-100 rounded-xl">
+                        <div className="h-40 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center relative overflow-hidden">
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" />
+                          ) : (
+                            <span className="text-5xl">{catEmoji(item.category)}</span>
+                          )}
+                        </div>
+                        <div className="p-4">
+                          <h3 className="font-bold text-gray-800 truncate mb-1">{item.title}</h3>
+                          <p className="text-blue-600 font-bold text-lg mb-1">{formatPrice(item.price)}</p>
+                          {item.condition && (
+                            <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-medium">
+                              {MARKET_CONDITIONS.find(c => c.key === item.condition)?.label || item.condition}
+                            </span>
+                          )}
+                          {item.description && <p className="text-xs text-gray-500 mt-2 line-clamp-2 italic">{item.description}</p>}
+                          <p className="text-[10px] text-gray-400 mt-2">Bởi {item.sellerName || 'Ẩn danh'}</p>
+                          
+                          <div className="flex gap-2 mt-3">
+                            <button 
+                              onClick={() => handleConnectSeller(item)}
+                              disabled={marketConnectingId === item.id}
+                              className="flex-1 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer border-none"
+                            >
+                              {marketConnectingId === item.id ? (
+                                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <>💬 Nhắn tin</>
+                              )}
+                            </button>
+                            {item.contact && (
+                              <a href={`tel:${item.contact}`} className="py-2 px-3 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center">
+                                📞
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -707,7 +832,7 @@ export default function BuddyFinderPage() {
                   Xem và quản lý tất cả cuộc hội thoại với bạn bè, bạn ở ghép và người mua bán.
                 </p>
                 <Link
-                  href="/buddy-finder/conversations"
+                  href="/messages"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
                 >
                   💬 Mở hộp tin nhắn

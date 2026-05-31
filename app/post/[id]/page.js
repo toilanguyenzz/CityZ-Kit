@@ -12,6 +12,91 @@ import FlairBadge from '@/components/FlairBadge';
 import useUserRole from '@/lib/useUserRole';
 import { getPostById, likePost, bookmarkPost, sharePost, incrementViewCount, votePoll, updatePost, deletePost } from '@/lib/firestore';
 import toast from 'react-hot-toast';
+import { uploadToCloudinary } from '@/lib/cloudinary';
+
+const compressImage = (file) => {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+    console.log(`[Compression] Starting for ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            const MAX_WIDTH = 1200;
+            const MAX_HEIGHT = 1200;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) {
+                  console.log("[Compression] Failed to generate blob, using original file");
+                  resolve(file);
+                  return;
+                }
+                try {
+                  const compressedFile = new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                  });
+                  console.log(`[Compression] Success: ${file.name} compressed from ${(file.size / 1024 / 1024).toFixed(2)} MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+                  resolve(compressedFile);
+                } catch (fileErr) {
+                  console.warn("[Compression] File constructor failed, using Blob fallback:", fileErr);
+                  blob.name = file.name;
+                  resolve(blob);
+                }
+              },
+              'image/jpeg',
+              0.75
+            );
+          } catch (canvasErr) {
+            console.error("[Compression] Canvas operations failed, using original file:", canvasErr);
+            resolve(file);
+          }
+        };
+        img.onerror = (imgErr) => {
+          console.error("[Compression] Image load failed, using original file:", imgErr);
+          resolve(file);
+        };
+        img.src = event.target.result;
+      };
+      reader.onerror = (readerErr) => {
+        console.error("[Compression] FileReader failed, using original file:", readerErr);
+        resolve(file);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("[Compression] Unhandled exception, using original file:", err);
+      resolve(file);
+    }
+  });
+};
 
 const CATEGORY_MAP = {
   housing: { label: 'Nhà trọ', emoji: '🏠', color: '#3b82f6' },
@@ -74,6 +159,20 @@ export default function PostDetail() {
   const [editFlair, setEditFlair] = useState('');
   const [editIsAnonymous, setEditIsAnonymous] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [currentMediaList, setCurrentMediaList] = useState([]);
+  const [editMediaFiles, setEditMediaFiles] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [uploadStatus, setUploadStatus] = useState('');
+
+  useEffect(() => {
+    return () => {
+      editMediaFiles.forEach(item => {
+        if (item.preview && item.preview.startsWith('blob:')) {
+          URL.revokeObjectURL(item.preview);
+        }
+      });
+    };
+  }, [editMediaFiles]);
 
   const startEditing = () => {
     if (!post) return;
@@ -82,6 +181,15 @@ export default function PostDetail() {
     setEditCategory(post.category || 'general');
     setEditFlair(post.flair || '');
     setEditIsAnonymous(post.isAnonymous || false);
+
+    let initialMedia = post.media || [];
+    if (initialMedia.length === 0 && post.imageUrl) {
+      initialMedia = [{ type: 'image', url: post.imageUrl }];
+    }
+    setCurrentMediaList(initialMedia);
+    setEditMediaFiles([]);
+    setUploadProgress({});
+    setUploadStatus('');
     setIsEditing(true);
   };
 
@@ -90,14 +198,40 @@ export default function PostDetail() {
     if (!editTitle.trim()) return toast.error('Vui lòng nhập tiêu đề');
     if (post.type !== 'poll' && !editContent.trim()) return toast.error('Vui lòng nhập nội dung');
     setSaving(true);
+    setUploadStatus('Đang bắt đầu...');
     try {
+      // 1. Upload any new media files
+      const uploadedItems = [];
+      for (let i = 0; i < editMediaFiles.length; i++) {
+        const item = editMediaFiles[i];
+        setUploadStatus(`Tải file ${i + 1}/${editMediaFiles.length}...`);
+        
+        let fileToUpload = item.file;
+        if (item.type === 'image') {
+          fileToUpload = await compressImage(item.file);
+        }
+        
+        const uploadedItem = await uploadToCloudinary(fileToUpload, (progress) => {
+          setUploadProgress((prev) => ({ ...prev, [i]: Math.round(progress) }));
+        });
+        uploadedItems.push(uploadedItem);
+      }
+
+      // 2. Merge existing remaining media and new uploaded media
+      const mergedMedia = [...currentMediaList, ...uploadedItems];
+
+      // 3. Prepare updated data
       const updatedData = {
         title: editTitle.trim(),
         category: editCategory,
         flair: editFlair || null,
         isAnonymous: editIsAnonymous,
+        media: mergedMedia,
+        imageUrl: mergedMedia.length > 0 && mergedMedia[0].type === 'image' ? mergedMedia[0].url : (mergedMedia.length > 0 ? null : null),
       };
       if (post.type !== 'poll') updatedData.content = editContent.trim();
+
+      setUploadStatus('Đang lưu...');
       await updatePost(id, updatedData);
       toast.success('Đã cập nhật!');
       setIsEditing(false);
@@ -106,6 +240,7 @@ export default function PostDetail() {
       toast.error('Lỗi: ' + err.message);
     } finally {
       setSaving(false);
+      setUploadStatus('');
     }
   };
 
@@ -314,10 +449,117 @@ export default function PostDetail() {
                     </select>
                   </div>
                 </div>
+
+                {/* Media Edit Section */}
+                {post.type !== 'poll' && (
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--blog-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                      Hình ảnh & Video hiện tại
+                    </label>
+                    {currentMediaList.length === 0 ? (
+                      <p style={{ fontSize: '0.85rem', color: 'var(--blog-text-secondary)', fontStyle: 'italic', margin: '0.5rem 0' }}>Không có hình ảnh hoặc video nào.</p>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.5rem', marginBottom: '1rem' }}>
+                        {currentMediaList.map((item, idx) => (
+                          <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '0.5rem', overflow: 'hidden', border: '1.5px solid var(--blog-divider)', background: '#000' }}>
+                            {item.type === 'video' ? (
+                              <video src={item.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                            ) : (
+                              <img src={item.url} alt={`Current ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCurrentMediaList(prev => prev.filter((_, i) => i !== idx));
+                              }}
+                              style={{
+                                position: 'absolute', top: '2px', right: '2px', background: 'rgba(239, 68, 68, 0.85)',
+                                color: '#fff', border: 'none', borderRadius: '50%', width: '18px', height: '18px',
+                                display: 'flex', alignItems: 'center', justify: 'center', fontSize: '10px', cursor: 'pointer',
+                                fontWeight: 'bold', zIndex: 10
+                              }}
+                            >
+                              ✕
+                            </button>
+                            {item.type === 'video' && (
+                              <span style={{ position: 'absolute', bottom: '2px', left: '2px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '8px', padding: '1px 3px', borderRadius: '2px' }}>
+                                🎥 Video
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--blog-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                      Tải thêm hình ảnh/video mới (tối đa 9 files tổng cộng)
+                    </label>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,video/*"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (currentMediaList.length + editMediaFiles.length + files.length > 9) {
+                          toast.error('Tổng số lượng ảnh/video không được vượt quá 9!');
+                          return;
+                        }
+                        const newFiles = files.map((file) => ({
+                          file,
+                          type: file.type.startsWith('video/') ? 'video' : 'image',
+                          preview: URL.createObjectURL(file),
+                        }));
+                        setEditMediaFiles(prev => [...prev, ...newFiles]);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem 0',
+                        fontSize: '0.85rem',
+                        color: 'var(--blog-text-secondary)',
+                      }}
+                    />
+
+                    {/* New Previews Grid */}
+                    {editMediaFiles.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.5rem', marginTop: '0.5rem' }}>
+                        {editMediaFiles.map((item, idx) => (
+                          <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '0.5rem', overflow: 'hidden', border: '1.5px solid var(--blog-divider)', background: '#000' }}>
+                            {item.type === 'video' ? (
+                              <video src={item.preview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                            ) : (
+                              <img src={item.preview} alt={`New Preview ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                URL.revokeObjectURL(item.preview);
+                                setEditMediaFiles((prev) => prev.filter((_, i) => i !== idx));
+                              }}
+                              style={{
+                                position: 'absolute', top: '2px', right: '2px', background: 'rgba(239, 68, 68, 0.85)',
+                                color: '#fff', border: 'none', borderRadius: '50%', width: '18px', height: '18px',
+                                display: 'flex', alignItems: 'center', justify: 'center', fontSize: '10px', cursor: 'pointer',
+                                fontWeight: 'bold', zIndex: 10
+                              }}
+                            >
+                              ✕
+                            </button>
+                            {item.type === 'video' && (
+                              <span style={{ position: 'absolute', bottom: '2px', left: '2px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '8px', padding: '1px 3px', borderRadius: '2px' }}>
+                                🎥 Video
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', justifyContent: 'end', gap: '0.5rem' }}>
                   <button type="button" onClick={() => setIsEditing(false)} style={{ padding: '0.6rem 1.25rem', border: '1px solid var(--blog-divider)', borderRadius: '2rem', background: 'none', color: 'var(--blog-text-secondary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit' }}>Hủy</button>
                   <button type="submit" disabled={saving} style={{ padding: '0.6rem 1.25rem', border: 'none', borderRadius: '2rem', background: 'var(--blog-accent)', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', opacity: saving ? 0.6 : 1, fontFamily: 'inherit' }}>
-                    {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                    {saving ? (uploadStatus || 'Đang lưu...') : 'Lưu thay đổi'}
                   </button>
                 </div>
               </form>

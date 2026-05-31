@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { auth, db, onAuthStateChanged } from '@/lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import useUserRole from '@/lib/useUserRole';
 import toast from 'react-hot-toast';
@@ -15,6 +15,7 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCommunityOpen, setIsCommunityOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
   const pathname = usePathname();
   const { isAdmin } = useUserRole();
@@ -47,6 +48,24 @@ export default function Navbar() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+    const q = query(collection(db, 'buddyConnections'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const conns = snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => c.participants?.includes(user.uid));
+      const total = conns.reduce((sum, c) => sum + (c.unreadCount?.[user.uid] || 0), 0);
+      setUnreadCount(total);
+    }, (error) => {
+      console.error("Error listening to unread count in Navbar:", error);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
 
 
   const handleLogout = async () => {
@@ -61,7 +80,7 @@ export default function Navbar() {
 
   const avatarUrl = dbUser?.avatarUrl || user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(dbUser?.name || user?.displayName || user?.email || 'U')}&background=3b82f6&color=fff`;
 
-  /* ── Primary nav items — 3 pillars ─────────────── */
+  /* ── Primary nav items — 4 pillars ─────────────── */
   const primaryItems = [
     {
       name: 'Khám phá',
@@ -87,6 +106,15 @@ export default function Navbar() {
       icon: (active) => (
         <svg className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-500'} transition-colors`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      )
+    },
+    {
+      name: 'Tin nhắn',
+      href: '/messages',
+      icon: (active) => (
+        <svg className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-500'} transition-colors`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
         </svg>
       )
     },
@@ -129,6 +157,11 @@ export default function Navbar() {
                   >
                     {item.icon(isActive)}
                     <span>{item.name}</span>
+                    {item.name === 'Tin nhắn' && unreadCount > 0 && (
+                      <span className="ml-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[18px] h-[18px]">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
                     {isActive && (
                       <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-blue-600 rounded-full" />
                     )}
@@ -290,6 +323,11 @@ export default function Navbar() {
               >
                 {item.icon(isActive)}
                 <span>{item.name}</span>
+                {item.name === 'Tin nhắn' && unreadCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center justify-center min-w-[20px] h-[20px]">
+                    {unreadCount}
+                  </span>
+                )}
               </Link>
             );
           })}

@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import toast from 'react-hot-toast';
 import useUserRole from '@/lib/useUserRole';
-import { updateMarketplaceItem, deleteMarketplaceItem } from '@/lib/firestore';
+import { updateMarketplaceItem, deleteMarketplaceItem, createMarketplaceConnection } from '@/lib/firestore';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 
 const CATEGORIES = [
@@ -25,6 +26,7 @@ const CONDITIONS = [
 ];
 
 export default function MarketplacePage() {
+  const router = useRouter();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user, isAdmin } = useUserRole();
@@ -32,6 +34,7 @@ export default function MarketplacePage() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingItemId, setEditingItemId] = useState(null);
+  const [connectingId, setConnectingId] = useState(null);
 
   // Form states
   const [formTitle, setFormTitle] = useState('');
@@ -238,6 +241,34 @@ export default function MarketplacePage() {
     }
   };
 
+  const handleConnectSeller = async (item) => {
+    if (!user) return toast.error('Bạn cần đăng nhập!');
+    if (item.sellerId === user.uid) return toast.error('Bạn không thể nhắn tin cho chính mình!');
+
+    setConnectingId(item.id);
+    try {
+      const { connectionId, isNew } = await createMarketplaceConnection(
+        item.id,
+        item,
+        user,
+        item.sellerId
+      );
+
+      if (isNew) {
+        toast.success('Đã kết nối với người bán! Đang mở chat...');
+      } else {
+        toast('Đang mở cuộc trò chuyện...', { icon: '💬' });
+      }
+
+      router.push(`/messages/${connectionId}`);
+    } catch (err) {
+      console.error('Error connecting seller:', err);
+      toast.error('Có lỗi xảy ra khi kết nối. Vui lòng thử lại!');
+    } finally {
+      setConnectingId(null);
+    }
+  };
+
   const filtered = filterCat ? items.filter(i => i.category === filterCat) : items;
   const catEmoji = (key) => (CATEGORIES.find(c => c.key === key) || CATEGORIES[4]).emoji;
 
@@ -392,8 +423,16 @@ export default function MarketplacePage() {
                       </div>
                     )}
                     <div className="flex gap-2 mt-3">
-                      <button className="flex-1 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-semibold transition">
-                        💬 Nhắn tin
+                      <button
+                        onClick={() => handleConnectSeller(item)}
+                        disabled={connectingId === item.id}
+                        className="flex-1 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer border-none"
+                      >
+                        {connectingId === item.id ? (
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>💬 Nhắn tin</>
+                        )}
                       </button>
                       {item.contact && (
                         <a href={`tel:${item.contact}`} className="py-2 px-3 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-semibold transition">
