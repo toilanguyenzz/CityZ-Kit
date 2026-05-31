@@ -29,7 +29,7 @@ export default function MarketplacePage() {
   const router = useRouter();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user, isAdmin } = useUserRole();
+  const { user, isAdmin, userData } = useUserRole();
   const [filterCat, setFilterCat] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -217,7 +217,7 @@ export default function MarketplacePage() {
         await addDoc(collection(db, 'marketplaceItems'), {
           ...itemData,
           sellerId: user.uid,
-          sellerName: user.displayName || user.email,
+          sellerName: userData?.name || user.displayName || user.email,
           status: 'available',
           createdAt: serverTimestamp(),
         });

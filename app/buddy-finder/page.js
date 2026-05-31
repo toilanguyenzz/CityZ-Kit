@@ -45,7 +45,7 @@ export default function BuddyFinderPage() {
   const [requests, setRequests] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
-  const { user, isAdmin } = useUserRole();
+  const { user, isAdmin, userData } = useUserRole();
   const [filterType, setFilterType] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [editingRequestId, setEditingRequestId] = useState(null);
@@ -321,7 +321,7 @@ export default function BuddyFinderPage() {
         const docData = {
           ...requestData,
           userId: user.uid,
-          userName: user.displayName || user.email,
+          userName: userData?.name || user.displayName || user.email,
           createdAt: serverTimestamp(),
           status: isAdmin ? 'open' : 'pending',
           moderationFlags: modResult.flags || [],

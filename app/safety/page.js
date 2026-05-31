@@ -21,7 +21,7 @@ const WARNING_TYPES = [
 export default function SafetyPage() {
   const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user, isAdmin } = useUserRole();
+  const { user, isAdmin, userData } = useUserRole();
   const [showReport, setShowReport] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingZoneId, setEditingZoneId] = useState(null);
@@ -142,7 +142,7 @@ export default function SafetyPage() {
         await addDoc(collection(db, 'warningZones'), {
           ...zoneData,
           reportedBy: user.uid,
-          reporterName: user.displayName || user.email,
+          reporterName: userData?.name || user.displayName || user.email,
           upvotes: 0,
           upvotedBy: [],
           verified: false,

@@ -296,7 +296,7 @@ export default function LocationDetail() {
     setIsPanning(false);
   };
 
-  const { user, role, isAdmin } = useUserRole();
+  const { user, role, isAdmin, userData } = useUserRole();
 
   useEffect(() => {
     return () => {
@@ -360,7 +360,7 @@ export default function LocationDetail() {
       return;
     }
     try {
-      await addReview(id, user.uid, user.displayName || user.email || 'Sinh viên ẩn danh', rating, comment);
+      await addReview(id, user.uid, userData?.name || user.displayName || user.email || 'Sinh viên ẩn danh', rating, comment);
       await fetchLocation();
       setComment('');
       toast.success('Đã gửi đánh giá!');

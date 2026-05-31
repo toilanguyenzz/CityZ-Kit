@@ -58,6 +58,7 @@ export default function GlobalChatPage() {
   const [loadingConn, setLoadingConn] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
   const [marketItem, setMarketItem] = useState(null);
+  const [otherUserDoc, setOtherUserDoc] = useState(null);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -103,6 +104,22 @@ export default function GlobalChatPage() {
     }
   }, [connection]);
 
+  // Fetch other participant profile details dynamically
+  useEffect(() => {
+    if (!otherUserId) return;
+    const fetchOtherUser = async () => {
+      try {
+        const uSnap = await getDoc(doc(db, 'users', otherUserId));
+        if (uSnap.exists()) {
+          setOtherUserDoc(uSnap.data());
+        }
+      } catch (err) {
+        console.error("Error loading other user doc in chat room:", err);
+      }
+    };
+    fetchOtherUser();
+  }, [otherUserId]);
+
   // Real-time messages listener
   useEffect(() => {
     if (!connectionId) return;
@@ -132,7 +149,7 @@ export default function GlobalChatPage() {
   // Access control
   const isParticipant = connection?.participants?.includes(user?.uid);
   const otherUserId = connection?.participants?.find(id => id !== user?.uid);
-  const otherUserName = connection?.participantNames?.[otherUserId] || 'Người dùng';
+  const otherUserName = otherUserDoc?.name || connection?.participantNames?.[otherUserId] || 'Người dùng';
   const typeInfo = TYPES[connection?.requestType] || TYPES.roommate;
 
   const handleSend = async (e) => {
@@ -227,8 +244,12 @@ export default function GlobalChatPage() {
 
             <div className="flex-1 min-w-0" onClick={() => setShowInfo(!showInfo)} style={{ cursor: 'pointer' }}>
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                  {otherUserName.charAt(0).toUpperCase()}
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+                  {otherUserDoc?.avatarUrl ? (
+                    <img src={otherUserDoc.avatarUrl} alt={otherUserName} className="w-full h-full object-cover" />
+                  ) : (
+                    otherUserName.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div className="min-w-0">
                   <h2 className="font-semibold text-gray-800 truncate text-sm sm:text-base">{otherUserName}</h2>
@@ -335,8 +356,12 @@ export default function GlobalChatPage() {
                         {!isMe && (
                           <div className="w-8 mr-2 flex-shrink-0">
                             {showAvatar ? (
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                                {otherUserName.charAt(0).toUpperCase()}
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+                                {otherUserDoc?.avatarUrl ? (
+                                  <img src={otherUserDoc.avatarUrl} alt={otherUserName} className="w-full h-full object-cover" />
+                                ) : (
+                                  otherUserName.charAt(0).toUpperCase()
+                                )}
                               </div>
                             ) : (
                               <div className="w-8" />
