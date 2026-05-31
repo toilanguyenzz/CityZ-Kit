@@ -63,6 +63,12 @@ export default function GlobalChatPage() {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
+  // Access control & computed values
+  const isParticipant = connection?.participants?.includes(user?.uid);
+  const otherUserId = connection?.participants?.find(id => id !== user?.uid);
+  const otherUserName = otherUserDoc?.name || connection?.participantNames?.[otherUserId] || 'Người dùng';
+  const typeInfo = TYPES[connection?.requestType] || TYPES.roommate;
+
   // Fetch connection info
   useEffect(() => {
     if (!connectionId) return;
@@ -146,11 +152,7 @@ export default function GlobalChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Access control
-  const isParticipant = connection?.participants?.includes(user?.uid);
-  const otherUserId = connection?.participants?.find(id => id !== user?.uid);
-  const otherUserName = otherUserDoc?.name || connection?.participantNames?.[otherUserId] || 'Người dùng';
-  const typeInfo = TYPES[connection?.requestType] || TYPES.roommate;
+
 
   const handleSend = async (e) => {
     e.preventDefault();
