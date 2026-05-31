@@ -398,6 +398,21 @@ function ProfileContent() {
       toast.error('Lỗi cập nhật giới thiệu');
     }
   };
+  const handleTriggerReonboarding = async () => {
+    if (!user) return;
+    try {
+      const { doc: fsDoc, updateDoc } = await import('firebase/firestore');
+      const docRef = fsDoc(db, 'users', user.uid);
+      await updateDoc(docRef, { onboarded: false });
+      toast.success('Hệ thống sẽ chuyển hướng bạn về Trang chủ để thực hiện thiết lập!');
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 1500);
+    } catch (e) {
+      console.error(e);
+      toast.error('Có lỗi xảy ra.');
+    }
+  };
 
   const displayName = userData?.name || user?.displayName || user?.email?.split('@')[0] || 'Thành viên';
   const initial = displayName.charAt(0).toUpperCase();
@@ -666,6 +681,54 @@ function ProfileContent() {
                     />
                   );
                 })()}
+              </div>
+            )}
+
+            {/* ── Card 4: Cá nhân hóa (Personalization) — Chỉ hiện khi xem profile của mình ── */}
+            {isOwnProfile && (
+              <div className="pf-bento-card pf-bento-card-personalization">
+                <h3 className="pf-bento-card-title">✨ Cá nhân hóa</h3>
+                {userData?.onboarded ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="grid grid-cols-2 gap-3 text-xs mt-1">
+                      <div>
+                        <span className="font-semibold text-gray-400 block text-[10px] uppercase">Trường học</span>
+                        <span className="text-gray-700 font-bold block truncate">{userData.university || 'Chưa chọn'}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-gray-400 block text-[10px] uppercase">Khu vực trọ</span>
+                        <span className="text-gray-700 font-bold block truncate">{userData.targetDistrict || 'Chưa chọn'}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-gray-400 block text-[10px] uppercase">Ngân sách trọ</span>
+                        <span className="text-gray-700 font-bold block truncate">{userData.budgetRange || 'Chưa chọn'}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-gray-400 block text-[10px] uppercase">Thẻ ẩm thực</span>
+                        <span className="text-gray-700 font-bold block truncate">{(userData.foodPreferences || []).join(', ') || 'Chưa chọn'}</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-end mt-2 pt-2 border-t border-gray-100/50">
+                      <button 
+                        onClick={handleTriggerReonboarding} 
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] px-3 py-1 rounded-lg shadow-sm transition-all"
+                      >
+                        ✏️ Thiết lập lại
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 py-2 items-center text-center">
+                    <span className="text-2xl">🎯</span>
+                    <p className="text-xs font-semibold text-gray-700">Chưa thiết lập cá nhân hóa.</p>
+                    <button 
+                      onClick={handleTriggerReonboarding} 
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] px-3 py-1.5 rounded-lg shadow-sm transition-all mt-1"
+                    >
+                      ⚡ Thiết lập ngay
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
