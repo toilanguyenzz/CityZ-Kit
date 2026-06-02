@@ -292,7 +292,7 @@ export default function Navbar() {
 
       {/* Mobile Menu Dropdown */}
       {user && isOpen && (
-        <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-lg px-4 py-3 space-y-1 z-45 max-h-[calc(100vh-4rem)] overflow-y-auto">
+        <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-lg px-4 py-3 space-y-1 z-40 max-h-[calc(100vh-4rem)] overflow-y-auto">
           {/* User info */}
           <Link 
             href="/profile"

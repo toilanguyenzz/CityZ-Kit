@@ -1116,7 +1116,7 @@ export default function BuddyFinderPage() {
                                 className="w-full h-full object-contain relative z-10 transition-transform duration-300 group-hover:scale-103"
                               />
                               {/* Zoom interactive badge overlay */}
-                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-15">
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20">
                                 <span className="text-white bg-slate-900/80 backdrop-blur-sm px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-md">
                                   🔍 Xem ảnh chi tiết
                                 </span>
@@ -1340,7 +1340,7 @@ export default function BuddyFinderPage() {
       {activeDetailItem && (
         <div
           onClick={() => setActiveDetailItem(null)}
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-45 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
         >
           <div
             onClick={(e) => e.stopPropagation()}
