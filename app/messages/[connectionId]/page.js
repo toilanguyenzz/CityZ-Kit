@@ -59,6 +59,7 @@ export default function GlobalChatPage() {
   const [showInfo, setShowInfo] = useState(false);
   const [marketItem, setMarketItem] = useState(null);
   const [otherUserDoc, setOtherUserDoc] = useState(null);
+  const [participantDocs, setParticipantDocs] = useState({});
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -134,6 +135,28 @@ export default function GlobalChatPage() {
     };
     fetchOtherUser();
   }, [otherUserId]);
+
+  // Fetch all participant docs dynamically (for admin observation layout)
+  useEffect(() => {
+    if (!connection?.participants) return;
+    const fetchParticipants = async () => {
+      try {
+        const docsMap = {};
+        await Promise.all(
+          connection.participants.map(async (uid) => {
+            const uSnap = await getDoc(doc(db, 'users', uid));
+            if (uSnap.exists()) {
+              docsMap[uid] = uSnap.data();
+            }
+          })
+        );
+        setParticipantDocs(docsMap);
+      } catch (err) {
+        console.error("Error loading participant docs:", err);
+      }
+    };
+    fetchParticipants();
+  }, [connection?.participants]);
 
   // Real-time messages listener
   useEffect(() => {
@@ -256,14 +279,18 @@ export default function GlobalChatPage() {
             <div className="flex-1 min-w-0" onClick={() => setShowInfo(!showInfo)} style={{ cursor: 'pointer' }}>
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
-                  {otherUserDoc?.avatarUrl ? (
+                  {isSuperAdminView ? (
+                    <span className="text-lg">👥</span>
+                  ) : otherUserDoc?.avatarUrl ? (
                     <img src={otherUserDoc.avatarUrl} alt={otherUserName} className="w-full h-full object-cover" />
                   ) : (
                     otherUserName.charAt(0).toUpperCase()
                   )}
                 </div>
                 <div className="min-w-0">
-                  <h2 className="font-semibold text-gray-800 truncate text-sm sm:text-base">{otherUserName}</h2>
+                  <h2 className="font-semibold text-gray-800 truncate text-sm sm:text-base">
+                    {isSuperAdminView ? `Trò chuyện: ${nameA} & ${nameB}` : otherUserName}
+                  </h2>
                   <div className="flex items-center gap-1.5">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${typeInfo.color}`}>
                       {typeInfo.icon} {typeInfo.label}
@@ -354,47 +381,62 @@ export default function GlobalChatPage() {
 
                   {/* Messages */}
                   {msgs.map((msg, idx) => {
-                    const isMe = msg.senderId === user?.uid;
+                    const isMe = isSuperAdminView
+                      ? msg.senderId === participantB
+                      : msg.senderId === user?.uid;
                     const showAvatar = !isMe && (idx === 0 || msgs[idx - 1]?.senderId !== msg.senderId);
                     const isLastInGroup = idx === msgs.length - 1 || msgs[idx + 1]?.senderId !== msg.senderId;
+
+                    const senderName = connection?.participantNames?.[msg.senderId] || participantDocs[msg.senderId]?.name || 'Người dùng';
+                    const senderAvatar = participantDocs[msg.senderId]?.avatarUrl || (msg.senderId === otherUserId ? otherUserDoc?.avatarUrl : null);
 
                     return (
                       <div
                         key={msg.id}
-                        className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${isLastInGroup ? 'mb-3' : 'mb-0.5'}`}
+                        className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${isLastInGroup ? 'mb-3' : 'mb-0.5'}`}
                       >
-                        {/* Other user avatar */}
-                        {!isMe && (
-                          <div className="w-8 mr-2 flex-shrink-0">
-                            {showAvatar ? (
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
-                                {otherUserDoc?.avatarUrl ? (
-                                  <img src={otherUserDoc.avatarUrl} alt={otherUserName} className="w-full h-full object-cover" />
-                                ) : (
-                                  otherUserName.charAt(0).toUpperCase()
-                                )}
-                              </div>
-                            ) : (
-                              <div className="w-8" />
+                        {isSuperAdminView && (idx === 0 || msgs[idx - 1]?.senderId !== msg.senderId) && (
+                          <span className={`text-[10px] text-gray-500 mb-1 block ${isMe ? 'mr-1' : 'ml-10'}`}>
+                            {senderName}
+                          </span>
+                        )}
+                        <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          {/* Other user avatar */}
+                          {!isMe && (
+                            <div className="w-8 mr-2 flex-shrink-0">
+                              {showAvatar ? (
+                                <div 
+                                  className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden"
+                                  title={senderName}
+                                >
+                                  {senderAvatar ? (
+                                    <img src={senderAvatar} alt={senderName} className="w-full h-full object-cover" />
+                                  ) : (
+                                    senderName.charAt(0).toUpperCase()
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="w-8" />
+                              )}
+                            </div>
+                          )}
+
+                          <div className={`max-w-[75%] ${isMe ? 'order-1' : 'order-2'}`}>
+                            <div
+                              className={`px-3.5 py-2 text-sm leading-relaxed break-words rounded-2xl ${
+                                isMe
+                                  ? 'bg-blue-600 text-white rounded-br-md shadow-sm'
+                                  : 'bg-white text-gray-800 rounded-bl-md shadow-sm border border-gray-100'
+                              }`}
+                            >
+                              {msg.text}
+                            </div>
+                            {isLastInGroup && (
+                              <p className={`text-[10px] text-gray-400 mt-0.5 ${isMe ? 'text-right mr-1' : 'ml-1'}`}>
+                                {formatTime(msg.createdAt)}
+                              </p>
                             )}
                           </div>
-                        )}
-
-                        <div className={`max-w-[75%] ${isMe ? 'order-1' : 'order-2'}`}>
-                          <div
-                            className={`px-3.5 py-2 text-sm leading-relaxed break-words rounded-2xl ${
-                              isMe
-                                ? 'bg-blue-600 text-white rounded-br-md shadow-sm'
-                                : 'bg-white text-gray-800 rounded-bl-md shadow-sm border border-gray-100'
-                            }`}
-                          >
-                            {msg.text}
-                          </div>
-                          {isLastInGroup && (
-                            <p className={`text-[10px] text-gray-400 mt-0.5 ${isMe ? 'text-right mr-1' : 'ml-1'}`}>
-                              {formatTime(msg.createdAt)}
-                            </p>
-                          )}
                         </div>
                       </div>
                     );
