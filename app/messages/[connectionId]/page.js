@@ -255,10 +255,8 @@ export default function GlobalChatPage() {
 
             <div className="flex-1 min-w-0" onClick={() => setShowInfo(!showInfo)} style={{ cursor: 'pointer' }}>
               <div className="flex items-center gap-2">
-                <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${isSuperAdminView ? 'from-red-500 to-rose-600' : 'from-blue-500 to-indigo-600'} flex items-center justify-center text-white font-bold text-sm overflow-hidden`}>
-                  {isSuperAdminView ? (
-                    '👥'
-                  ) : otherUserDoc?.avatarUrl ? (
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+                  {otherUserDoc?.avatarUrl ? (
                     <img src={otherUserDoc.avatarUrl} alt={otherUserName} className="w-full h-full object-cover" />
                   ) : (
                     otherUserName.charAt(0).toUpperCase()
@@ -336,15 +334,6 @@ export default function GlobalChatPage() {
 
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 bg-gray-50/30" style={{ scrollBehavior: 'smooth' }}>
-            {isSuperAdminView && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-semibold flex items-center gap-2 shadow-sm">
-                <span>🛡️</span>
-                <div>
-                  <p className="font-bold">Chế độ Giám sát SuperAdmin</p>
-                  <p className="font-normal text-[10px] text-red-500">Tin nhắn bạn gửi sẽ hiển thị dưới danh nghĩa "🛡️ Quản trị viên".</p>
-                </div>
-              </div>
-            )}
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-400">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mb-4 shadow-sm">
@@ -421,7 +410,7 @@ export default function GlobalChatPage() {
             <div className="bg-gray-100 border-t border-gray-200 px-4 py-3 text-center">
               <p className="text-sm text-gray-500 font-semibold">🚫 Cuộc trò chuyện này đã được đóng</p>
             </div>
-          ) : (
+          ) : isSuperAdminView ? null : (
             <form onSubmit={handleSend} className="bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-2">
               <input
                 ref={inputRef}

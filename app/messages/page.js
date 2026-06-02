@@ -163,19 +163,6 @@ export default function GlobalConversationsPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {/* SuperAdmin warning header */}
-              {isSuperAdmin && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-semibold flex items-center justify-between shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <span>🛡️</span>
-                    <div>
-                      <p className="font-bold">Chế độ SuperAdmin (Kiểm soát toàn hệ thống)</p>
-                      <p className="font-normal text-[10px] text-red-500">Bạn đang xem và quản lý tất cả cuộc trò chuyện của người dùng.</p>
-                    </div>
-                  </div>
-                  <span className="bg-red-200 text-red-800 text-[9px] px-2 py-0.5 rounded-full uppercase font-bold">Quản trị</span>
-                </div>
-              )}
 
               {filtered.map(conv => {
                 const isSuperAdminView = isSuperAdmin && !conv.participants?.includes(user?.uid);
@@ -202,8 +189,8 @@ export default function GlobalConversationsPage() {
                     <div className="flex items-center gap-3">
                       {/* Avatar */}
                       <div className="relative flex-shrink-0">
-                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${isSuperAdminView ? 'from-red-500 to-rose-600' : typeInfo.gradient} flex items-center justify-center text-white font-bold text-base shadow-inner`}>
-                          {isSuperAdminView ? '👥' : otherName.charAt(0).toUpperCase()}
+                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${typeInfo.gradient} flex items-center justify-center text-white font-bold text-base shadow-inner`}>
+                          {displayNameStr.charAt(0).toUpperCase()}
                         </div>
                         {unread > 0 && (
                           <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow">
