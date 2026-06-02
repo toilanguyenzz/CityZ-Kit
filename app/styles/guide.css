@@ -1,0 +1,520 @@
+/* ═══════════════════════════════════════════════════
+   Guide Page — Hướng dẫn sử dụng CityZ Kit
+   Premium design inspired by Notion docs / Airbnb help
+   ═══════════════════════════════════════════════════ */
+
+/* ── Root ────────────────────────────────────────── */
+.guide-root {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #fafaff 0%, #f5f3ff 30%, #fff 100%);
+}
+
+/* ── Hero ────────────────────────────────────────── */
+.guide-hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #3730a3 100%);
+  padding: 60px 24px 56px;
+  text-align: center;
+}
+
+.guide-hero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -30%;
+  width: 160%;
+  height: 200%;
+  background: radial-gradient(ellipse, rgba(99, 102, 241, 0.15) 0%, transparent 60%);
+  animation: guideHeroPulse 6s ease-in-out infinite alternate;
+}
+
+.guide-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 16px;
+  border-radius: 30px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c7d2fe;
+  margin-bottom: 20px;
+  letter-spacing: 0.3px;
+}
+
+.guide-hero-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.25;
+  margin-bottom: 14px;
+  letter-spacing: -0.5px;
+  position: relative;
+  z-index: 1;
+}
+
+.guide-hero-title span {
+  background: linear-gradient(135deg, #a78bfa, #818cf8, #67e8f9);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.guide-hero-desc {
+  font-size: 15px;
+  color: #c7d2fe;
+  line-height: 1.65;
+  max-width: 580px;
+  margin: 0 auto 28px;
+  position: relative;
+  z-index: 1;
+}
+
+.guide-hero-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+}
+
+.guide-hero-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.25s;
+  cursor: pointer;
+  border: none;
+}
+
+.guide-hero-btn--primary {
+  background: linear-gradient(135deg, #6366f1, #7c3aed);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+}
+
+.guide-hero-btn--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
+}
+
+.guide-hero-btn--secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e0e7ff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.guide-hero-btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Section Base ────────────────────────────────── */
+.guide-section {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 48px 20px;
+}
+
+.guide-section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: #6366f1;
+  margin-bottom: 8px;
+}
+
+.guide-section-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1e1b4b;
+  margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+
+.guide-section-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+/* ── Feature Cards Grid ─────────────────────────── */
+.guide-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.guide-feature-card {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  padding: 24px 20px;
+  text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.guide-feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--card-accent, linear-gradient(90deg, #6366f1, #8b5cf6));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.guide-feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+  border-color: rgba(99, 102, 241, 0.15);
+}
+
+.guide-feature-card:hover::before {
+  opacity: 1;
+}
+
+.guide-feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-bottom: 16px;
+  background: var(--card-bg, #eef2ff);
+}
+
+.guide-feature-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin-bottom: 8px;
+}
+
+.guide-feature-desc {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.65;
+  flex: 1;
+}
+
+.guide-feature-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6366f1;
+  text-decoration: none;
+  transition: gap 0.2s;
+}
+
+.guide-feature-link:hover {
+  gap: 8px;
+}
+
+/* ── Quick Start Steps ──────────────────────────── */
+.guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+.guide-steps::before {
+  content: '';
+  position: absolute;
+  top: 36px;
+  left: 27px;
+  bottom: 36px;
+  width: 2px;
+  background: linear-gradient(to bottom, #c7d2fe, #e0e7ff, #c7d2fe);
+  border-radius: 1px;
+}
+
+.guide-step {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 20px 0;
+  position: relative;
+}
+
+.guide-step-number {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #7c3aed);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+  position: relative;
+  z-index: 1;
+}
+
+.guide-step-content {
+  flex: 1;
+  padding-top: 4px;
+}
+
+.guide-step-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin-bottom: 6px;
+}
+
+.guide-step-desc {
+  font-size: 13.5px;
+  color: #6b7280;
+  line-height: 1.65;
+}
+
+.guide-step-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.guide-step-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f5f3ff;
+  color: #6366f1;
+  border: 1px solid #e0e7ff;
+}
+
+/* ── FAQ Accordion ──────────────────────────────── */
+.guide-faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guide-faq-item {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: all 0.25s;
+}
+
+.guide-faq-item:hover {
+  border-color: rgba(99, 102, 241, 0.15);
+}
+
+.guide-faq-item--open {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.guide-faq-q {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.guide-faq-q:hover {
+  background: #fafaff;
+}
+
+.guide-faq-q-text {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #1e1b4b;
+  line-height: 1.4;
+  flex: 1;
+  padding-right: 12px;
+}
+
+.guide-faq-chevron {
+  width: 20px;
+  height: 20px;
+  color: #9ca3af;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.guide-faq-item--open .guide-faq-chevron {
+  transform: rotate(180deg);
+  color: #6366f1;
+}
+
+.guide-faq-a {
+  padding: 0 20px 18px;
+  font-size: 13.5px;
+  color: #6b7280;
+  line-height: 1.7;
+  animation: guideFaqOpen 0.3s ease;
+}
+
+.guide-faq-a strong {
+  color: #374151;
+}
+
+/* ── CTA Bottom ─────────────────────────────────── */
+.guide-cta {
+  text-align: center;
+  padding: 48px 20px 60px;
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+  margin-top: 32px;
+}
+
+.guide-cta-emoji {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.guide-cta-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 10px;
+}
+
+.guide-cta-desc {
+  font-size: 14px;
+  color: #c7d2fe;
+  line-height: 1.6;
+  margin-bottom: 24px;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.guide-cta-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Keyframes ──────────────────────────────────── */
+@keyframes guideHeroPulse {
+  from { transform: translate(-5%, -5%) scale(1); }
+  to { transform: translate(5%, 5%) scale(1.05); }
+}
+
+@keyframes guideFaqOpen {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Footer (guide page) ────────────────────────── */
+.guide-footer {
+  text-align: center;
+  padding: 24px;
+  font-size: 12px;
+  color: #9ca3af;
+  background: #1e1b4b;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.guide-footer a {
+  color: #a5b4fc;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.guide-footer a:hover {
+  color: #c7d2fe;
+}
+
+/* ── Mobile ──────────────────────────────────────── */
+@media (max-width: 640px) {
+  .guide-hero {
+    padding: 40px 16px 36px;
+  }
+
+  .guide-hero-title {
+    font-size: 24px;
+  }
+
+  .guide-hero-desc {
+    font-size: 13.5px;
+  }
+
+  .guide-section {
+    padding: 32px 16px;
+  }
+
+  .guide-section-title {
+    font-size: 20px;
+  }
+
+  .guide-features-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .guide-steps::before {
+    left: 22px;
+  }
+
+  .guide-step-number {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    font-size: 16px;
+    border-radius: 12px;
+  }
+
+  .guide-step-title {
+    font-size: 15px;
+  }
+
+  .guide-cta {
+    padding: 32px 16px 40px;
+  }
+
+  .guide-cta-title {
+    font-size: 20px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 900px) {
+  .guide-features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

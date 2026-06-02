@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 
 const LocketCameraModal = dynamic(() => import('@/components/LocketCameraModal'), { ssr: false });
+const ProductTour = dynamic(() => import('@/components/ProductTour'), { ssr: false });
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -100,6 +101,9 @@ export default function Dashboard() {
   const [obFood, setObFood] = useState([]);
   const [savingOnboarding, setSavingOnboarding] = useState(false);
 
+  // Product Tour state
+  const [showTour, setShowTour] = useState(false);
+
   const gridRef = useRef(null);
 
   const locketCheckIns = useMemo(() => {
@@ -135,8 +139,12 @@ export default function Dashboard() {
   useEffect(() => {
     if (userData && !userData.onboarded) {
       setShowOnboarding(true);
+    } else if (userData && userData.onboarded && !userData.tourCompleted && !showOnboarding) {
+      // User completed onboarding but hasn't done tour yet
+      const timer = setTimeout(() => setShowTour(true), 800);
+      return () => clearTimeout(timer);
     }
-  }, [userData]);
+  }, [userData, showOnboarding]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -302,6 +310,8 @@ export default function Dashboard() {
       setObStep(5);
       setTimeout(() => {
         setShowOnboarding(false);
+        // Trigger product tour after onboarding
+        setTimeout(() => setShowTour(true), 500);
       }, 2000);
     } catch (e) {
       console.error(e);
@@ -626,6 +636,24 @@ export default function Dashboard() {
         >+</Link>
 
         {showCameraModal && <LocketCameraModal onClose={() => setShowCameraModal(false)} onUploadSuccess={fetchLocations} />}
+
+        {/* PRODUCT TOUR */}
+        {showTour && (
+          <ProductTour
+            onComplete={async () => {
+              setShowTour(false);
+              if (currentUser) {
+                try { await updateUserProfile(currentUser.uid, { tourCompleted: true }); } catch (e) { console.error(e); }
+              }
+            }}
+            onSkip={async () => {
+              setShowTour(false);
+              if (currentUser) {
+                try { await updateUserProfile(currentUser.uid, { tourCompleted: true }); } catch (e) { console.error(e); }
+              }
+            }}
+          />
+        )}
 
         {/* ONBOARDING FLOW MODAL */}
         {showOnboarding && (

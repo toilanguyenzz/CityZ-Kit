@@ -309,6 +309,7 @@ export default function Home() {
               <Link href="/dashboard">Địa điểm</Link>
               <Link href="/recommend">Gửi Góp Ý</Link>
               <Link href="/blog">Blog</Link>
+              <Link href="/guide">📖 Hướng dẫn sử dụng</Link>
             </div>
             <div>
               <h4>Tài khoản</h4>

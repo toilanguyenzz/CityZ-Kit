@@ -1,0 +1,414 @@
+/* ═══════════════════════════════════════════════════
+   Product Tour — Spotlight Guided Tour
+   Inspired by Notion / Slack / Discord onboarding
+   ═══════════════════════════════════════════════════ */
+
+/* ── Overlay ─────────────────────────────────────── */
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+.tour-overlay.tour-overlay--active {
+  pointer-events: auto;
+}
+
+.tour-overlay-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 9998;
+  animation: tourFadeIn 0.3s ease forwards;
+}
+
+/* ── Spotlight Hole ─────────────────────────────── */
+.tour-spotlight {
+  position: fixed;
+  z-index: 9999;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 9999px rgba(0, 0, 0, 0.55),
+    0 0 20px 4px rgba(99, 102, 241, 0.25);
+  transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.tour-spotlight::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 14px;
+  border: 2px solid rgba(99, 102, 241, 0.5);
+  animation: tourPulseRing 2s ease-in-out infinite;
+}
+
+/* ── Tooltip Bubble ─────────────────────────────── */
+.tour-tooltip {
+  position: fixed;
+  z-index: 10000;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 16px;
+  padding: 0;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.15),
+    0 4px 16px rgba(99, 102, 241, 0.1);
+  animation: tourTooltipIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.tour-tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px 10px;
+}
+
+.tour-tooltip-step-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.tour-tooltip-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e1b4b;
+  line-height: 1.3;
+}
+
+.tour-tooltip-body {
+  padding: 0 18px 14px;
+}
+
+.tour-tooltip-desc {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #4b5563;
+}
+
+.tour-tooltip-desc strong {
+  color: #312e81;
+  font-weight: 600;
+}
+
+/* ── Tip Box ────────────────────────────────────── */
+.tour-tooltip-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #eef2ff, #f0f0ff);
+  border-radius: 10px;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+.tour-tooltip-tip-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.tour-tooltip-tip-text {
+  font-size: 11.5px;
+  color: #4338ca;
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+/* ── Footer / Buttons ───────────────────────────── */
+.tour-tooltip-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #fafafe;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.tour-tooltip-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.tour-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d1d5db;
+  transition: all 0.3s ease;
+}
+
+.tour-dot--active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  width: 18px;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(99, 102, 241, 0.3);
+}
+
+.tour-dot--done {
+  background: #a5b4fc;
+}
+
+.tour-tooltip-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tour-btn-skip {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.tour-btn-skip:hover {
+  color: #6b7280;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.tour-btn-next {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #7c3aed);
+  border: none;
+  cursor: pointer;
+  padding: 8px 18px;
+  border-radius: 10px;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.tour-btn-next:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.tour-btn-next:active {
+  transform: translateY(0);
+}
+
+/* ── Arrow (pointer from tooltip to spotlight) ── */
+.tour-tooltip-arrow {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  transform: rotate(45deg);
+  z-index: -1;
+}
+
+.tour-tooltip--bottom .tour-tooltip-arrow {
+  top: -7px;
+  left: 32px;
+  border-bottom: none;
+  border-right: none;
+}
+
+.tour-tooltip--top .tour-tooltip-arrow {
+  bottom: -7px;
+  left: 32px;
+  border-top: none;
+  border-left: none;
+}
+
+.tour-tooltip--left .tour-tooltip-arrow {
+  right: -7px;
+  top: 20px;
+  border-left: none;
+  border-bottom: none;
+}
+
+.tour-tooltip--right .tour-tooltip-arrow {
+  left: -7px;
+  top: 20px;
+  border-right: none;
+  border-top: none;
+}
+
+/* ── Completion Celebration ─────────────────────── */
+.tour-complete-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  animation: tourFadeIn 0.3s ease forwards;
+}
+
+.tour-complete-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 36px 32px;
+  text-align: center;
+  max-width: 380px;
+  width: calc(100% - 32px);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.2);
+  animation: tourTooltipIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.tour-complete-emoji {
+  font-size: 56px;
+  display: block;
+  margin-bottom: 16px;
+  animation: tourBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+
+.tour-complete-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1e1b4b;
+  margin-bottom: 8px;
+}
+
+.tour-complete-desc {
+  font-size: 13.5px;
+  color: #6b7280;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.tour-complete-btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #7c3aed);
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+}
+
+.tour-complete-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.tour-complete-links {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tour-complete-link {
+  flex: 1;
+  padding: 10px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fafafe;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+  text-decoration: none;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.tour-complete-link:hover {
+  border-color: #6366f1;
+  color: #4338ca;
+  background: #eef2ff;
+}
+
+/* ── Keyframes ──────────────────────────────────── */
+@keyframes tourFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes tourTooltipIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes tourPulseRing {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.02); }
+}
+
+@keyframes tourBounce {
+  from {
+    opacity: 0;
+    transform: scale(0.3) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ── Mobile Responsive ──────────────────────────── */
+@media (max-width: 640px) {
+  .tour-tooltip {
+    width: calc(100vw - 24px);
+    left: 12px !important;
+    right: 12px !important;
+    border-radius: 14px;
+  }
+
+  .tour-tooltip-header {
+    padding: 14px 14px 8px;
+  }
+
+  .tour-tooltip-body {
+    padding: 0 14px 12px;
+  }
+
+  .tour-tooltip-footer {
+    padding: 10px 14px;
+  }
+
+  .tour-tooltip-title {
+    font-size: 14px;
+  }
+
+  .tour-tooltip-desc {
+    font-size: 12.5px;
+  }
+
+  .tour-complete-card {
+    padding: 28px 24px;
+  }
+}
