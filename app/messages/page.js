@@ -33,7 +33,7 @@ function timeAgo(timestamp) {
 
 export default function GlobalConversationsPage() {
   const router = useRouter();
-  const { user } = useUserRole();
+  const { user, isSuperAdmin } = useUserRole();
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'closed'
@@ -43,7 +43,7 @@ export default function GlobalConversationsPage() {
     if (!user) return;
     const fetchConversations = async () => {
       try {
-        const conns = await getBuddyConnections(user.uid);
+        const conns = await getBuddyConnections(user.uid, isSuperAdmin);
         setConversations(conns);
       } catch (err) {
         console.error('Error fetching conversations:', err);
@@ -52,7 +52,7 @@ export default function GlobalConversationsPage() {
       }
     };
     fetchConversations();
-  }, [user]);
+  }, [user, isSuperAdmin]);
 
   // Filter conversations
   const filtered = conversations.filter(c => {
@@ -163,9 +163,30 @@ export default function GlobalConversationsPage() {
             </div>
           ) : (
             <div className="space-y-2">
+              {/* SuperAdmin warning header */}
+              {isSuperAdmin && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-semibold flex items-center justify-between shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span>🛡️</span>
+                    <div>
+                      <p className="font-bold">Chế độ SuperAdmin (Kiểm soát toàn hệ thống)</p>
+                      <p className="font-normal text-[10px] text-red-500">Bạn đang xem và quản lý tất cả cuộc trò chuyện của người dùng.</p>
+                    </div>
+                  </div>
+                  <span className="bg-red-200 text-red-800 text-[9px] px-2 py-0.5 rounded-full uppercase font-bold">Quản trị</span>
+                </div>
+              )}
+
               {filtered.map(conv => {
+                const isSuperAdminView = isSuperAdmin && !conv.participants?.includes(user?.uid);
                 const otherUserId = conv.participants?.find(id => id !== user?.uid);
                 const otherName = conv.participantNames?.[otherUserId] || 'Người dùng';
+                const participantA = conv.participants?.[0];
+                const participantB = conv.participants?.[1];
+                const nameA = conv.participantNames?.[participantA] || 'User A';
+                const nameB = conv.participantNames?.[participantB] || 'User B';
+                const displayNameStr = isSuperAdminView ? `${nameA} và ${nameB}` : otherName;
+
                 const unread = conv.unreadCount?.[user?.uid] || 0;
                 const typeInfo = TYPES[conv.requestType] || TYPES.roommate;
                 const isClosed = conv.status === 'closed';
@@ -181,8 +202,8 @@ export default function GlobalConversationsPage() {
                     <div className="flex items-center gap-3">
                       {/* Avatar */}
                       <div className="relative flex-shrink-0">
-                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${typeInfo.gradient} flex items-center justify-center text-white font-bold text-base shadow-inner`}>
-                          {otherName.charAt(0).toUpperCase()}
+                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${isSuperAdminView ? 'from-red-500 to-rose-600' : typeInfo.gradient} flex items-center justify-center text-white font-bold text-base shadow-inner`}>
+                          {isSuperAdminView ? '👥' : otherName.charAt(0).toUpperCase()}
                         </div>
                         {unread > 0 && (
                           <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow">
@@ -198,7 +219,7 @@ export default function GlobalConversationsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
                           <h3 className={`font-semibold text-gray-800 truncate ${unread > 0 ? 'text-gray-900 font-bold' : ''}`}>
-                            {otherName}
+                            {displayNameStr}
                           </h3>
                           <span className="text-[11px] text-gray-400 flex-shrink-0 ml-2">
                             {timeAgo(conv.lastMessageAt)}

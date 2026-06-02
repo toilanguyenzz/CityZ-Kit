@@ -48,7 +48,7 @@ function formatDateSeparator(timestamp) {
 export default function GlobalChatPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useUserRole();
+  const { user, isSuperAdmin } = useUserRole();
   const connectionId = params.connectionId;
 
   const [connection, setConnection] = useState(null);
@@ -64,9 +64,18 @@ export default function GlobalChatPage() {
   const inputRef = useRef(null);
 
   // Access control & computed values
-  const isParticipant = connection?.participants?.includes(user?.uid);
+  const isSuperAdminView = isSuperAdmin && connection && !connection.participants?.includes(user?.uid);
+  const isParticipant = connection?.participants?.includes(user?.uid) || isSuperAdmin;
   const otherUserId = connection?.participants?.find(id => id !== user?.uid);
-  const otherUserName = otherUserDoc?.name || connection?.participantNames?.[otherUserId] || 'Người dùng';
+
+  const participantA = connection?.participants?.[0];
+  const participantB = connection?.participants?.[1];
+  const nameA = connection?.participantNames?.[participantA] || 'User A';
+  const nameB = connection?.participantNames?.[participantB] || 'User B';
+  const otherUserName = isSuperAdminView
+    ? `${nameA} và ${nameB}`
+    : (otherUserDoc?.name || connection?.participantNames?.[otherUserId] || 'Người dùng');
+
   const typeInfo = TYPES[connection?.requestType] || TYPES.roommate;
 
   // Fetch connection info
@@ -142,10 +151,10 @@ export default function GlobalChatPage() {
 
   // Mark as read when opening chat
   useEffect(() => {
-    if (user && connectionId) {
+    if (user && connectionId && connection?.participants?.includes(user?.uid)) {
       markBuddyChatAsRead(connectionId, user.uid).catch(console.error);
     }
-  }, [user, connectionId, messages.length]);
+  }, [user, connectionId, messages.length, connection]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -164,7 +173,7 @@ export default function GlobalChatPage() {
       await sendBuddyChatMessage(
         connectionId,
         user.uid,
-        user.displayName || user.email || 'Ẩn danh',
+        isSuperAdminView ? '🛡️ Quản trị viên' : (user.displayName || user.email || 'Ẩn danh'),
         text
       );
       setNewMessage('');
@@ -246,8 +255,10 @@ export default function GlobalChatPage() {
 
             <div className="flex-1 min-w-0" onClick={() => setShowInfo(!showInfo)} style={{ cursor: 'pointer' }}>
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
-                  {otherUserDoc?.avatarUrl ? (
+                <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${isSuperAdminView ? 'from-red-500 to-rose-600' : 'from-blue-500 to-indigo-600'} flex items-center justify-center text-white font-bold text-sm overflow-hidden`}>
+                  {isSuperAdminView ? (
+                    '👥'
+                  ) : otherUserDoc?.avatarUrl ? (
                     <img src={otherUserDoc.avatarUrl} alt={otherUserName} className="w-full h-full object-cover" />
                   ) : (
                     otherUserName.charAt(0).toUpperCase()
@@ -325,6 +336,15 @@ export default function GlobalChatPage() {
 
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 bg-gray-50/30" style={{ scrollBehavior: 'smooth' }}>
+            {isSuperAdminView && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-semibold flex items-center gap-2 shadow-sm">
+                <span>🛡️</span>
+                <div>
+                  <p className="font-bold">Chế độ Giám sát SuperAdmin</p>
+                  <p className="font-normal text-[10px] text-red-500">Tin nhắn bạn gửi sẽ hiển thị dưới danh nghĩa "🛡️ Quản trị viên".</p>
+                </div>
+              </div>
+            )}
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-400">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mb-4 shadow-sm">
