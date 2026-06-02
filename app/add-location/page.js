@@ -198,7 +198,7 @@ export default function AddLocation() {
       return;
     }
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(queryText)}&countrycodes=vn`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(queryText)}&countrycodes=vn&email=contact@cityz.vn`);
       if (res.ok) {
         const data = await res.json();
         setSuggestions(data.map(item => ({
@@ -220,12 +220,34 @@ export default function AddLocation() {
     setShowSuggestions(false);
   };
 
+  const syncMapWithAddress = async (addressText) => {
+    if (!addressText || addressText.length < 5) return;
+    try {
+      setGeocoding(true);
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addressText)}&countrycodes=vn&email=contact@cityz.vn`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const newLat = parseFloat(data[0].lat);
+          const newLng = parseFloat(data[0].lon);
+          setCoords({ lat: newLat, lng: newLng });
+          setIsMapManuallyPinned(false);
+          toast.success('Đã cập nhật vị trí ghim trên bản đồ!');
+        }
+      }
+    } catch (err) {
+      console.warn('Geocoding on blur failed:', err);
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
   const handleMapLocationChange = async (lat, lng) => {
     setCoords({ lat, lng });
     setIsMapManuallyPinned(true); // User manually clicked/dragged the map
     try {
       setGeocoding(true);
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&email=contact@cityz.vn`);
       if (res.ok) {
         const data = await res.json();
         if (data && data.display_name) {
@@ -260,7 +282,7 @@ export default function AddLocation() {
         // Reverse geocode để lấy địa chỉ chữ
         try {
           setGeocoding(true);
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&email=contact@cityz.vn`);
           if (res.ok) {
             const data = await res.json();
             if (data && data.display_name) {
@@ -326,7 +348,7 @@ export default function AddLocation() {
     if (!isMapManuallyPinned && formData.address && formData.address.length >= 5) {
       setUploadStatus('Đang đồng bộ bản đồ...');
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(formData.address)}&countrycodes=vn`);
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(formData.address)}&countrycodes=vn&email=contact@cityz.vn`);
         if (res.ok) {
           const data = await res.json();
           if (data && data.length > 0) {
@@ -515,6 +537,14 @@ export default function AddLocation() {
                           value={formData.address}
                           onChange={handleAddressChange}
                           onFocus={() => setShowSuggestions(true)}
+                          onBlur={() => {
+                            // Wait a short delay to allow clicking suggestions
+                            setTimeout(() => {
+                              if (formData.address && formData.address.length >= 5) {
+                                syncMapWithAddress(formData.address);
+                              }
+                            }, 250);
+                          }}
                           onClick={(e) => e.stopPropagation()}
                           required
                           placeholder="Nhập địa chỉ hoặc ghim trên bản đồ"

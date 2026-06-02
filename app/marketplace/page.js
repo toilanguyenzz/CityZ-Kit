@@ -43,6 +43,11 @@ export default function MarketplacePage() {
   const [formCategory, setFormCategory] = useState('textbook');
   const [formCondition, setFormCondition] = useState('used_good');
   const [formContact, setFormContact] = useState('');
+  
+  // Lightbox states
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [lightboxTitle, setLightboxTitle] = useState('');
+  const [lightboxPrice, setLightboxPrice] = useState(null);
 
   // Image upload states
   const [imageFile, setImageFile] = useState(null);
@@ -373,13 +378,24 @@ export default function MarketplacePage() {
           )}
 
           {/* Filters */}
-          <div className="flex flex-wrap gap-2 mb-6">
-            {CATEGORIES.map(c => (
-              <button key={c.key || 'all'} onClick={() => setFilterCat(c.key)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition ${filterCat === c.key ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                {c.emoji} {c.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap gap-2.5 mb-8 bg-white p-2.5 rounded-2xl border border-gray-100 shadow-sm w-fit">
+            {CATEGORIES.map(c => {
+              const active = filterCat === c.key;
+              return (
+                <button
+                  key={c.key || 'all'}
+                  onClick={() => setFilterCat(c.key)}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-1.5 border ${
+                    active
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-100 scale-102'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-transparent'
+                  }`}
+                >
+                  <span>{c.emoji}</span>
+                  <span>{c.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Items Grid */}
@@ -393,52 +409,125 @@ export default function MarketplacePage() {
               <p className="text-lg font-medium">Chưa có sản phẩm nào. Hãy đăng bán ngay!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filtered.map(item => (
-                <div key={item.id} className="card overflow-hidden hover:shadow-lg transition-all duration-300">
-                  <div className="h-40 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center relative overflow-hidden">
+                <div key={item.id} className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col relative">
+                  {/* Floating Action Buttons for Seller/Admin */}
+                  {user && (item.sellerId === user.uid || isAdmin) && (
+                    <div className="absolute top-2 right-2 z-20 flex gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startEditing(item);
+                        }}
+                        className="p-1.5 bg-white/90 hover:bg-white text-blue-600 rounded-lg shadow-sm transition-all text-xs font-bold border-none cursor-pointer flex items-center justify-center"
+                        title="Sửa sản phẩm"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(item.id);
+                        }}
+                        className="p-1.5 bg-white/90 hover:bg-white text-red-600 rounded-lg shadow-sm transition-all text-xs font-bold border-none cursor-pointer flex items-center justify-center"
+                        title="Xóa sản phẩm"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Dual-layer no-crop Image Container */}
+                  <div
+                    onClick={() => {
+                      if (item.imageUrl) {
+                        setLightboxUrl(item.imageUrl);
+                        setLightboxTitle(item.title);
+                        setLightboxPrice(item.price);
+                      }
+                    }}
+                    className="h-48 bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center relative overflow-hidden border-b border-slate-50 cursor-pointer"
+                  >
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" />
+                      <>
+                        {/* Layer 1: Blurred scale background */}
+                        <img
+                          src={item.imageUrl}
+                          alt=""
+                          className="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-30 select-none pointer-events-none"
+                        />
+                        {/* Layer 2: Main clean product image */}
+                        <img
+                          src={item.imageUrl}
+                          alt={item.title}
+                          className="w-full h-full object-contain relative z-10 transition-transform duration-300 group-hover:scale-103"
+                        />
+                        {/* Zoom interactive badge overlay */}
+                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-15">
+                          <span className="text-white bg-slate-900/80 backdrop-blur-sm px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-md">
+                            🔍 Xem ảnh chi tiết
+                          </span>
+                        </div>
+                      </>
                     ) : (
-                      <span className="text-5xl">{catEmoji(item.category)}</span>
+                      <span className="text-5xl transform group-hover:scale-110 transition-transform duration-300">{catEmoji(item.category)}</span>
                     )}
                   </div>
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-bold text-gray-800 truncate flex-1">{item.title}</h3>
-                    </div>
-                    <p className="text-blue-600 font-bold text-lg mb-1">{formatPrice(item.price)}</p>
-                    {item.condition && (
-                      <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">
-                        {CONDITIONS.find(c => c.key === item.condition)?.label || item.condition}
-                      </span>
-                    )}
-                    {item.description && <p className="text-sm text-gray-500 mt-2 line-clamp-2">{item.description}</p>}
-                    <p className="text-xs text-gray-400 mt-2">Bởi {item.sellerName || 'Ẩn danh'}</p>
-                    {user && (item.sellerId === user.uid || isAdmin) && (
-                      <div className="flex gap-2 mt-2 text-xs font-semibold">
-                        <button onClick={() => startEditing(item)} className="text-blue-600 hover:text-blue-800 border-none bg-transparent cursor-pointer">Sửa</button>
-                        <span className="text-gray-300">|</span>
-                        <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-800 border-none bg-transparent cursor-pointer">Xóa</button>
-                      </div>
-                    )}
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => handleConnectSeller(item)}
-                        disabled={connectingId === item.id}
-                        className="flex-1 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer border-none"
-                      >
-                        {connectingId === item.id ? (
-                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <>💬 Nhắn tin</>
+
+                  {/* Card Body */}
+                  <div className="p-5 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors text-base line-clamp-1 mb-1" title={item.title}>
+                        {item.title}
+                      </h3>
+                      
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-blue-600 font-extrabold text-lg">
+                          {formatPrice(item.price)}
+                        </span>
+                        {item.condition && (
+                          <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-100 px-2 py-0.5 rounded-full font-bold">
+                            {CONDITIONS.find(c => c.key === item.condition)?.label || item.condition}
+                          </span>
                         )}
-                      </button>
-                      {item.contact && (
-                        <a href={`tel:${item.contact}`} className="py-2 px-3 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-semibold transition">
-                          📞
-                        </a>
+                      </div>
+
+                      {item.description && (
+                        <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-4">
+                          {item.description}
+                        </p>
                       )}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-1 text-[10px] text-gray-400 border-t border-slate-50 pt-3 mb-3.5">
+                        <span>👤</span>
+                        <span className="font-semibold truncate">Bởi {item.sellerName || 'Ẩn danh'}</span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleConnectSeller(item)}
+                          disabled={connectingId === item.id}
+                          className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-100/50 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border-none"
+                        >
+                          {connectingId === item.id ? (
+                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <>💬 Nhắn tin</>
+                          )}
+                        </button>
+                        {item.contact && (
+                          <a
+                            href={`tel:${item.contact}`}
+                            className="py-2.5 px-3.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white border border-emerald-200 hover:border-emerald-500 rounded-xl text-sm font-semibold transition-all flex items-center justify-center"
+                            title="Gọi điện / Zalo liên hệ"
+                          >
+                            📞
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -447,6 +536,114 @@ export default function MarketplacePage() {
           )}
         </main>
       </div>
+
+      {/* Lightbox Modal */}
+      {lightboxUrl && (
+        <div
+          onClick={() => setLightboxUrl(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.95)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 3000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setLightboxUrl(null)}
+            style={{
+              position: 'absolute',
+              top: '1.5rem',
+              right: '1.5rem',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: '#fff',
+              fontSize: '1.25rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 3010,
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+          >
+            ✕
+          </button>
+
+          {/* Lightbox Content Container */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '90%',
+              maxWidth: '800px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative'
+            }}
+          >
+            {/* Image display */}
+            <div style={{
+              width: '100%',
+              maxHeight: '75vh',
+              background: 'rgba(0, 0, 0, 0.2)',
+              borderRadius: '1.5rem',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+            }}>
+              <img
+                src={lightboxUrl}
+                alt="Product Full View"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '75vh',
+                  objectFit: 'contain',
+                  userSelect: 'none'
+                }}
+              />
+            </div>
+
+            {/* Bottom details card */}
+            {lightboxTitle && (
+              <div style={{
+                marginTop: '1.5rem',
+                padding: '1.25rem 1.75rem',
+                background: 'rgba(30, 41, 59, 0.7)',
+                backdropFilter: 'blur(16px)',
+                borderRadius: '1.25rem',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                width: '100%',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                color: '#fff',
+                textAlign: 'left'
+              }}>
+                <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
+                  {lightboxTitle}
+                </h2>
+                {lightboxPrice !== null && (
+                  <p style={{ margin: '0.4rem 0 0', fontSize: '1.1rem', fontWeight: 900, color: '#60a5fa' }}>
+                    {formatPrice(lightboxPrice)}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </ProtectedRoute>
   );
 }

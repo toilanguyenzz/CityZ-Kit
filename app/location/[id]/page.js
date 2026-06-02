@@ -159,6 +159,25 @@ export default function LocationDetail() {
     setIsEditing(true);
   };
 
+  const syncMapWithAddress = async (addressText) => {
+    if (!addressText || addressText.trim().length < 5) return;
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addressText.trim())}&countrycodes=vn&email=contact@cityz.vn`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const newLat = parseFloat(data[0].lat);
+          const newLng = parseFloat(data[0].lon);
+          setEditCoords({ lat: newLat, lng: newLng });
+          setIsEditMapManuallyPinned(false);
+          toast.success('Đã cập nhật vị trí ghim trên bản đồ!');
+        }
+      }
+    } catch (err) {
+      console.warn('Geocoding on edit blur failed:', err);
+    }
+  };
+
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     if (!editName.trim()) return toast.error('Vui lòng nhập tên địa điểm');
@@ -170,7 +189,7 @@ export default function LocationDetail() {
     let finalCoords = { ...editCoords };
     if (!isEditMapManuallyPinned && editAddress.trim()) {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(editAddress.trim())}&countrycodes=vn`);
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(editAddress.trim())}&countrycodes=vn&email=contact@cityz.vn`);
         if (res.ok) {
           const data = await res.json();
           if (data && data.length > 0) {
@@ -524,6 +543,13 @@ export default function LocationDetail() {
                       onChange={(e) => {
                         setEditAddress(e.target.value);
                         setIsEditMapManuallyPinned(false);
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          if (editAddress && editAddress.length >= 5) {
+                            syncMapWithAddress(editAddress);
+                          }
+                        }, 250);
                       }}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"

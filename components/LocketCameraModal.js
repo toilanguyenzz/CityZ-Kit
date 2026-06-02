@@ -41,6 +41,13 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
   const [address, setAddress] = useState('');
   const [nearbyLocations, setNearbyLocations] = useState([]);
   const [useGPS, setUseGPS] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [detectedCoords, setDetectedCoords] = useState(null);
+  const [detectedAddress, setDetectedAddress] = useState('');
+  const [gpsConfirmed, setGpsConfirmed] = useState(null); // null: not chosen, true: keep GPS, false: manual
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [debounceTimeout, setDebounceTimeout] = useState(null);
   
   // Form fields
   const [spotName, setSpotName] = useState('');
@@ -52,42 +59,41 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Manual GPS trigger
-  const handleFetchGPS = (shouldFetch) => {
-    if (!shouldFetch) {
-      setCoords(null);
-      setAddress('');
-      setNearbyLocations([]);
-      return;
-    }
-
+  // Auto GPS trigger
+  const autoFetchGPS = () => {
     if (!navigator.geolocation) {
       toast.error('Trình duyệt của bạn không hỗ trợ định vị GPS');
-      setUseGPS(false);
+      setGpsConfirmed(false);
       return;
     }
     
-    const toastId = toast.loading('Đang lấy vị trí GPS...');
+    setGpsLoading(true);
+    setGpsConfirmed(null);
     
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        toast.dismiss(toastId);
-        toast.success('Đã lấy vị trí GPS thành công!');
-        setCoords({ lat: latitude, lng: longitude });
+        setDetectedCoords({ lat: latitude, lng: longitude });
+        
+        let resolvedAddress = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
         
         // Fetch reverse geocoding
         try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&email=contact@cityz.vn`);
           if (res.ok) {
             const data = await res.json();
             if (data && data.display_name) {
-              setAddress(data.display_name);
+              resolvedAddress = data.display_name;
             }
           }
         } catch (e) {
           console.error('Error reverse geocoding:', e);
         }
+
+        setDetectedAddress(resolvedAddress);
+        setAddress(resolvedAddress);
+        setCoords({ lat: latitude, lng: longitude });
+        setUseGPS(true);
 
         // Fetch locations to find nearby spots within 100m
         try {
@@ -112,16 +118,56 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
         } catch (err) {
           console.error('Error fetching nearby locations:', err);
         }
+        
+        setGpsLoading(false);
+        setGpsConfirmed(true);
       },
       (err) => {
-        toast.dismiss(toastId);
+        setGpsLoading(false);
+        setGpsConfirmed(false);
         setUseGPS(false);
         console.warn('Geolocation error:', err);
-        toast.error('Không thể lấy vị trí GPS. Vui lòng cấp quyền vị trí.');
+        toast.error('Không thể lấy vị trí GPS. Vui lòng tự nhập địa chỉ.');
       },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
+
+  // Fetch address suggestions for manual entry
+  const fetchAddressSuggestions = async (queryText) => {
+    if (!queryText || queryText.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(queryText)}&countrycodes=vn&email=contact@cityz.vn`);
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestions(data.map(item => ({
+          display_name: item.display_name,
+          lat: parseFloat(item.lat),
+          lon: parseFloat(item.lon)
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+    }
+  };
+
+  // Trigger GPS detection when captured image is set
+  useEffect(() => {
+    if (capturedImage) {
+      autoFetchGPS();
+    } else {
+      setGpsConfirmed(null);
+      setDetectedCoords(null);
+      setDetectedAddress('');
+      setCoords(null);
+      setAddress('');
+      setUseGPS(false);
+      setNearbyLocations([]);
+    }
+  }, [capturedImage]);
 
   // 2. Start webcam stream
   useEffect(() => {
@@ -241,6 +287,26 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
     setLoading(true);
     const toastId = toast.loading('Đang đăng Check-in...');
 
+    let finalCoords = { ...coords };
+    let finalAddress = address;
+
+    if (gpsConfirmed === false && address && address.trim().length >= 5) {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address.trim())}&countrycodes=vn&email=contact@cityz.vn`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            finalCoords = {
+              lat: parseFloat(data[0].lat),
+              lng: parseFloat(data[0].lon)
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Geocoding on snapz submit failed:', err);
+      }
+    }
+
     try {
       // Fetch creator details
       let creatorName = user.displayName || user.email?.split('@')[0] || 'User';
@@ -266,10 +332,10 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
         {
           name: spotName.trim(),
           category: category,
-          address: address || 'Khu đô thị Đại học, TP. Hồ Chí Minh',
+          address: finalAddress || 'Khu đô thị Đại học, TP. Hồ Chí Minh',
           description: caption.trim() || 'Check-in tức thì',
-          latitude: coords?.lat || 10.7769,
-          longitude: coords?.lng || 106.7009,
+          latitude: finalCoords?.lat || 10.7769,
+          longitude: finalCoords?.lng || 106.7009,
           createdByName: creatorName,
           createdByAvatar: creatorAvatar,
           tags: selectedTags,
@@ -433,23 +499,189 @@ export default function LocketCameraModal({ onClose, onUploadSuccess }) {
         {/* Info Form */}
         {capturedImage && (
           <form onSubmit={handleSubmit} style={{ padding: '1.25rem', overflowY: 'auto', maxHeight: '280px' }}>
-            {/* GPS Toggle */}
-            <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem', background: '#1a1a1a', borderRadius: '0.75rem', border: '1px solid #2a2a2a' }}>
-              <input
-                type="checkbox"
-                id="snapzUseGPS"
-                checked={useGPS}
-                onChange={(e) => {
-                  const val = e.target.checked;
-                  setUseGPS(val);
-                  handleFetchGPS(val);
-                }}
-                style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#3b82f6' }}
-              />
-              <label htmlFor="snapzUseGPS" style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e5e7eb', cursor: 'pointer', selectSpread: 'none' }}>
-                🛰️ Sử dụng vị trí GPS hiện tại
-              </label>
-            </div>
+            {/* GPS Status & Confirmation Panel */}
+            {gpsLoading && (
+              <div style={{
+                marginBottom: '1rem', padding: '0.75rem', background: '#1a1a1a',
+                borderRadius: '0.75rem', border: '1px solid #2a2a2a', display: 'flex', alignItems: 'center', gap: '0.6rem'
+              }}>
+                <div className="animate-spin" style={{
+                  width: '16px', height: '16px', border: '2.5px solid #3b82f6',
+                  borderTopColor: 'transparent', borderRadius: '50%'
+                }} />
+                <span style={{ fontSize: '0.8rem', color: '#aaa', fontWeight: 600 }}>📡 Đang tự động xác định vị trí GPS của bạn...</span>
+              </div>
+            )}
+
+            {!gpsLoading && gpsConfirmed === null && detectedCoords && (
+              <div style={{
+                marginBottom: '1rem', padding: '0.85rem', background: '#1e293b',
+                borderRadius: '1rem', border: '1px solid #334155'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '1.1rem' }}>🛰️</span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#60a5fa' }}>Tìm thấy vị trí hiện tại:</span>
+                </div>
+                <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', color: '#e5e7eb', lineHeight: '1.4', background: '#0f172a', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid #1e293b' }}>
+                  {detectedAddress}
+                </p>
+                <p style={{ margin: '0 0 0.75rem 0.2rem', fontSize: '0.7rem', color: '#94a3b8' }}>
+                  Bạn có muốn sử dụng và lưu vị trí GPS này không?
+                </p>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGpsConfirmed(true);
+                      setUseGPS(true);
+                    }}
+                    style={{
+                      flex: 1, padding: '0.5rem', borderRadius: '0.5rem', border: 'none',
+                      background: '#22c55e', color: '#fff', fontSize: '0.75rem', fontWeight: 700,
+                      cursor: 'pointer', transition: 'background 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = '#16a34a'}
+                    onMouseOut={(e) => e.currentTarget.style.background = '#22c55e'}
+                  >
+                    Có, lưu vị trí
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGpsConfirmed(false);
+                      setUseGPS(false);
+                      setAddress('');
+                      setCoords(null);
+                    }}
+                    style={{
+                      flex: 1, padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid #ef4444',
+                      background: 'none', color: '#ef4444', fontSize: '0.75rem', fontWeight: 700,
+                      cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = '#ef4444';
+                      e.currentTarget.style.color = '#fff';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = 'none';
+                      e.currentTarget.style.color = '#ef4444';
+                    }}
+                  >
+                    Không, tự nhập
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {gpsConfirmed === true && (
+              <div style={{
+                marginBottom: '1rem', padding: '0.85rem', background: 'rgba(34, 197, 94, 0.1)',
+                borderRadius: '1rem', border: '1px solid rgba(34, 197, 94, 0.3)',
+                display: 'flex', flexDirection: 'column', gap: '0.4rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#4ade80' }}>
+                    🛰️ Vị trí GPS đã được lưu
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGpsConfirmed(false);
+                      setUseGPS(false);
+                      setAddress('');
+                      setCoords(null);
+                    }}
+                    style={{
+                      background: 'none', border: 'none', color: '#f87171', fontSize: '0.7rem',
+                      fontWeight: 700, cursor: 'pointer', textDecoration: 'underline'
+                    }}
+                  >
+                    Đổi sang tự nhập
+                  </button>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: '#e5e7eb', lineHeight: '1.4' }}>
+                  {address}
+                </p>
+              </div>
+            )}
+
+            {/* Address Manual Entry (if gpsConfirmed is false) */}
+            {gpsConfirmed === false && (
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>
+                    📍 Địa chỉ check-in
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGpsConfirmed(null);
+                      setDetectedCoords(null);
+                      setDetectedAddress('');
+                      autoFetchGPS();
+                    }}
+                    style={{
+                      background: 'none', border: 'none', color: '#60a5fa', fontSize: '0.7rem',
+                      fontWeight: 700, cursor: 'pointer', textDecoration: 'underline'
+                    }}
+                  >
+                    🛰️ Lấy lại vị trí GPS
+                  </button>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    placeholder="Nhập địa chỉ check-in..."
+                    value={address}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAddress(val);
+                      setShowSuggestions(true);
+                      if (debounceTimeout) clearTimeout(debounceTimeout);
+                      setDebounceTimeout(
+                        setTimeout(() => {
+                          fetchAddressSuggestions(val);
+                        }, 600)
+                      );
+                    }}
+                    required
+                    style={{
+                      width: '100%', padding: '0.6rem 0.85rem', background: '#222', border: '1px solid #333',
+                      borderRadius: '0.75rem', color: '#fff', fontSize: '0.85rem', outline: 'none'
+                    }}
+                  />
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div style={{
+                      position: 'absolute', left: 0, right: 0, marginTop: '0.5rem',
+                      background: '#1a1a1a', border: '1px solid #333', borderRadius: '0.75rem',
+                      maxHeight: '150px', overflowY: 'auto', zIndex: 100
+                    }}>
+                      {suggestions.map((s, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setAddress(s.display_name);
+                            setCoords({ lat: s.lat, lng: s.lon });
+                            setSuggestions([]);
+                            setShowSuggestions(false);
+                          }}
+                          style={{
+                            width: '100%', padding: '0.5rem 0.75rem',
+                            background: 'none', border: 'none', color: '#ccc', fontSize: '0.75rem',
+                            cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid #222'
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.background = '#2a2a2a'}
+                          onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                        >
+                          📍 {s.display_name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* 1. Geolocation nearby suggestions */}
             <div style={{ marginBottom: '1rem' }}>
