@@ -480,6 +480,13 @@ function ProfileContent() {
                   onChange={handleCoverUpload}
                   style={{ display: 'none' }}
                 />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  style={{ display: 'none' }}
+                />
               </>
             )}
             {uploadingCover && (
