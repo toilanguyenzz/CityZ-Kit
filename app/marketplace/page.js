@@ -48,6 +48,7 @@ export default function MarketplacePage() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [lightboxTitle, setLightboxTitle] = useState('');
   const [lightboxPrice, setLightboxPrice] = useState(null);
+  const [activeDetailItem, setActiveDetailItem] = useState(null);
 
   // Image upload states
   const [imageFile, setImageFile] = useState(null);
@@ -411,7 +412,11 @@ export default function MarketplacePage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filtered.map(item => (
-                <div key={item.id} className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col relative">
+                <div
+                  key={item.id}
+                  onClick={() => setActiveDetailItem(item)}
+                  className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col relative cursor-pointer"
+                >
                   {/* Floating Action Buttons for Seller/Admin */}
                   {user && (item.sellerId === user.uid || isAdmin) && (
                     <div className="absolute top-2 right-2 z-20 flex gap-1.5">
@@ -508,7 +513,10 @@ export default function MarketplacePage() {
 
                       <div className="flex gap-2">
                         <button
-                          onClick={() => handleConnectSeller(item)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleConnectSeller(item);
+                          }}
                           disabled={connectingId === item.id}
                           className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-100/50 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border-none"
                         >
@@ -521,6 +529,7 @@ export default function MarketplacePage() {
                         {item.contact && (
                           <a
                             href={`tel:${item.contact}`}
+                            onClick={(e) => e.stopPropagation()}
                             className="py-2.5 px-3.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white border border-emerald-200 hover:border-emerald-500 rounded-xl text-sm font-semibold transition-all flex items-center justify-center"
                             title="Gọi điện / Zalo liên hệ"
                           >
@@ -641,6 +650,117 @@ export default function MarketplacePage() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Product Details Modal */}
+      {activeDetailItem && (
+        <div
+          onClick={() => setActiveDetailItem(null)}
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-45 flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-slate-100 relative flex flex-col md:flex-row max-h-[90vh] md:max-h-[70vh] animate-fade-in"
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setActiveDetailItem(null)}
+              className="absolute top-4 right-4 z-30 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center border-none cursor-pointer transition-colors font-bold"
+            >
+              ✕
+            </button>
+
+            {/* Product Image Section */}
+            <div className="w-full md:w-1/2 h-64 md:h-auto bg-slate-50 relative flex items-center justify-center overflow-hidden border-r border-slate-100">
+              {activeDetailItem.imageUrl ? (
+                <>
+                  <img
+                    src={activeDetailItem.imageUrl}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-30 select-none pointer-events-none"
+                  />
+                  <img
+                    src={activeDetailItem.imageUrl}
+                    alt={activeDetailItem.title}
+                    className="w-full h-full object-contain relative z-10 cursor-zoom-in hover:scale-102 transition-transform duration-300"
+                    onClick={() => {
+                      setLightboxUrl(activeDetailItem.imageUrl);
+                      setLightboxTitle(activeDetailItem.title);
+                      setLightboxPrice(activeDetailItem.price);
+                    }}
+                    title="Click để phóng to ảnh"
+                  />
+                </>
+              ) : (
+                <span className="text-7xl">{catEmoji(activeDetailItem.category)}</span>
+              )}
+            </div>
+
+            {/* Product Details Section */}
+            <div className="w-full md:w-1/2 p-6 flex flex-col justify-between overflow-y-auto">
+              <div className="space-y-4">
+                <div>
+                  <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-100 px-2.5 py-1 rounded-full font-extrabold uppercase tracking-wide">
+                    {CATEGORIES.find(c => c.key === activeDetailItem.category)?.label || activeDetailItem.category}
+                  </span>
+                  {activeDetailItem.condition && (
+                    <span className="ml-2 text-[10px] bg-emerald-50 text-emerald-600 border border-emerald-100 px-2.5 py-1 rounded-full font-extrabold uppercase tracking-wide">
+                      {CONDITIONS.find(c => c.key === activeDetailItem.condition)?.label || activeDetailItem.condition}
+                    </span>
+                  )}
+                </div>
+
+                <h2 className="text-xl font-extrabold text-slate-900 leading-tight">
+                  {activeDetailItem.title}
+                </h2>
+
+                <div className="text-2xl font-black text-blue-600">
+                  {formatPrice(activeDetailItem.price)}
+                </div>
+
+                <div className="border-t border-slate-100 pt-4">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mô tả sản phẩm</h4>
+                  <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto">
+                    {activeDetailItem.description || 'Không có mô tả chi tiết cho sản phẩm này.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-4 mt-6 space-y-4">
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span>Người bán: <strong className="text-slate-800">{activeDetailItem.sellerName || 'Ẩn danh'}</strong></span>
+                  {activeDetailItem.contact && <span>Liên hệ: <strong className="text-slate-800">{activeDetailItem.contact}</strong></span>}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      handleConnectSeller(activeDetailItem);
+                      setActiveDetailItem(null);
+                    }}
+                    disabled={connectingId === activeDetailItem.id}
+                    className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-100/50 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border-none"
+                  >
+                    {connectingId === activeDetailItem.id ? (
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>💬 Nhắn tin người bán</>
+                    )}
+                  </button>
+                  {activeDetailItem.contact && (
+                    <a
+                      href={`tel:${activeDetailItem.contact}`}
+                      className="py-3 px-4 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white border border-emerald-200 hover:border-emerald-500 rounded-xl text-sm font-semibold transition-all flex items-center justify-center"
+                      title="Gọi điện trực tiếp"
+                    >
+                      📞 Gọi điện
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
