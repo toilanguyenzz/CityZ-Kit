@@ -36,6 +36,7 @@ import SharedVibes from '@/components/SharedVibes';
 import InsightsCard from '@/components/InsightsCard';
 import MilestoneTimeline from '@/components/MilestoneTimeline';
 import toast from 'react-hot-toast';
+import ImageCropModal from '@/components/ImageCropModal';
 
 
 const ALL_BADGES = [
@@ -89,6 +90,11 @@ function ProfileContent() {
   const coverInputRef = useRef(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+
+  // States for custom drag-to-reposition crop editor modal
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState('');
+  const [cropType, setCropType] = useState('avatar'); // 'avatar' or 'cover'
 
   const isOwnProfile = !profileUid || (user && user.uid === profileUid);
 
@@ -318,22 +324,20 @@ function ProfileContent() {
     const file = e.target.files[0];
     if (!file || !user) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Ảnh quá lớn! Tối đa 5MB');
+    // Set cover image size limit up to 50MB
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('Ảnh quá lớn! Tối đa 50MB');
       return;
     }
 
-    setUploadingCover(true);
-    try {
-      const base64 = await compressAndToBase64(file, 935, 320, 0.7);
-      await updateUserProfile(user.uid, { coverUrl: base64 });
-      setUserData(prev => ({ ...prev, coverUrl: base64 }));
-      toast.success('Cập nhật ảnh bìa thành công!');
-    } catch (err) {
-      toast.error('Lỗi tải ảnh bìa: ' + err.message);
-    } finally {
-      setUploadingCover(false);
-    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setCropImageSrc(event.target.result);
+      setCropType('cover');
+      setCropModalOpen(true);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // Reset input
   };
 
   const handleAvatarUpload = async (e) => {
@@ -345,18 +349,41 @@ function ProfileContent() {
       return;
     }
 
-    setUploading(true);
-    try {
-      const base64 = await compressAndToBase64(file, 300, 300, 0.7);
-      await updateUserAvatar(user.uid, base64);
-      setUserData(prev => ({ ...prev, avatarUrl: base64 }));
-      toast.success('Cập nhật ảnh đại diện thành công!');
-    } catch (err) {
-      toast.error('Lỗi tải ảnh: ' + err.message);
-    } finally {
-      setUploading(false);
-      setShowAvatarModal(false);
-      e.target.value = ''; // Reset file input
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setCropImageSrc(event.target.result);
+      setCropType('avatar');
+      setCropModalOpen(true);
+      setShowAvatarModal(false); // Close current avatar options list
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // Reset input
+  };
+
+  const handleCropSave = async (croppedBase64) => {
+    setCropModalOpen(false);
+    if (cropType === 'cover') {
+      setUploadingCover(true);
+      try {
+        await updateUserProfile(user.uid, { coverUrl: croppedBase64 });
+        setUserData(prev => ({ ...prev, coverUrl: croppedBase64 }));
+        toast.success('Cập nhật ảnh bìa thành công!');
+      } catch (err) {
+        toast.error('Lỗi lưu ảnh bìa: ' + err.message);
+      } finally {
+        setUploadingCover(false);
+      }
+    } else {
+      setUploading(true);
+      try {
+        await updateUserAvatar(user.uid, croppedBase64);
+        setUserData(prev => ({ ...prev, avatarUrl: croppedBase64 }));
+        toast.success('Cập nhật ảnh đại diện thành công!');
+      } catch (err) {
+        toast.error('Lỗi lưu ảnh đại diện: ' + err.message);
+      } finally {
+        setUploading(false);
+      }
     }
   };
 
@@ -469,135 +496,156 @@ function ProfileContent() {
 
           {/* Profile Header Block */}
           <div className="pf-header-wrap">
-            {/* Avatar Box */}
-            <div className="pf-avatar-box">
-              <div
-                className="pf-avatar"
-                onClick={isOwnProfile ? () => setShowAvatarModal(true) : undefined}
-                style={{
-                  backgroundImage: userData?.avatarUrl ? `url(${userData.avatarUrl})` : 'none',
-                  fontSize: userData?.avatarUrl ? 0 : undefined,
-                  cursor: isOwnProfile ? 'pointer' : 'default',
-                }}
-              >
-                {!userData?.avatarUrl && initial}
-              </div>
-              {isOwnProfile && (
-                <>
-                  <div className="pf-avatar-upload-btn" onClick={() => setShowAvatarModal(true)} title="Đổi ảnh đại diện">
-                    📷
+            {/* LEFT COLUMN: Identity & Bio details */}
+            <div className="pf-col-identity">
+              {/* Top Row: Avatar & Name side-by-side */}
+              <div className="pf-identity-top-row">
+                {/* Avatar Box */}
+                <div className="pf-avatar-box">
+                  <div
+                    className="pf-avatar"
+                    onClick={isOwnProfile ? () => setShowAvatarModal(true) : undefined}
+                    style={{
+                      backgroundImage: userData?.avatarUrl ? `url(${userData.avatarUrl})` : 'none',
+                      fontSize: userData?.avatarUrl ? 0 : undefined,
+                      cursor: isOwnProfile ? 'pointer' : 'default',
+                    }}
+                  >
+                    {!userData?.avatarUrl && initial}
                   </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarUpload}
-                    style={{ display: 'none' }}
-                  />
-                </>
-              )}
-              {uploading && (
-                <div style={{
-                  position: 'absolute', inset: 0, borderRadius: '50%',
-                  background: 'rgba(0,0,0,0.4)', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                  {isOwnProfile && (
+                    <div className="pf-avatar-upload-btn" onClick={() => setShowAvatarModal(true)} title="Đổi ảnh đại diện">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '16px', height: '16px' }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                      </svg>
+                    </div>
+                  )}
+                  {uploading && (
+                    <div style={{
+                      position: 'absolute', inset: 0, borderRadius: '50%',
+                      background: 'rgba(0,0,0,0.4)', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* Name Row next to avatar */}
+                <div className="pf-name-row">
+                  {editingName && isOwnProfile ? (
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                      <input
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        className="pf-edit-input"
+                        autoFocus
+                      />
+                      <button onClick={handleSaveName} className="pf-btn-save">Lưu</button>
+                      <button onClick={() => setEditingName(false)} className="pf-btn-cancel">Hủy</button>
+                    </div>
+                  ) : (
+                    <h1 className="pf-name" onClick={isOwnProfile ? () => setEditingName(true) : undefined} style={{ cursor: isOwnProfile ? 'pointer' : 'default' }} title={isOwnProfile ? "Nhấp để đổi tên" : undefined}>
+                      {displayName} {isOwnProfile && '✏️'}
+                    </h1>
+                  )}
+                </div>
+              </div>
+
+              {/* Bottom Block: Badges, Contact & Bio stretching full width below avatar + name */}
+              <div className="pf-identity-bottom-block">
+                <div className="pf-identity-badges">
+                  <span className="pf-level-badge" title={`${levelInfo.name} (Đạt được ${xp} XP)`}>
+                    {levelInfo.icon} Level {levelInfo.level} ({levelInfo.name})
+                  </span>
+                  <span className="pf-role-tag">{userData?.role === 'admin' ? '🛡️ Admin' : '🎓 Thành viên'}</span>
+                  {isOwnProfile && !editingName && !editingBio && (
+                    <button className="pf-btn-edit" onClick={() => setEditingBio(true)}>
+                      ✏️ Chỉnh sửa tiểu sử
+                    </button>
+                  )}
+                </div>
+
+                <div className="pf-contact-meta">
+                  {isOwnProfile && <span className="pf-contact-email">📧 {userData?.email || user?.email}</span>}
+                  <span className="pf-join-date">📅 Tham gia: {userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('vi-VN') : '—'}</span>
+                </div>
+
+                <div className="pf-bio-text-wrap">
+                  {editingBio && isOwnProfile ? (
+                    <div>
+                      <textarea
+                        value={newBio}
+                        onChange={(e) => setNewBio(e.target.value)}
+                        placeholder="Viết một vài mô tả ngắn về bạn..."
+                        rows={2}
+                        maxLength={150}
+                        className="pf-edit-textarea"
+                        autoFocus
+                      />
+                      <div className="pf-edit-actions">
+                        <button onClick={handleSaveBio} className="pf-btn-save">Lưu</button>
+                        <button onClick={() => setEditingBio(false)} className="pf-btn-cancel">Hủy</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p
+                      className={`pf-bio-text ${!userData?.bio ? 'pf-bio-placeholder' : ''}`}
+                      onClick={isOwnProfile ? () => setEditingBio(true) : undefined}
+                      style={{ cursor: isOwnProfile ? 'pointer' : 'default' }}
+                      title={isOwnProfile ? "Nhấp để thêm tiểu sử" : undefined}
+                    >
+                      {userData?.bio || (isOwnProfile ? '+ Thêm giới thiệu ngắn để mọi người hiểu hơn về bạn' : 'Chưa có giới thiệu.')}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Info Section */}
-            <div className="pf-info-box">
-              <div className="pf-meta-row">
-                {editingName && isOwnProfile ? (
-                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                    <input
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      className="pf-edit-input"
-                      autoFocus
-                    />
-                    <button onClick={handleSaveName} className="pf-btn-save">Lưu</button>
-                    <button onClick={() => setEditingName(false)} className="pf-btn-cancel">Hủy</button>
-                  </div>
-                ) : (
-                  <h1 className="pf-name" onClick={isOwnProfile ? () => setEditingName(true) : undefined} style={{ cursor: isOwnProfile ? 'pointer' : 'default' }} title={isOwnProfile ? "Nhấp để đổi tên" : undefined}>
-                    {displayName} {isOwnProfile && '✏️'}
-                  </h1>
-                )}
-
-                <span className="pf-level-badge" title={`${levelInfo.name} (Đạt được ${xp} XP)`}>
-                  {levelInfo.icon} Level {levelInfo.level} ({levelInfo.name})
-                </span>
-
-                {isOwnProfile && !editingName && !editingBio && (
-                  <button className="pf-btn-edit" onClick={() => setEditingBio(true)}>
-                    Chỉnh sửa tiểu sử
-                  </button>
-                )}
-              </div>
-
-              {/* Stats Row */}
-              <ul className="pf-stats-row">
-                <li className="pf-stat-item">
-                  <span className="pf-stat-val"><CountUp end={stats.locationCount} /></span> địa điểm
-                </li>
-                <li className="pf-stat-item">
-                  <span className="pf-stat-val"><CountUp end={stats.postCount} /></span> bài viết
-                </li>
-                <li className="pf-stat-item">
-                  <span className="pf-stat-val"><CountUp end={stats.reviewCount} /></span> đánh giá
-                </li>
-                <li className="pf-stat-item" title={`Chi tiết: Địa điểm x50 XP, Bài viết x30 XP, Đánh giá x20 XP, Upvotes x5 XP`}>
-                  <span className="pf-stat-val"><CountUp end={xp} /></span> XP tích lũy
-                </li>
-              </ul>
-
-              {/* Bio Box */}
-              <div className="pf-bio-box">
-                {isOwnProfile && <div className="pf-email">{userData?.email || user?.email}</div>}
-                
-                {/* Join Date & Role tag */}
-                <div className="pf-meta-sub">
-                  <span className="pf-join-date">📅 Tham gia: {userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('vi-VN') : '—'}</span>
-                  <span className="pf-role-tag">{userData?.role === 'admin' ? '🛡️ Admin' : '🎓 Thành viên'}</span>
-                </div>
-
-                {editingBio && isOwnProfile ? (
-                  <div>
-                    <textarea
-                      value={newBio}
-                      onChange={(e) => setNewBio(e.target.value)}
-                      placeholder="Viết một vài mô tả ngắn về bạn..."
-                      rows={2}
-                      maxLength={150}
-                      className="pf-edit-textarea"
-                      autoFocus
-                    />
-                    <div className="pf-edit-actions">
-                      <button onClick={handleSaveBio} className="pf-btn-save">Lưu</button>
-                      <button onClick={() => setEditingBio(false)} className="pf-btn-cancel">Hủy</button>
+            {/* RIGHT COLUMN: Bento-style Stats & Level Progress card */}
+            <div className="pf-col-dashboard">
+              {/* Stats Grid Bento Card */}
+              <div className="pf-stats-card">
+                <h4 className="pf-stats-card-title">📊 BẢNG HOẠT ĐỘNG</h4>
+                <div className="pf-stats-grid">
+                  <div className="pf-stats-box">
+                    <span className="pf-stats-box-icon">📍</span>
+                    <div className="pf-stats-box-info">
+                      <span className="pf-stats-box-val"><CountUp end={stats.locationCount} /></span>
+                      <span className="pf-stats-box-lbl">Địa điểm</span>
                     </div>
                   </div>
-                ) : (
-                  <p
-                    className={`pf-bio-text ${!userData?.bio ? 'pf-bio-placeholder' : ''}`}
-                    onClick={isOwnProfile ? () => setEditingBio(true) : undefined}
-                    style={{ cursor: isOwnProfile ? 'pointer' : 'default' }}
-                    title={isOwnProfile ? "Nhấp để thêm tiểu sử" : undefined}
-                  >
-                    {userData?.bio || (isOwnProfile ? '+ Thêm giới thiệu ngắn để mọi người hiểu hơn về bạn' : 'Chưa có giới thiệu.')}
-                  </p>
-                )}
+                  <div className="pf-stats-box">
+                    <span className="pf-stats-box-icon">📝</span>
+                    <div className="pf-stats-box-info">
+                      <span className="pf-stats-box-val"><CountUp end={stats.postCount} /></span>
+                      <span className="pf-stats-box-lbl">Bài viết</span>
+                    </div>
+                  </div>
+                  <div className="pf-stats-box">
+                    <span className="pf-stats-box-icon">⭐</span>
+                    <div className="pf-stats-box-info">
+                      <span className="pf-stats-box-val"><CountUp end={stats.reviewCount} /></span>
+                      <span className="pf-stats-box-lbl">Đánh giá</span>
+                    </div>
+                  </div>
+                  <div className="pf-stats-box" title="Chi tiết: Địa điểm x50 XP, Bài viết x30 XP, Đánh giá x20 XP, Upvotes x5 XP">
+                    <span className="pf-stats-box-icon">🏆</span>
+                    <div className="pf-stats-box-info">
+                      <span className="pf-stats-box-val"><CountUp end={xp} /></span>
+                      <span className="pf-stats-box-lbl">XP Tích lũy</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* XP Progress — Inline */}
-              <div className="pf-xp-inline">
+              {/* XP Level Progress Card */}
+              <div className="pf-xp-progress-card">
                 <div className="pf-xp-info">
                   {levelInfo.nextLevel ? (
                     <>
-                      <span>Tiến trình: {Math.round(levelInfo.progress)}%</span>
+                      <span>Tiến trình cấp độ: {Math.round(levelInfo.progress)}%</span>
                       <span>Còn {levelInfo.xpToNext} XP → Lv.{levelInfo.nextLevel.level}</span>
                     </>
                   ) : (
@@ -613,24 +661,26 @@ function ProfileContent() {
                   />
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Badges chip inline row */}
-              <div className="pf-badges-inline-header">
-                {ALL_BADGES.map((badge) => {
-                  const isUnlocked = earnedBadgeNames.includes(badge.name);
-                  return (
-                    <div
-                      key={badge.name}
-                      className={`pf-badge-chip ${isUnlocked ? 'pf-badge-chip-unlocked' : 'pf-badge-chip-locked'}`}
-                      title={isUnlocked ? `✅ ${badge.desc}` : `🔒 ${badge.desc}`}
-                    >
-                      <span className="pf-badge-chip-emoji">{badge.icon}</span>
-                      <span>{badge.name}</span>
-                    </div>
-                  );
-                })}
-              </div>
-
+          {/* Badges Cabinet Shelf (clean inline row below columns) */}
+          <div className="pf-badges-shelf">
+            <h4 className="pf-badges-shelf-title">🏅 BỘ SƯU TẬP HUY HIỆU CỦA BẠN</h4>
+            <div className="pf-badges-inline-header" style={{ marginTop: 0 }}>
+              {ALL_BADGES.map((badge) => {
+                const isUnlocked = earnedBadgeNames.includes(badge.name);
+                return (
+                  <div
+                    key={badge.name}
+                    className={`pf-badge-chip ${isUnlocked ? 'pf-badge-chip-unlocked' : 'pf-badge-chip-locked'}`}
+                    title={isUnlocked ? `✅ ${badge.desc}` : `🔒 ${badge.desc}`}
+                  >
+                    <span className="pf-badge-chip-emoji">{badge.icon}</span>
+                    <span>{badge.name}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -1154,6 +1204,15 @@ function ProfileContent() {
             </div>
           </div>
         )}
+
+        <ImageCropModal
+          isOpen={cropModalOpen}
+          onClose={() => setCropModalOpen(false)}
+          imageSrc={cropImageSrc}
+          isCircular={cropType === 'avatar'}
+          onSave={handleCropSave}
+          title={cropType === 'cover' ? 'Căn chỉnh ảnh bìa' : 'Căn chỉnh ảnh đại diện'}
+        />
       </div>
     </ProtectedRoute>
   );

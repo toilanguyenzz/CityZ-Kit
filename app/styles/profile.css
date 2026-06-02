@@ -93,21 +93,57 @@
   100% { transform: translateX(100%); }
 }
 
-/* ── Profile Header Layout ────────────────────────────────── */
+/* ── Profile Header Layout (Modern 2-Column Restructured) ── */
 .pf-header-wrap {
   position: relative;
   padding: 0 2rem;
-  margin-top: -70px; /* Overlap cover */
+  margin-top: 0;
   display: flex;
-  gap: 2.5rem;
-  align-items: flex-end;
-  margin-bottom: 2.5rem;
+  gap: 3rem;
+  align-items: flex-start;
+  margin-bottom: 1rem; /* Pull badges shelf up closer */
+}
+
+.pf-col-identity {
+  flex: 1; /* Left Column takes remaining space */
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.pf-identity-top-row {
+  display: flex;
+  flex-direction: row; /* Align avatar and name side-by-side on desktop */
+  align-items: center; /* Vertically center name with avatar circle */
+  gap: 2rem;
+  width: 100%;
+}
+
+.pf-identity-bottom-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%; /* Extend horizontally under the avatar and name */
+}
+
+.pf-col-dashboard {
+  width: 380px; /* Right Column takes fixed 380px */
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1.5rem; /* Push down slightly to balance with left side */
 }
 
 /* Avatar styling */
 .pf-avatar-box {
   position: relative;
   flex-shrink: 0;
+  margin-top: -80px; /* Pull only the avatar circle up to overlap the cover */
+  z-index: 15;
+  width: 140px; /* Constrain box size so camera badge aligns close to avatar */
+  height: 140px;
 }
 
 .pf-avatar {
@@ -138,50 +174,54 @@
   position: absolute;
   bottom: 5px;
   right: 5px;
-  background-color: #3b82f6;
-  color: #fff;
-  border: 2px solid #fff;
-  width: 32px;
-  height: 32px;
+  background-color: #ffffff; /* White background */
+  color: #475569; /* Slate grey icon color */
+  border: 2px solid #ffffff; /* Thick white border to pop out */
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 0.9rem;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-  transition: background-color 0.2s;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+  transition: all 0.2s ease;
+  z-index: 20;
 }
 
 .pf-avatar-upload-btn:hover {
-  background-color: #2563eb;
+  background-color: #f8fafc;
+  color: #4f46e5; /* Turns purple on hover! */
+  transform: scale(1.08);
 }
+
+
 
 /* Info section on the right */
-.pf-info-box {
-  flex-grow: 1;
-  padding-bottom: 0.5rem;
+/* LEFT COLUMN: Identity details */
+.pf-identity-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
 }
 
-/* Name and Edit buttons row */
-.pf-meta-row {
+.pf-name-row {
   display: flex;
   align-items: center;
   gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.75rem;
 }
 
 .pf-name {
-  font-size: 1.6rem;
-  font-weight: 300;
-  color: #262626;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0f172a;
   margin: 0;
   cursor: pointer;
+  letter-spacing: -0.02em;
 }
 
 .pf-name:hover {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .pf-level-badge {
@@ -199,74 +239,39 @@
 }
 
 .pf-btn-edit {
-  background: none;
-  border: 1px solid #dbdbdb;
-  color: #262626;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
   padding: 0.35rem 0.75rem;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .pf-btn-edit:hover {
-  background-color: #f3f4f6;
+  background-color: #e2e8f0;
+  color: #0f172a;
 }
 
-/* Stats list (Instagram style) */
-.pf-stats-row {
+.pf-identity-badges {
   display: flex;
-  gap: 2.5rem;
-  margin-bottom: 1rem;
-  list-style: none;
-  padding: 0;
-  margin-top: 0;
-}
-
-.pf-stat-item {
-  font-size: 0.95rem;
-  color: #4b5563;
-  transition: color 0.2s;
-}
-
-.pf-stat-item:hover {
-  color: #1e293b;
-}
-
-.pf-stat-val {
-  font-weight: 800;
-  font-size: 1.15rem;
-  color: #4f46e5;
-}
-
-/* Bio */
-.pf-bio-box {
-  font-size: 0.92rem;
-  line-height: 1.4;
-  color: #262626;
-}
-
-.pf-email {
-  color: #64748b;
-  font-size: 0.85rem;
-  margin-bottom: 0.25rem;
-  font-weight: 500;
-}
-
-.pf-meta-sub {
-  display: flex;
-  gap: 1rem;
   align-items: center;
-  margin-top: 0.4rem;
-  margin-bottom: 0.75rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
-.pf-join-date {
-  font-size: 0.75rem;
+.pf-contact-meta {
+  display: flex;
+  gap: 1.25rem;
+  font-size: 0.8rem;
   color: #64748b;
   font-weight: 500;
+  flex-wrap: wrap;
 }
 
 .pf-role-tag {
@@ -280,6 +285,18 @@
   border: 1px solid rgba(99, 102, 241, 0.15);
 }
 
+.pf-bio-text-wrap {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 16px;
+  padding: 0.95rem 1.25rem;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: #334155;
+  max-width: 100%;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.01);
+}
+
 .pf-bio-text {
   margin: 0;
   white-space: pre-wrap;
@@ -287,8 +304,115 @@
 }
 
 .pf-bio-placeholder {
-  color: #8e8e8e;
+  color: #94a3b8;
   font-style: italic;
+}
+
+/* RIGHT COLUMN: Stats & XP Bento Cards */
+.pf-stats-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(99, 102, 241, 0.15);
+  border-radius: 24px;
+  padding: 1.75rem;
+  box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.04);
+}
+
+.pf-stats-card-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #4f46e5;
+  letter-spacing: 0.08em;
+  margin: 0 0 1.25rem;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pf-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.pf-stats-box {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  border-radius: 16px;
+  padding: 1rem 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pf-stats-box:hover {
+  transform: translateY(-3px);
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.08);
+}
+
+.pf-stats-box-icon {
+  font-size: 1.4rem;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pf-stats-box-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pf-stats-box-val {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.pf-stats-box-lbl {
+  font-size: 0.65rem;
+  color: #64748b;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-top: 0.15rem;
+}
+
+.pf-xp-progress-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  border-radius: 20px;
+  padding: 1.4rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.01);
+}
+
+/* Badges Shelf Cabinet below header columns */
+.pf-badges-shelf {
+  margin: 0 2rem 1.25rem; /* Pull Bento grid below it closer */
+  padding: 1.75rem;
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 24px;
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.01);
+}
+
+.pf-badges-shelf-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #475569;
+  letter-spacing: 0.08em;
+  margin: 0 0 1rem;
+  text-transform: uppercase;
 }
 
 /* Inline Edit Controls */
@@ -400,9 +524,9 @@
   background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(229, 231, 235, 0.5);
+  border: 1.5px solid rgba(229, 231, 235, 0.5);
   border-radius: 24px;
-  padding: 1.5rem;
+  padding: 1.75rem;
   position: relative;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -411,7 +535,7 @@
 }
 
 .pf-bento-card-taste {
-  border-left: 5px solid #6366f1;
+  border-left: 4px solid #6366f1;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(240, 244, 255, 0.85) 100%);
 }
 
@@ -422,7 +546,7 @@
 }
 
 .pf-bento-card-timeline {
-  border-left: 5px solid #ec4899;
+  border-left: 4px solid #ec4899;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(253, 242, 248, 0.85) 100%);
 }
 
@@ -434,7 +558,7 @@
 
 .pf-bento-card-shared {
   grid-column: span 2;
-  border-left: 5px solid #10b981;
+  border-left: 4px solid #10b981;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(240, 253, 250, 0.85) 100%);
 }
 
@@ -777,10 +901,14 @@
   .pf-header-wrap {
     flex-direction: column;
     align-items: center;
-    text-align: center;
-    gap: 1rem;
-    margin-top: -65px;
+    gap: 2rem;
     padding: 0 1rem;
+  }
+
+  .pf-avatar-box {
+    margin-top: -65px;
+    width: 110px;
+    height: 110px;
   }
 
   .pf-avatar {
@@ -788,43 +916,75 @@
     height: 110px;
   }
 
-  .pf-info-box {
+  .pf-col-identity {
     width: 100%;
-    display: flex;
+    align-items: center;
+    text-align: center;
+    gap: 1.25rem;
     flex-direction: column;
+  }
+
+  .pf-identity-top-row {
+    flex-direction: column; /* Stack avatar & name vertically on mobile */
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .pf-identity-bottom-block {
+    align-items: center;
+    text-align: center;
+  }
+
+  .pf-identity-info {
     align-items: center;
   }
 
-  .pf-meta-row {
-    flex-direction: column;
+  .pf-name-row {
+    justify-content: center;
+  }
+
+  .pf-identity-badges {
+    justify-content: center;
+  }
+
+  .pf-contact-meta {
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .pf-col-dashboard {
+    width: 100%;
+    margin-top: 0;
+  }
+
+  .pf-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .pf-stats-box {
+    padding: 0.65rem;
     gap: 0.5rem;
-    margin-bottom: 1rem;
   }
 
-  .pf-stats-row {
-    width: 100%;
-    justify-content: space-around;
-    border-top: 1px solid #efefef;
-    border-bottom: 1px solid #efefef;
-    padding: 0.75rem 0;
-    margin-bottom: 1rem;
+  .pf-stats-box-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 1.2rem;
   }
 
-  .pf-stat-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-size: 0.85rem;
-    color: #8e8e8e;
+  .pf-stats-box-val {
+    font-size: 1.05rem;
   }
 
-  .pf-stat-val {
-    color: #262626;
-    font-size: 1.1rem;
+  .pf-stats-box-lbl {
+    font-size: 0.62rem;
   }
 
-  .pf-xp-inline {
-    max-width: 100%;
+  .pf-badges-shelf {
+    margin: 0 1rem 1.25rem;
+    padding: 1.25rem 1rem;
   }
 
   .pf-bento-grid {
@@ -1844,7 +2004,7 @@
 /* ── Bento Card Personalization ─────────────────── */
 .pf-bento-card-personalization {
   grid-column: span 2;
-  border-left: 5px solid #f59e0b;
+  border-left: 4px solid #f59e0b;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(254, 243, 199, 0.85) 100%);
 }
 
@@ -1857,4 +2017,233 @@
 .pf-bento-card-personalization .pf-bento-card-title {
   color: #d97706;
 }
+
+
+/* ── Interactive Crop Modal Styles ── */
+.crop-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  animation: cropModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.crop-modal-content {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 24px;
+  width: 95%;
+  max-width: 650px;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  animation: cropModalSlideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.crop-modal-header {
+  text-align: left;
+}
+
+.crop-modal-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.crop-modal-desc {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 0.25rem 0 0;
+  line-height: 1.4;
+}
+
+/* Viewport structure */
+.crop-viewport-container {
+  position: relative;
+  width: 100%;
+  background-color: #0f172a;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 2px solid #e2e8f0;
+  box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Cover aspect ratio frame */
+.crop-viewport-cover {
+  aspect-ratio: 935 / 220;
+  max-height: 180px;
+}
+
+/* Avatar aspect ratio frame: 1x1 */
+.crop-viewport-circular {
+  width: 280px;
+  height: 280px;
+  margin: 0 auto;
+  border-radius: 50%;
+}
+
+.crop-circular-guide {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid #6366f1;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.6);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Loading Overlay */
+.crop-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.crop-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: cropSpin 0.8s linear infinite;
+}
+
+/* Controls */
+.crop-controls-wrap {
+  padding: 0.25rem 0.5rem;
+}
+
+.crop-slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.crop-slider-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  user-select: none;
+}
+
+.crop-zoom-slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: #e2e8f0;
+  outline: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.crop-zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #6366f1;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4);
+  transition: transform 0.1s;
+}
+
+.crop-zoom-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.crop-zoom-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Buttons */
+.crop-actions-wrap {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 1rem;
+}
+
+.crop-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+  font-family: inherit;
+}
+
+.crop-btn-cancel {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.crop-btn-cancel:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.crop-btn-save {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+}
+
+.crop-btn-save:hover:not(:disabled) {
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+  transform: translateY(-1px);
+}
+
+.crop-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes cropModalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cropModalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cropSpin {
+  to { transform: rotate(360deg); }
+}
+
 
