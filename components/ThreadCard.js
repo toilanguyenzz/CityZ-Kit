@@ -38,11 +38,14 @@ function formatCount(num) {
 }
 
 const CATEGORY_MAP = {
-  housing: { label: 'Nhà trọ', emoji: '🏠', color: '#3b82f6' },
-  food: { label: 'Ẩm thực', emoji: '🍜', color: '#ef4444' },
-  academic: { label: 'Học tập', emoji: '📚', color: '#8b5cf6' },
-  general: { label: 'Tổng hợp', emoji: '💬', color: '#6b7280' },
-  social: { label: 'Xã hội', emoji: '🎉', color: '#f59e0b' },
+  housing: { label: 'Review nhà trọ', emoji: '🏠', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.25)', color: '#34d399' },
+  food: { label: 'Review ăn uống', emoji: '🍜', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.25)', color: '#f87171' },
+  academic: { label: 'Hỏi bài', emoji: '📚', bg: 'rgba(139, 92, 246, 0.12)', border: 'rgba(139, 92, 246, 0.25)', color: '#c084fc' },
+  general: { label: 'Tổng hợp', emoji: '💬', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.25)', color: '#94a3b8' },
+  social: { label: 'Xã hội', emoji: '🎉', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.25)', color: '#f472b6' },
+  safety: { label: 'Cảnh báo', emoji: '⚠️', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)', color: '#fbbf24' },
+  events: { label: 'Sự kiện', emoji: '📅', bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.25)', color: '#60a5fa' },
+  feedback: { label: 'Góp ý', emoji: '💡', bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(6, 182, 212, 0.25)', color: '#22d3ee' },
 };
 
 export default function ThreadCard({ post, onVoteUpdate }) {
@@ -210,9 +213,48 @@ export default function ThreadCard({ post, onVoteUpdate }) {
             {post.isPinned && <span className="tc-pin-badge">📌 Ghim</span>}
           </div>
 
+          {post.status === 'pending' && (
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.08)',
+              border: '1px solid rgba(245, 158, 11, 0.2)',
+              color: '#fbbf24',
+              padding: '0.5rem 0.75rem',
+              borderRadius: '0.75rem',
+              fontSize: '0.8rem',
+              fontWeight: 500,
+              marginBottom: '0.5rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              width: '100%',
+            }}>
+              <span>⚠️</span>
+              <span>Bài viết đang chờ duyệt. Chỉ bạn mới nhìn thấy bài đăng này.</span>
+            </div>
+          )}
+
           {/* Category + Flair */}
           <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span className="tc-category">{cat.emoji} {cat.label}</span>
+            <span 
+              className="tc-category"
+              style={{
+                background: cat.bg || 'rgba(255, 255, 255, 0.06)',
+                borderColor: cat.border || 'transparent',
+                borderWidth: cat.border ? '1px' : '0px',
+                borderStyle: 'solid',
+                color: cat.color || 'var(--blog-text-secondary)',
+                padding: '0.2rem 0.6rem',
+                borderRadius: '2rem',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+              }}
+            >
+              <span>{cat.emoji}</span>
+              <span>{cat.label}</span>
+            </span>
             {post.flair && <FlairBadge flair={post.flair} />}
           </div>
 

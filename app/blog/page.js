@@ -8,7 +8,8 @@ import { auth, db, onAuthStateChanged } from '@/lib/firebase';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import ThreadCard from '@/components/ThreadCard';
-import { getPosts, getTrendingTags, addPost } from '@/lib/firestore';
+import { getPosts, getTrendingTags, addPost, autoModerateContent } from '@/lib/firestore';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import toast from 'react-hot-toast';
 import { doc, getDoc } from 'firebase/firestore';
 import useUserRole from '@/lib/useUserRole';
@@ -49,6 +50,12 @@ export default function BlogList() {
   const [showComposerTitle, setShowComposerTitle] = useState(false);
   const composerRef = useRef(null);
 
+  // Composer image & category states
+  const [composerImageFile, setComposerImageFile] = useState(null);
+  const [composerPreviewUrl, setComposerPreviewUrl] = useState('');
+  const [composerCategory, setComposerCategory] = useState('general');
+  const [composerUploadStatus, setComposerUploadStatus] = useState('');
+
   // Auth listener
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -82,16 +89,16 @@ export default function BlogList() {
     fetchTrending();
   }, []);
 
-  // Fetch posts when tab/category changes
+  // Fetch posts when tab, category, or user state changes
   useEffect(() => {
     fetchPosts();
-  }, [activeTab, categoryFilter]);
+  }, [activeTab, categoryFilter, user]);
 
   const fetchPosts = async () => {
     setLoading(true);
     try {
       const sortBy = activeTab === 'new' ? 'new' : activeTab === 'trending' ? 'top' : 'hot';
-      const data = await getPosts(sortBy, categoryFilter);
+      const data = await getPosts(sortBy, categoryFilter, 50, user?.uid);
       setPosts(data);
     } catch (error) {
       toast.error('Không thể tải bài viết');
@@ -101,37 +108,138 @@ export default function BlogList() {
     }
   };
 
+  const compressComposerImage = (file) => {
+    return new Promise((resolve) => {
+      if (!file || !file.type.startsWith('image/')) {
+        resolve(file);
+        return;
+      }
+      try {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              let width = img.width;
+              let height = img.height;
+              const MAX_WIDTH = 800;
+              const MAX_HEIGHT = 800;
+              if (width > height) {
+                if (width > MAX_WIDTH) {
+                  height *= MAX_WIDTH / width;
+                  width = MAX_WIDTH;
+                }
+              } else {
+                if (height > MAX_HEIGHT) {
+                  width *= MAX_HEIGHT / height;
+                  height = MAX_HEIGHT;
+                }
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+              canvas.toBlob((blob) => {
+                if (!blob) {
+                  resolve(file);
+                  return;
+                }
+                try {
+                  const compressedFile = new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                } catch (e) {
+                  resolve(blob);
+                }
+              }, 'image/jpeg', 0.8);
+            } catch (e) {
+              resolve(file);
+            }
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      } catch (e) {
+        resolve(file);
+      }
+    });
+  };
+
+  const handleComposerImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Vui lòng chọn file ảnh!');
+      return;
+    }
+    setComposerImageFile(file);
+    setComposerPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleRemoveComposerImage = () => {
+    setComposerImageFile(null);
+    setComposerPreviewUrl('');
+  };
+
   // Inline compose submit
   const handleQuickPost = async () => {
     if (!user) return toast.error('Vui lòng đăng nhập');
     if (!composerText.trim()) return;
     setComposing(true);
+    setComposerUploadStatus('Đang xử lý...');
     try {
+      let finalImageUrl = null;
+
+      if (composerImageFile) {
+        setComposerUploadStatus('Đang nén ảnh...');
+        const compressed = await compressComposerImage(composerImageFile);
+        setComposerUploadStatus('Đang tải ảnh lên...');
+        const uploadResult = await uploadToCloudinary(compressed);
+        finalImageUrl = uploadResult.url;
+      }
+
       const title = composerTitle.trim() || composerText.substring(0, 60);
+      
       await addPost(
         user.uid,
         userData?.name || user.displayName || user.email,
         title,
         composerText,
-        null,
+        finalImageUrl,
         role,
         'discussion',
-        'general',
+        composerCategory,
         null,
         false,
         userData?.avatarUrl || null,
         userData?.badges || [],
         []
       );
-      toast.success(isAdmin ? 'Đã đăng bài!' : 'Đã gửi! Bài viết đang chờ duyệt.');
+
+      const moderation = autoModerateContent(title + " " + composerText);
+      const isApproved = role?.trim() === 'admin' || moderation.status === 'approved';
+
+      if (isApproved) {
+        toast.success('Đã đăng bài viết thành công! 🎉');
+      } else {
+        toast.success('Đã gửi! Bài viết đang chờ duyệt do chứa nội dung đáng ngờ. ⏳', { duration: 5000 });
+      }
+
       setComposerText('');
       setComposerTitle('');
+      setComposerImageFile(null);
+      setComposerPreviewUrl('');
+      setComposerCategory('general');
       setShowComposerTitle(false);
       fetchPosts();
     } catch (err) {
       toast.error(err.message || 'Lỗi đăng bài');
     } finally {
       setComposing(false);
+      setComposerUploadStatus('');
     }
   };
 
@@ -180,6 +288,28 @@ export default function BlogList() {
                   </Link>
                 </div>
               )}
+
+              {/* Category Filters Menu */}
+              <div className="blog-sidebar" style={{ marginTop: '1rem' }}>
+                <h3 className="blog-sidebar-title" style={{ fontSize: '0.94rem', fontWeight: 800, paddingBottom: '0.5rem', borderBottom: '1px solid var(--blog-divider)' }}>
+                  🌐 Danh mục bài viết
+                </h3>
+                <div className="blog-sidebar-cat-list">
+                  {CATEGORIES.map((cat) => {
+                    const active = categoryFilter === cat.key;
+                    return (
+                      <button
+                        key={cat.key || 'all'}
+                        onClick={() => setCategoryFilter(cat.key)}
+                        className={`blog-sidebar-cat-btn ${active ? 'active' : ''}`}
+                      >
+                        <span style={{ fontSize: '1.1rem' }}>{cat.emoji}</span>
+                        <span>{cat.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </aside>
 
             {/* ═══════ CENTER FEED ═══════ */}
@@ -200,114 +330,132 @@ export default function BlogList() {
                 </div>
               </div>
 
-              {/* Category Filters */}
-              <div className="blog-cat-filters">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.key || 'all'}
-                    onClick={() => setCategoryFilter(cat.key)}
-                    className={`blog-cat-btn ${categoryFilter === cat.key ? 'active' : ''}`}
-                  >
-                    {cat.emoji} {cat.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Quick Access Links — merged features */}
-              <div style={{
-                display: 'flex', gap: '0.5rem', padding: '0.75rem 1rem',
-                borderBottom: '1px solid var(--blog-divider, #e5e7eb)',
-                overflowX: 'auto',
-              }}>
-                <Link href="/safety" style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                  padding: '0.4rem 0.75rem', borderRadius: '2rem',
-                  background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)',
-                  color: '#dc2626', fontSize: '0.75rem', fontWeight: 600,
-                  textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.15s',
-                }}>
-                  🛡️ Bản đồ cảnh báo
-                </Link>
-                <Link href="/events" style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                  padding: '0.4rem 0.75rem', borderRadius: '2rem',
-                  background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.2)',
-                  color: '#7c3aed', fontSize: '0.75rem', fontWeight: 600,
-                  textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.15s',
-                }}>
-                  📅 Lịch sự kiện đầy đủ
-                </Link>
-                <Link href="/recommend" style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                  padding: '0.4rem 0.75rem', borderRadius: '2rem',
-                  background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)',
-                  color: '#2563eb', fontSize: '0.75rem', fontWeight: 600,
-                  textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.15s',
-                }}>
-                  🤖 AI Gợi ý
-                </Link>
-                <Link href="/shorts" style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                  padding: '0.4rem 0.75rem', borderRadius: '2rem',
-                  background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)',
-                  color: '#059669', fontSize: '0.75rem', fontWeight: 600,
-                  textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.15s',
-                }}>
-                  🎬 VibeZ Shorts
-                </Link>
-              </div>
-
               {/* Inline Composer */}
-              <div className="blog-composer">
-                <div className="blog-composer-avatar">{userInitial}</div>
-                <div className="blog-composer-body">
-                  {showComposerTitle && (
-                    <input
-                      type="text"
-                      value={composerTitle}
-                      onChange={(e) => setComposerTitle(e.target.value)}
-                      placeholder="Tiêu đề (tùy chọn)"
-                      style={{
-                        width: '100%',
-                        background: 'none',
-                        border: 'none',
-                        outline: 'none',
-                        color: 'var(--blog-text-primary)',
-                        fontSize: '1rem',
-                        fontWeight: 700,
-                        fontFamily: 'inherit',
-                        padding: '0.25rem 0',
-                        marginBottom: '0.25rem',
-                      }}
+              <div className="blog-composer" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem', borderRadius: 'var(--blog-radius)', border: '1px solid var(--blog-divider)', background: 'var(--blog-card-bg)', margin: '1rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <div className="blog-composer-avatar">{userInitial}</div>
+                  <div className="blog-composer-body">
+                    {showComposerTitle && (
+                      <input
+                        type="text"
+                        value={composerTitle}
+                        onChange={(e) => setComposerTitle(e.target.value)}
+                        placeholder="Tiêu đề bài viết..."
+                        style={{
+                          width: '100%',
+                          background: 'none',
+                          border: 'none',
+                          outline: 'none',
+                          color: 'var(--blog-text-primary)',
+                          fontSize: '1.05rem',
+                          fontWeight: 700,
+                          fontFamily: 'inherit',
+                          padding: '0.25rem 0',
+                          marginBottom: '0.5rem',
+                        }}
+                      />
+                    )}
+                    <textarea
+                      ref={composerRef}
+                      className="blog-composer-input"
+                      placeholder={`${userName} ơi, bạn đang nghĩ gì?`}
+                      value={composerText}
+                      onChange={(e) => setComposerText(e.target.value)}
+                      rows={1}
+                      onFocus={() => setShowComposerTitle(true)}
+                      style={{ minHeight: showComposerTitle ? '4rem' : '2.5rem' }}
                     />
-                  )}
-                  <textarea
-                    ref={composerRef}
-                    className="blog-composer-input"
-                    placeholder={`${userName} ơi, bạn đang nghĩ gì?`}
-                    value={composerText}
-                    onChange={(e) => setComposerText(e.target.value)}
-                    rows={1}
-                    onFocus={() => setShowComposerTitle(true)}
-                    style={{ minHeight: showComposerTitle ? '4rem' : '2.5rem' }}
-                  />
-                  {showComposerTitle && (
-                    <div className="blog-composer-tools">
-                      <div className="blog-composer-icons">
-                        <Link href="/blog/create" className="blog-composer-icon-btn" title="Bài viết đầy đủ">📝</Link>
-                        <button className="blog-composer-icon-btn" title="Thêm ảnh" onClick={() => router.push('/blog/create')}>📸</button>
-                        <button className="blog-composer-icon-btn" title="Tạo khảo sát" onClick={() => router.push('/blog/create')}>📊</button>
+                  </div>
+                </div>
+
+                {/* Image preview in composer */}
+                {composerPreviewUrl && (
+                  <div style={{ paddingLeft: '3.5rem', position: 'relative', marginTop: '0.5rem' }}>
+                     <div style={{ position: 'relative', width: '120px', height: '120px', borderRadius: '0.75rem', overflow: 'hidden', border: '1px solid var(--blog-divider)' }}>
+                       <img src={composerPreviewUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                       <button
+                         type="button"
+                         onClick={handleRemoveComposerImage}
+                         style={{
+                           position: 'absolute', top: '0.25rem', right: '0.25rem',
+                           background: '#ef4444', color: '#fff', border: 'none',
+                           borderRadius: '50%', width: '1.5rem', height: '1.5rem',
+                           display: 'flex', alignItems: 'center', justifyContent: 'center',
+                           fontSize: '0.75rem', cursor: 'pointer', fontWeight: 'bold'
+                         }}
+                       >
+                         ✕
+                       </button>
+                     </div>
+                  </div>
+                )}
+
+                {showComposerTitle && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'between', flexWrap: 'wrap', gap: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--blog-divider)', marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      {/* Category selection */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--blog-text-secondary)' }}>Danh mục:</span>
+                        <select
+                          value={composerCategory}
+                          onChange={e => setComposerCategory(e.target.value)}
+                          style={{
+                            background: 'var(--blog-input-bg)',
+                            color: 'var(--blog-text-primary)',
+                            border: '1px solid var(--blog-divider)',
+                            borderRadius: '0.5rem',
+                            padding: '0.25rem 0.5rem',
+                            fontSize: '0.8rem',
+                            outline: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {CATEGORIES.filter(c => c.key).map(c => (
+                            <option key={c.key} value={c.key}>{c.emoji} {c.label}</option>
+                          ))}
+                        </select>
                       </div>
+
+                      {/* Image Upload Input */}
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'var(--blog-input-bg)', border: '1px solid var(--blog-divider)', color: 'var(--blog-text-primary)', padding: '0.3rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 500 }}>
+                        📸 <span>Ảnh</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleComposerImageChange}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+                      <button
+                        onClick={() => {
+                          setShowComposerTitle(false);
+                          setComposerText('');
+                          setComposerTitle('');
+                          setComposerPreviewUrl('');
+                          setComposerImageFile(null);
+                        }}
+                        style={{
+                          padding: '0.45rem 1rem', borderRadius: '2rem', border: '1px solid var(--blog-divider)',
+                          background: 'transparent', color: 'var(--blog-text-secondary)',
+                          fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer'
+                        }}
+                      >
+                        Hủy
+                      </button>
                       <button
                         className="blog-composer-submit"
                         onClick={handleQuickPost}
                         disabled={composing || !composerText.trim()}
+                        style={{ padding: '0.45rem 1.25rem', borderRadius: '2rem', border: 'none', background: 'var(--blog-accent)', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
                       >
-                        {composing ? 'Đang đăng...' : 'Đăng'}
+                        {composing ? (composerUploadStatus || 'Đang đăng...') : 'Đăng bài'}
                       </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* Posts Feed */}
@@ -336,63 +484,64 @@ export default function BlogList() {
             <aside style={{ display: 'none', position: 'sticky', top: '64px', height: 'fit-content', padding: '1rem 0 1rem 0.5rem' }}
               className="blog-right-sidebar"
             >
-              {/* AI Gemini Card */}
-              <div style={{ marginBottom: '1rem' }}>
-                <div className="blog-sidebar" style={{ background: 'linear-gradient(135deg, rgba(29,155,240,0.12), rgba(168,85,247,0.08))', border: '1px solid rgba(29,155,240,0.2)' }}>
-                  <div style={{ padding: '1rem' }}>
-                    <h4 style={{ fontSize: '0.94rem', fontWeight: 700, color: 'var(--blog-text-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      🤖 Trợ lý AI Gemini
-                    </h4>
-                    <p style={{ fontSize: '0.82rem', color: 'var(--blog-text-secondary)', lineHeight: 1.5, marginBottom: '0.75rem' }}>
-                      Tìm quán ăn, nhà trọ, cafe? Hỏi AI ngay!
-                    </p>
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const q = e.target.query.value;
-                        if (q.trim()) {
-                          toast.success('Trợ lý AI Gemini đang được nâng cấp, vui lòng quay lại sau! ✨');
-                          e.target.query.value = '';
-                        }
-                      }}
-                      style={{ display: 'flex', gap: '0.5rem' }}
-                    >
-                      <input
-                        type="text"
-                        name="query"
-                        placeholder="Bạn muốn hỏi gì..."
-                        style={{
-                          flex: 1,
-                          background: 'var(--blog-input-bg)',
-                          border: '1px solid var(--blog-divider)',
-                          borderRadius: '2rem',
-                          padding: '0.5rem 0.85rem',
-                          color: 'var(--blog-text-primary)',
-                          fontSize: '0.82rem',
-                          outline: 'none',
-                          fontFamily: 'inherit',
-                        }}
-                      />
-                      <button
-                        type="submit"
-                        style={{
-                          background: 'var(--blog-accent)',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: '2.25rem',
-                          height: '2.25rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          fontSize: '0.85rem',
-                          flexShrink: 0,
-                        }}
-                      >
-                        ⚡
-                      </button>
-                    </form>
-                  </div>
+              {/* Quick Links Card */}
+              <div className="blog-sidebar" style={{ marginBottom: '1rem' }}>
+                <h3 className="blog-sidebar-title" style={{ fontSize: '0.94rem', fontWeight: 800, paddingBottom: '0.5rem', borderBottom: '1px solid var(--blog-divider)' }}>
+                  🚀 Liên kết nhanh
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}>
+                  <Link href="/safety" style={{
+                    display: 'flex', alignItems: 'center', gap: '0.6rem',
+                    padding: '0.6rem 0.85rem', borderRadius: '0.75rem',
+                    background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.15)',
+                    color: '#ef4444', fontSize: '0.85rem', fontWeight: 600,
+                    textDecoration: 'none', transition: 'all 0.15s',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.06)'}
+                  >
+                    <span>🛡️</span>
+                    <span>Bản đồ cảnh báo an toàn</span>
+                  </Link>
+                  <Link href="/events" style={{
+                    display: 'flex', alignItems: 'center', gap: '0.6rem',
+                    padding: '0.6rem 0.85rem', borderRadius: '0.75rem',
+                    background: 'rgba(139, 92, 246, 0.06)', border: '1px solid rgba(139, 92, 246, 0.15)',
+                    color: '#a78bfa', fontSize: '0.85rem', fontWeight: 600,
+                    textDecoration: 'none', transition: 'all 0.15s',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.06)'}
+                  >
+                    <span>📅</span>
+                    <span>Lịch sự kiện đầy đủ</span>
+                  </Link>
+                  <Link href="/recommend" style={{
+                    display: 'flex', alignItems: 'center', gap: '0.6rem',
+                    padding: '0.6rem 0.85rem', borderRadius: '0.75rem',
+                    background: 'rgba(59, 130, 246, 0.06)', border: '1px solid rgba(59, 130, 246, 0.15)',
+                    color: '#60a5fa', fontSize: '0.85rem', fontWeight: 600,
+                    textDecoration: 'none', transition: 'all 0.15s',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.06)'}
+                  >
+                    <span>💡</span>
+                    <span>Góp ý & Phản hồi</span>
+                  </Link>
+                  <Link href="/shorts" style={{
+                    display: 'flex', alignItems: 'center', gap: '0.6rem',
+                    padding: '0.6rem 0.85rem', borderRadius: '0.75rem',
+                    background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.15)',
+                    color: '#34d399', fontSize: '0.85rem', fontWeight: 600,
+                    textDecoration: 'none', transition: 'all 0.15s',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.06)'}
+                  >
+                    <span>🎬</span>
+                    <span>VibeZ Shorts Video</span>
+                  </Link>
                 </div>
               </div>
 

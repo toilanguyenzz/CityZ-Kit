@@ -5,22 +5,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root {
-  --blog-bg: #000000;
-  --blog-card-bg: #16181c;
-  --blog-card-border: #2f3336;
-  --blog-card-hover: #1d1f23;
-  --blog-text-primary: #e7e9ea;
-  --blog-text-secondary: #71767b;
-  --blog-text-tertiary: #536471;
-  --blog-accent: #1d9bf0;
-  --blog-accent-hover: #1a8cd8;
-  --blog-like-color: #f91880;
-  --blog-repost-color: #00ba7c;
-  --blog-bookmark-color: #1d9bf0;
-  --blog-divider: #2f3336;
-  --blog-input-bg: #202327;
-  --blog-radius: 1rem;
-  --blog-radius-sm: 0.75rem;
+  --blog-bg: #0b0f19;
+  --blog-card-bg: #151d30;
+  --blog-card-border: #22304d;
+  --blog-card-hover: #1c263f;
+  --blog-text-primary: #f1f5f9;
+  --blog-text-secondary: #94a3b8;
+  --blog-text-tertiary: #64748b;
+  --blog-accent: #3b82f6;
+  --blog-accent-hover: #2563eb;
+  --blog-like-color: #f43f5e;
+  --blog-repost-color: #10b981;
+  --blog-bookmark-color: #3b82f6;
+  --blog-divider: #22304d;
+  --blog-input-bg: #1c263f;
+  --blog-radius: 1.25rem;
+  --blog-radius-sm: 0.85rem;
 }
 
 /* ── Blog Page Layout ─────────────────────────────────── */
@@ -42,7 +42,7 @@
   position: sticky;
   top: 64px;
   z-index: 30;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(11, 15, 25, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--blog-divider);
@@ -127,6 +127,43 @@
   border-color: var(--blog-text-primary);
   color: var(--blog-bg);
   font-weight: 600;
+}
+
+/* Vertical Sidebar Category filters */
+.blog-sidebar-cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 1rem;
+}
+
+.blog-sidebar-cat-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--blog-text-secondary);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.blog-sidebar-cat-btn:hover {
+  background: var(--blog-card-hover);
+  color: var(--blog-text-primary);
+}
+
+.blog-sidebar-cat-btn.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.25);
+  color: #60a5fa;
 }
 
 /* ── Inline Composer (Twitter style) ─────────────────── */
