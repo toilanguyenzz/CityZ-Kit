@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { addLocation, addReview } from '@/lib/firestore';
+import { addLocation } from '@/lib/firestore';
 import { auth, db } from '@/lib/firebase';
 import { uploadToCloudinary } from '@/lib/cloudinary';
-import RatingStars from '@/components/RatingStars';
 import { doc, getDoc } from 'firebase/firestore';
 import useUserRole from '@/lib/useUserRole';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -111,7 +110,6 @@ export default function AddLocation() {
   });
   const [coords, setCoords] = useState({ lat: 10.7769, lng: 106.7009 }); // Mặc định TT TP.HCM
   const [isMapManuallyPinned, setIsMapManuallyPinned] = useState(false);
-  const [rating, setRating] = useState(5);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
@@ -417,16 +415,7 @@ export default function AddLocation() {
         createdByAvatar: creatorAvatar,
       }, null, user.uid, role, uploadedMedia);
 
-      // Tự động tạo đánh giá đầu tiên với số sao người dùng đã chọn
-      await addReview(
-        newLocationId,
-        user.uid,
-        creatorName,
-        rating,
-        'Khởi tạo địa điểm'
-      );
-
-      toast.success(isAdmin ? 'Đã thêm địa điểm và đánh giá thành công!' : 'Đã gửi! Địa điểm đang chờ kiểm duyệt từ Admin.');
+      toast.success(isAdmin ? 'Đã thêm địa điểm thành công!' : 'Đã gửi! Địa điểm đang chờ kiểm duyệt từ Admin.');
       router.push('/dashboard');
     } catch (error) {
       toast.error(error.message || 'Lỗi thêm địa điểm');
@@ -510,15 +499,6 @@ export default function AddLocation() {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
-                        Đánh giá của bạn về địa điểm này ⭐
-                      </label>
-                      <div className="py-2.5 px-4 bg-gray-50 border border-gray-200 rounded-xl w-fit">
-                        <RatingStars rating={rating} onRate={setRating} interactive />
-                      </div>
-                      <p className="text-[10px] text-gray-400 mt-1 ml-1">Số sao này sẽ được lưu làm đánh giá đầu tiên của bạn cho địa điểm.</p>
-                    </div>
 
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
