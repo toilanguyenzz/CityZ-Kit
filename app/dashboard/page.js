@@ -15,6 +15,7 @@ import dynamic from 'next/dynamic';
 const LocketCameraModal = dynamic(() => import('@/components/LocketCameraModal'), { ssr: false });
 const ProductTour = dynamic(() => import('@/components/ProductTour'), { ssr: false });
 const ParticleBackground = dynamic(() => import('@/components/ParticleBackground'), { ssr: false });
+const AnimatedCounter = dynamic(() => import('@/components/AnimatedCounter'), { ssr: false });
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -381,11 +382,11 @@ export default function Dashboard() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50/80">
+      <div className="min-h-screen db-parallax-root">
         <Navbar />
 
         {/* ═══ 1. HERO ═══ */}
-        <div className="cmd-hero db-fade-in">
+        <div className="cmd-hero db-fade-in db-parallax-hero">
           <div className="cmd-hero-glow cmd-hero-glow--1" />
           <div className="cmd-hero-glow cmd-hero-glow--2" />
           <div className="cmd-hero-glow cmd-hero-glow--3" />
@@ -424,29 +425,29 @@ export default function Dashboard() {
                   {levelInfo && (
                     <div className="cmd-chip cmd-chip--level">
                       <span className="cmd-chip-icon">{levelInfo.icon}</span>
-                      <span className="cmd-chip-val">Lv.{levelInfo.level}</span>
+                      <span className="cmd-chip-val">Lv.<AnimatedCounter target={levelInfo.level} duration={800} /></span>
                       <span className="cmd-chip-lbl">{levelInfo.name}</span>
                       <div className="cmd-lvl-bar"><div className="cmd-lvl-fill" style={{ width: `${levelInfo.progress}%` }} /></div>
                     </div>
                   )}
                   <Link href="/profile" className="cmd-chip">
                     <span className="cmd-chip-icon">🏆</span>
-                    <span className="cmd-chip-val">{badgeCount}</span>
+                    <span className="cmd-chip-val"><AnimatedCounter target={badgeCount} duration={900} /></span>
                     <span className="cmd-chip-lbl">badges</span>
                   </Link>
                   <div className="cmd-chip">
                     <span className="cmd-chip-icon">⭐</span>
-                    <span className="cmd-chip-val">{userStats.reviewCount}</span>
+                    <span className="cmd-chip-val"><AnimatedCounter target={userStats.reviewCount} duration={1000} /></span>
                     <span className="cmd-chip-lbl">reviews</span>
                   </div>
                   <div className="cmd-chip">
                     <span className="cmd-chip-icon">📍</span>
-                    <span className="cmd-chip-val">{userStats.locationCount}</span>
+                    <span className="cmd-chip-val"><AnimatedCounter target={userStats.locationCount} duration={1100} /></span>
                     <span className="cmd-chip-lbl">địa điểm</span>
                   </div>
                   <div className="cmd-chip">
                     <span className="cmd-chip-icon">📝</span>
-                    <span className="cmd-chip-val">{userStats.postCount}</span>
+                    <span className="cmd-chip-val"><AnimatedCounter target={userStats.postCount} duration={1200} /></span>
                     <span className="cmd-chip-lbl">bài viết</span>
                   </div>
                   {tasteDNA?.total > 0 && (
@@ -599,7 +600,7 @@ export default function Dashboard() {
         </div>
 
         {/* ═══ 6. GRID ═══ */}
-        <main className="max-w-6xl mx-auto px-4 pt-5 pb-24">
+        <main className="max-w-6xl mx-auto px-4 pt-5 pb-24 db-parallax-grid">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <p className="text-sm font-bold text-gray-800">📍 Student&apos;s Choice</p>

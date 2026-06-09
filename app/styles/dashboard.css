@@ -62,18 +62,19 @@
 .cmd-hero-glow--1 {
   width: 300px; height: 300px;
   top: -80px; right: -60px;
-  background: rgba(99, 102, 241, 0.2);
+  background: rgba(99, 102, 241, 0.25);
 }
 .cmd-hero-glow--2 {
   width: 200px; height: 200px;
   bottom: -40px; left: 10%;
-  background: rgba(168, 85, 247, 0.12);
+  background: rgba(168, 85, 247, 0.15);
 }
 .cmd-hero-glow--3 {
   width: 150px; height: 150px;
   top: 20%; left: 40%;
-  background: rgba(56, 189, 248, 0.08);
+  background: rgba(56, 189, 248, 0.12);
 }
+/* .cmd-hero-glow animation styles in visual upgrade block below */
 
 .cmd-greeting {
   font-size: 1.4rem;
@@ -114,48 +115,10 @@
   -ms-overflow-style: none;
 }
 .cmd-actions::-webkit-scrollbar { display: none; }
-
-.cmd-action {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.55rem 0.9rem;
-  border-radius: 100px;
-  background: rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  text-decoration: none;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.cmd-action:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.18);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-}
-
-.cmd-action:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.cmd-action-emoji {
-  font-size: 1rem;
-  line-height: 1;
-}
+/* .cmd-action styles moved to visual upgrade block below */
 
 /* ═══ STATS BAR ═════════════════════════════════════════ */
-.cmd-stats {
-  background: #fff;
-  border-bottom: 1px solid #f1f5f9;
-}
+/* .cmd-stats styles moved to visual upgrade block below */
 
 .cmd-stats-row {
   display: flex;
@@ -167,24 +130,7 @@
 }
 .cmd-stats-row::-webkit-scrollbar { display: none; }
 
-.cmd-chip {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.65rem;
-  background: #f8fafc;
-  border: 1px solid #eef2f6;
-  border-radius: 0.6rem;
-  flex-shrink: 0;
-  transition: all 0.15s;
-  text-decoration: none;
-  color: inherit;
-}
-
-.cmd-chip:hover {
-  background: #f1f5f9;
-  border-color: #e2e8f0;
-}
+/* .cmd-chip styles moved to visual upgrade block below */
 
 .cmd-chip-icon { font-size: 0.8rem; }
 .cmd-chip-val { font-weight: 700; color: #1e293b; font-size: 0.78rem; }
@@ -228,10 +174,7 @@
 }
 
 /* ═══ TRENDING FEED ═════════════════════════════════════ */
-.cmd-trending {
-  background: #fff;
-  border-bottom: 1px solid #f1f5f9;
-}
+/* .cmd-trending styles moved to visual upgrade block below */
 
 .cmd-trend-list {
   display: flex;
@@ -239,21 +182,7 @@
   gap: 0;
 }
 
-.cmd-trend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.6rem 0.5rem;
-  border-radius: 0.7rem;
-  transition: background 0.15s;
-  text-decoration: none;
-  color: inherit;
-  cursor: pointer;
-}
-
-.cmd-trend-item:hover {
-  background: #f8fafc;
-}
+/* .cmd-trend-item styles moved to visual upgrade block below */
 
 .cmd-trend-item + .cmd-trend-item {
   border-top: 1px solid #f8fafc;
@@ -368,12 +297,7 @@
 .stories-strip::-webkit-scrollbar { display: none; }
 .story-add-ring { animation: dbPulseRing 2s ease-in-out infinite; }
 
-.story-neon-ring {
-  background: linear-gradient(135deg, #ff007f, #7f00ff, #00f0ff, #ff007f);
-  background-size: 300% 300%;
-  animation: gradientRotate 3s linear infinite;
-  box-shadow: 0 0 10px rgba(127, 0, 255, 0.25);
-}
+/* .story-neon-ring styles moved to visual upgrade block below */
 
 .story-item { transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); }
 .story-item:hover {
@@ -397,22 +321,10 @@
 .live-dot-ping { animation: pulseLive 1.5s ease-in-out infinite; }
 
 /* ═══ STICKY TOOLBAR ════════════════════════════════════ */
-.db-sticky-toolbar {
-  position: sticky;
-  top: 64px;
-  z-index: 30;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
+/* .db-sticky-toolbar styles moved to visual upgrade block below */
 
 /* ═══ CARD ══════════════════════════════════════════════ */
-.db-card-img {
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  width: 100%;
-  transition: transform 0.4s ease;
-}
-.db-card-img:hover { transform: scale(1.04); }
+/* .db-card-img styles moved to visual upgrade block below */
 
 /* ═══ VERIFIED BADGE ═══════════════════════════════════ */
 .cmd-verified {
@@ -610,10 +522,7 @@
 }
 
 /* ═══ PERSONALIZED SECTION ══════════════════════════════ */
-.cmd-personalized-section {
-  background: linear-gradient(135deg, #f5f3ff 0%, #eff6ff 100%);
-  border-bottom: 1px solid #e0e7ff;
-}
+/* .cmd-personalized-section styles moved to visual upgrade block below */
 
 .personal-rec-badge {
   display: inline-flex;
@@ -644,6 +553,402 @@
 @media (min-width: 768px) {
   .personal-rec-grid {
     grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VISUAL UPGRADE — 3D / Glassmorphism / Parallax / Glow
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Parallax Root & Sections ────────────────────────── */
+.db-parallax-root {
+  background: linear-gradient(
+    180deg,
+    #f8fafc 0%,
+    #eef2ff 15%,
+    #f5f3ff 35%,
+    #faf5ff 55%,
+    #f0f9ff 75%,
+    #f8fafc 100%
+  );
+  background-attachment: fixed;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Animated gradient mesh behind entire page */
+.db-parallax-root::before {
+  content: '';
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background:
+    radial-gradient(ellipse 400px 400px at 20% 30%, rgba(129, 140, 248, 0.06), transparent),
+    radial-gradient(ellipse 500px 500px at 80% 20%, rgba(167, 139, 250, 0.05), transparent),
+    radial-gradient(ellipse 600px 300px at 50% 70%, rgba(56, 189, 248, 0.04), transparent),
+    radial-gradient(ellipse 300px 500px at 70% 60%, rgba(244, 114, 182, 0.03), transparent);
+  animation: meshFloat 20s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes meshFloat {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(30px, -20px) rotate(1deg); }
+  66% { transform: translate(-20px, 30px) rotate(-1deg); }
+  100% { transform: translate(10px, -10px) rotate(0.5deg); }
+}
+
+.db-parallax-hero {
+  position: relative;
+  z-index: 1;
+  transform: translateZ(0);
+}
+
+.db-parallax-grid {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── 3D Card Wrapper ─────────────────────────────────── */
+.location-card-3d-wrapper {
+  perspective: 900px;
+  transform-style: preserve-3d;
+}
+
+/* ── Card Hover Glow ─────────────────────────────────── */
+.loc-card-glow {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.3),
+    rgba(168, 85, 247, 0.2),
+    rgba(56, 189, 248, 0.2),
+    rgba(99, 102, 241, 0.3)
+  );
+  background-size: 300% 300%;
+  animation: glowRotate 4s linear infinite;
+  filter: blur(6px);
+}
+
+.loc-card-glow--active {
+  opacity: 1;
+}
+
+@keyframes glowRotate {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── Enhanced Card Image ─────────────────────────────── */
+.db-card-img {
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  width: 100%;
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), filter 0.4s ease;
+}
+
+.location-card-3d-wrapper:hover .db-card-img {
+  transform: scale(1.06);
+  filter: brightness(1.05) saturate(1.1);
+}
+
+/* ── Glassmorphism Sections ──────────────────────────── */
+.cmd-stats {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(241, 245, 249, 0.8);
+  position: relative;
+  z-index: 2;
+}
+
+.cmd-trending {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(241, 245, 249, 0.6);
+  position: relative;
+  z-index: 2;
+}
+
+.db-sticky-toolbar {
+  position: sticky;
+  top: 64px;
+  z-index: 30;
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+/* ── Stat Chip Hover Effects ─────────────────────────── */
+.cmd-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.65rem;
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid rgba(238, 242, 246, 0.8);
+  border-radius: 0.6rem;
+  flex-shrink: 0;
+  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  text-decoration: none;
+  color: inherit;
+  position: relative;
+  overflow: hidden;
+}
+
+.cmd-chip::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.cmd-chip:hover::before {
+  transform: translateX(100%);
+}
+
+.cmd-chip:hover {
+  background: rgba(241, 245, 249, 0.9);
+  border-color: rgba(199, 210, 254, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+}
+
+/* ── Trending Items — Micro-animation ────────────────── */
+.cmd-trend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.5rem;
+  border-radius: 0.7rem;
+  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.cmd-trend-item::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #6366f1, #a78bfa);
+  border-radius: 1px;
+  transition: width 0.3s ease;
+}
+
+.cmd-trend-item:hover::after {
+  width: 100%;
+}
+
+.cmd-trend-item:hover {
+  background: rgba(248, 250, 252, 0.9);
+  transform: translateX(4px);
+  box-shadow: -4px 0 0 0 #6366f1;
+}
+
+/* ── Quick Actions — Enhanced Hover ──────────────────── */
+.cmd-action {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.cmd-action::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.cmd-action:hover::before {
+  opacity: 1;
+}
+
+.cmd-action:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px) scale(1.03);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.cmd-action:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.cmd-action-emoji {
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.cmd-action:hover .cmd-action-emoji {
+  transform: scale(1.2) rotate(-5deg);
+}
+
+/* ── Hero Floating Micro-animation ───────────────────── */
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-6px) rotate(0.5deg); }
+  50% { transform: translateY(-3px) rotate(-0.5deg); }
+  75% { transform: translateY(-8px) rotate(0.3deg); }
+}
+
+.cmd-hero-glow--1 {
+  animation: heroFloat 8s ease-in-out infinite;
+}
+.cmd-hero-glow--2 {
+  animation: heroFloat 10s ease-in-out infinite reverse;
+}
+.cmd-hero-glow--3 {
+  animation: heroFloat 12s ease-in-out infinite 2s;
+}
+
+/* ── Shimmer Loading Skeleton ────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.db-shimmer {
+  background: linear-gradient(
+    90deg,
+    #f1f5f9 25%,
+    #e2e8f0 37%,
+    #f1f5f9 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+/* ── Stagger Children Animation ──────────────────────── */
+@keyframes staggerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.db-parallax-grid .grid > * {
+  animation: staggerFadeIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.db-parallax-grid .grid > *:nth-child(1) { animation-delay: 0.02s; }
+.db-parallax-grid .grid > *:nth-child(2) { animation-delay: 0.06s; }
+.db-parallax-grid .grid > *:nth-child(3) { animation-delay: 0.1s; }
+.db-parallax-grid .grid > *:nth-child(4) { animation-delay: 0.14s; }
+.db-parallax-grid .grid > *:nth-child(5) { animation-delay: 0.18s; }
+.db-parallax-grid .grid > *:nth-child(6) { animation-delay: 0.22s; }
+.db-parallax-grid .grid > *:nth-child(7) { animation-delay: 0.26s; }
+.db-parallax-grid .grid > *:nth-child(8) { animation-delay: 0.3s; }
+.db-parallax-grid .grid > *:nth-child(9) { animation-delay: 0.34s; }
+.db-parallax-grid .grid > *:nth-child(10) { animation-delay: 0.38s; }
+.db-parallax-grid .grid > *:nth-child(11) { animation-delay: 0.42s; }
+.db-parallax-grid .grid > *:nth-child(12) { animation-delay: 0.46s; }
+
+/* ── Story Ring Enhanced Glow ────────────────────────── */
+.story-neon-ring {
+  background: linear-gradient(135deg, #ff007f, #7f00ff, #00f0ff, #ff007f);
+  background-size: 300% 300%;
+  animation: gradientRotate 3s linear infinite;
+  box-shadow:
+    0 0 10px rgba(127, 0, 255, 0.25),
+    0 0 20px rgba(127, 0, 255, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+.story-item:hover .story-neon-ring {
+  box-shadow:
+    0 0 15px rgba(127, 0, 255, 0.4),
+    0 0 30px rgba(127, 0, 255, 0.2),
+    0 0 45px rgba(127, 0, 255, 0.1);
+}
+
+/* ── Personalized Section Glass ──────────────────────── */
+.cmd-personalized-section {
+  background: linear-gradient(
+    135deg,
+    rgba(245, 243, 255, 0.8) 0%,
+    rgba(239, 246, 255, 0.8) 100%
+  );
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(224, 231, 255, 0.6);
+}
+
+/* ── FAB Enhanced ────────────────────────────────────── */
+@keyframes fabPulse {
+  0%, 100% { box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35); }
+  50% { box-shadow: 0 4px 20px rgba(79, 70, 229, 0.5), 0 0 30px rgba(79, 70, 229, 0.15); }
+}
+
+/* ── Reduced Motion ──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .location-card-3d-wrapper,
+  .cmd-chip::before,
+  .cmd-trend-item::after,
+  .cmd-action::before,
+  .db-parallax-root::before,
+  .loc-card-glow {
+    animation: none !important;
+    transition: none !important;
+  }
+  .db-parallax-grid .grid > * {
+    animation: none !important;
   }
 }
 
