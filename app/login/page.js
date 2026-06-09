@@ -6,6 +6,9 @@ import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect, get
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import toast from 'react-hot-toast';
+import dynamic from 'next/dynamic';
+
+const ParticleBackground = dynamic(() => import('@/components/ParticleBackground'), { ssr: false });
 
 export default function Login() {
   const router = useRouter();
@@ -96,8 +99,9 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50 px-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50 px-4" style={{ position: 'relative', overflow: 'hidden' }}>
+      <ParticleBackground variant="snow" opacity={0.6} particleCount={45} speed={0.5} interactive={false} style={{ zIndex: 0 }} />
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8" style={{ position: 'relative', zIndex: 2 }}>
         {showForgotPassword ? (
           <>
             <div className="text-center mb-8">

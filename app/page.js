@@ -7,6 +7,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import dynamic from 'next/dynamic';
+
+const ParticleBackground = dynamic(() => import('@/components/ParticleBackground'), { ssr: false });
 
 
 /* ── Fade‑in on scroll hook ───────────────────────────── */
@@ -97,6 +100,9 @@ export default function Home() {
         <div className="hero-blob hero-blob--1" />
         <div className="hero-blob hero-blob--2" />
         <div className="hero-blob hero-blob--3" />
+
+        {/* Particle constellation effect */}
+        <ParticleBackground variant="constellation" opacity={0.8} particleCount={55} speed={0.6} interactive={true} />
 
         <div className="hero-content">
           <span className="hero-badge">🎓 Dành riêng cho tân sinh viên TP.HCM</span>
@@ -283,8 +289,9 @@ export default function Home() {
       </section>
 
       {/* ───────── CTA ───────── */}
-      <section ref={ctaRef} className="section fade-in-section cta-section">
-        <div className="cta-content">
+      <section ref={ctaRef} className="section fade-in-section cta-section" style={{ position: 'relative', overflow: 'hidden' }}>
+        <ParticleBackground variant="firefly" opacity={0.5} particleCount={20} speed={0.4} interactive={false} />
+        <div className="cta-content" style={{ position: 'relative', zIndex: 2 }}>
           <h2 className="cta-title">Sẵn sàng khám phá Sài Gòn?</h2>
           <p className="cta-desc">
             Tham gia cộng đồng CityZ Kit ngay hôm nay — hoàn toàn miễn phí, không quảng cáo, do chính sinh viên xây dựng và đóng góp.

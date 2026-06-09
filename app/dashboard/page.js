@@ -14,6 +14,7 @@ import dynamic from 'next/dynamic';
 
 const LocketCameraModal = dynamic(() => import('@/components/LocketCameraModal'), { ssr: false });
 const ProductTour = dynamic(() => import('@/components/ProductTour'), { ssr: false });
+const ParticleBackground = dynamic(() => import('@/components/ParticleBackground'), { ssr: false });
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -388,6 +389,7 @@ export default function Dashboard() {
           <div className="cmd-hero-glow cmd-hero-glow--1" />
           <div className="cmd-hero-glow cmd-hero-glow--2" />
           <div className="cmd-hero-glow cmd-hero-glow--3" />
+          <ParticleBackground variant="rain" opacity={0.45} particleCount={80} speed={0.7} interactive={false} />
           <div className="max-w-6xl mx-auto px-4 py-5 sm:py-6 relative z-10">
             <p className="cmd-greeting">
               {greeting.emoji} {greeting.text},{' '}

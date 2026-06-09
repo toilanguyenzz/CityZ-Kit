@@ -6,6 +6,9 @@ import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect,
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import toast from 'react-hot-toast';
+import dynamic from 'next/dynamic';
+
+const ParticleBackground = dynamic(() => import('@/components/ParticleBackground'), { ssr: false });
 
 export default function Signup() {
   const router = useRouter();
@@ -93,8 +96,9 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50 px-4 py-8">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50 px-4 py-8" style={{ position: 'relative', overflow: 'hidden' }}>
+      <ParticleBackground variant="snow" opacity={0.6} particleCount={45} speed={0.5} interactive={false} style={{ zIndex: 0 }} />
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8" style={{ position: 'relative', zIndex: 2 }}>
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800">CityZ Kit</h1>
           <p className="text-gray-600 mt-2">Tạo tài khoản mới</p>
