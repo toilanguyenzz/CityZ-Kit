@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import dynamic from 'next/dynamic';
+import { getCommunityStats, getRecentUsers, getRecentActivities, getTrendingPostsPublic, timeAgoShort } from '@/lib/landing-social';
 
 const ParticleBackground = dynamic(() => import('@/components/ParticleBackground'), { ssr: false });
 
@@ -30,9 +31,42 @@ function useFadeIn() {
   return ref;
 }
 
+/* ── Animated Counter ───────────────────────────── */
+function AnimatedNumber({ end, duration = 1500 }) {
+  const [value, setValue] = useState(0);
+  const ref = useRef(null);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (end === 0 || started.current) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !started.current) {
+        started.current = true;
+        const startTime = performance.now();
+        const animate = (currentTime) => {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          setValue(Math.round(eased * end));
+          if (progress < 1) requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
+      }
+    }, { threshold: 0.3 });
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [end, duration]);
+
+  return <span ref={ref} style={{ fontVariantNumeric: 'tabular-nums' }}>{value.toLocaleString('vi-VN')}</span>;
+}
+
 export default function Home() {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
+  const [communityStats, setCommunityStats] = useState({ userCount: 0, postCount: 0, locationCount: 0 });
+  const [recentUsers, setRecentUsers] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [trendingPosts, setTrendingPosts] = useState([]);
 
   /* Kiểm tra auth → nếu đã đăng nhập thì vào thẳng Dashboard (giống Facebook) */
   useEffect(() => {
@@ -64,10 +98,27 @@ export default function Home() {
     return () => unsub();
   }, [router]);
 
+  // Fetch social proof data
+  useEffect(() => {
+    if (!authChecked) return;
+    Promise.all([
+      getCommunityStats(),
+      getRecentUsers(8),
+      getRecentActivities(4),
+      getTrendingPostsPublic(3),
+    ]).then(([stats, users, activities, posts]) => {
+      setCommunityStats(stats);
+      setRecentUsers(users);
+      setRecentActivities(activities);
+      setTrendingPosts(posts);
+    }).catch(console.error);
+  }, [authChecked]);
+
   /* section refs */
   const featRef = useFadeIn();
   const howRef = useFadeIn();
   const ctaRef = useFadeIn();
+  const socialRef = useFadeIn();
 
   /* Đang kiểm tra trạng thái đăng nhập — hiện loading nhẹ để tránh flash */
   if (!authChecked) {
@@ -91,6 +142,8 @@ export default function Home() {
       </div>
     );
   }
+
+  const CATEGORY_EMOJI = { housing: '🏠', food: '🍜', academic: '📚', social: '🎉', general: '💬', safety: '⚠️' };
 
   return (
     <div className="landing-root">
@@ -156,6 +209,106 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ───────── SOCIAL PROOF — Community Pulse ───────── */}
+      {(communityStats.userCount > 0 || recentActivities.length > 0) && (
+        <section ref={socialRef} className="section fade-in-section" style={{ padding: '3rem 0' }}>
+          <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 1.5rem' }}>
+            {/* Stats Counter */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '2rem',
+              flexWrap: 'wrap',
+              marginBottom: '2rem',
+            }}>
+              {[
+                { label: 'Sinh viên', value: communityStats.userCount, icon: '👥' },
+                { label: 'Bài chia sẻ', value: communityStats.postCount, icon: '📝' },
+                { label: 'Địa điểm', value: communityStats.locationCount, icon: '📍' },
+              ].map((stat, i) => (
+                <div key={i} style={{
+                  textAlign: 'center',
+                  padding: '1rem 1.5rem',
+                  background: 'rgba(255,255,255,0.06)',
+                  borderRadius: '1rem',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  minWidth: '140px',
+                }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{stat.icon}</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    <AnimatedNumber end={stat.value} />
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>{stat.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Recent User Avatars */}
+            {recentUsers.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', marginRight: '0.5rem' }}>
+                  {recentUsers.slice(0, 6).map((u, i) => (
+                    <img
+                      key={u.uid}
+                      src={u.avatarUrl}
+                      alt={u.name}
+                      title={u.name}
+                      style={{
+                        width: 36, height: 36, borderRadius: '50%',
+                        border: '2px solid rgba(139,92,246,0.4)',
+                        marginLeft: i > 0 ? '-10px' : 0,
+                        objectFit: 'cover',
+                        zIndex: recentUsers.length - i,
+                        position: 'relative',
+                      }}
+                    />
+                  ))}
+                </div>
+                <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                  và nhiều sinh viên khác đã tham gia
+                </span>
+              </div>
+            )}
+
+            {/* Live Activity Feed */}
+            {recentActivities.length > 0 && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+                maxWidth: '500px',
+                margin: '0 auto',
+              }}>
+                {recentActivities.slice(0, 3).map((activity, i) => (
+                  <div key={i} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    padding: '0.6rem 1rem',
+                    background: 'rgba(255,255,255,0.04)',
+                    borderRadius: '0.75rem',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    fontSize: '0.82rem',
+                    color: 'rgba(255,255,255,0.75)',
+                  }}>
+                    <span style={{ fontSize: '1rem' }}>{activity.emoji}</span>
+                    <span style={{ flex: 1 }}>
+                      <strong style={{ color: 'rgba(255,255,255,0.9)' }}>{activity.userName?.split('@')[0]}</strong>
+                      {' '}{activity.action}{' '}
+                      {activity.target && <em style={{ color: '#a78bfa' }}>{activity.target}</em>}
+                    </span>
+                    <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
+                      {timeAgoShort(activity.createdAt)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ───────── FEATURES ───────── */}
       <section ref={featRef} className="section fade-in-section features-section">

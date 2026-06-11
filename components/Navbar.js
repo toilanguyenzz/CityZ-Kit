@@ -8,6 +8,7 @@ import { doc, onSnapshot, collection, query } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import useUserRole from '@/lib/useUserRole';
 import toast from 'react-hot-toast';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
@@ -182,9 +183,10 @@ export default function Navbar() {
           )}
 
           {/* User Profile / Action Buttons */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
             {user ? (
               <>
+                <NotificationBell />
                 {/* User Dropdown (Desktop) */}
                 <div className="hidden md:block relative">
                   <button 

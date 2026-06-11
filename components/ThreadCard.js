@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { auth } from '@/lib/firebase';
-import { likePost, bookmarkPost, sharePost } from '@/lib/firestore';
+import { likePost, bookmarkPost, sharePost, reactToPost, repostPost } from '@/lib/firestore';
+import ReactionButton from './ReactionButton';
 import useUserRole from '@/lib/useUserRole';
 import FlairBadge from './FlairBadge';
 import toast from 'react-hot-toast';
@@ -161,7 +162,7 @@ export default function ThreadCard({ post, onVoteUpdate }) {
         {post.isAnonymous ? (
           <div className="tc-avatar" style={{ background: '#536471' }}>👤</div>
         ) : post.userId ? (
-          <Link href={`/profile?uid=${post.userId}`} className="tc-avatar-link" style={{ textDecoration: 'none' }}>
+          <Link href={`/profile/${post.userId}`} className="tc-avatar-link" style={{ textDecoration: 'none' }}>
             {post.authorAvatar ? (
               <div className="tc-avatar hover:scale-105 transition-transform">
                 <img src={post.authorAvatar} alt={displayName(post.authorName)} />
@@ -183,7 +184,7 @@ export default function ThreadCard({ post, onVoteUpdate }) {
           {/* Header: Name · Handle · Time */}
           <div className="tc-header">
             {!post.isAnonymous && post.userId ? (
-              <Link href={`/profile?uid=${post.userId}`} className="tc-author-link" style={{ textDecoration: 'none' }}>
+              <Link href={`/profile/${post.userId}`} className="tc-author-link" style={{ textDecoration: 'none' }}>
                 <span className="tc-display-name hover:underline" style={{ color: 'var(--blog-text-primary)', fontWeight: 700 }}>
                   {displayName(post.authorName)}
                   {post.authorBadges && post.authorBadges.map((badge, idx) => (
@@ -329,20 +330,22 @@ export default function ThreadCard({ post, onVoteUpdate }) {
               {commentCount > 0 && <span className="tc-action-count">{formatCount(commentCount)}</span>}
             </div>
 
-            {/* Like */}
-            <div className={`tc-action-group like ${hasLiked ? 'liked' : ''}`}>
-              <button onClick={handleLike} disabled={liking} className="tc-action-btn" title={hasLiked ? 'Bỏ thích' : 'Thích'}>
-                {hasLiked ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-                  </svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-                  </svg>
-                )}
-              </button>
-              {likeCount > 0 && <span className="tc-action-count">{formatCount(likeCount)}</span>}
+            {/* Reactions */}
+            <div className="tc-action-group like">
+              <ReactionButton
+                reactions={post.reactions || {}}
+                userId={user?.uid}
+                onReact={async (reactionType) => {
+                  if (!user) return toast.error('Vui lòng đăng nhập');
+                  try {
+                    await reactToPost(post.id, user.uid, reactionType);
+                    if (onVoteUpdate) onVoteUpdate();
+                  } catch (err) {
+                    toast.error('Lỗi');
+                  }
+                }}
+                disabled={!user}
+              />
             </div>
 
             {/* Share */}
@@ -366,6 +369,22 @@ export default function ThreadCard({ post, onVoteUpdate }) {
                   <button className="tc-share-option" onClick={handleCopyLink}>
                     <span className="tc-share-option-icon">🔗</span>
                     <span>Sao chép liên kết</span>
+                  </button>
+                  <button className="tc-share-option" onClick={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!user) return toast.error('Vui lòng đăng nhập');
+                    const comment = prompt('Thêm lời nhắn khi chia sẻ lại (tùy chọn):');
+                    if (comment === null) return;
+                    try {
+                      await repostPost(user.uid, user.displayName || user.email?.split('@')[0] || 'Ai đó', post.id, comment || '', user.photoURL || null, []);
+                      toast.success('Đã chia sẻ lại bài viết!');
+                      setShowShare(false);
+                      if (onVoteUpdate) onVoteUpdate();
+                    } catch (err) { toast.error('Lỗi: ' + err.message); }
+                  }}>
+                    <span className="tc-share-option-icon">🔄</span>
+                    <span>Chia sẻ lại (Repost)</span>
                   </button>
                   {typeof navigator !== 'undefined' && navigator.share && (
                     <button className="tc-share-option" onClick={handleNativeShare}>

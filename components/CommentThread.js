@@ -154,7 +154,7 @@ function SingleComment({ comment, postId, depth = 0, onRefresh }) {
     <div className={`ct-comment ${depth > 0 ? 'ct-reply' : ''}`} style={{ '--depth': depth }}>
       <div className="ct-comment-inner">
         {/* Avatar on the left */}
-        <Link href={`/profile?uid=${comment.userId}`} className="ct-avatar-link" style={{ flexShrink: 0, marginTop: '0.2rem', textDecoration: 'none' }}>
+        <Link href={`/profile/${comment.userId}`} className="ct-avatar-link" style={{ flexShrink: 0, marginTop: '0.2rem', textDecoration: 'none' }}>
           <span className="ct-avatar">
             {comment.userAvatar ? (
               <img src={comment.userAvatar} alt={comment.userName} />
@@ -167,7 +167,7 @@ function SingleComment({ comment, postId, depth = 0, onRefresh }) {
         {/* Content on the right */}
         <div className="ct-content">
           <div className="ct-meta">
-            <Link href={`/profile?uid=${comment.userId}`} className="ct-author-link" style={{ textDecoration: 'none' }}>
+            <Link href={`/profile/${comment.userId}`} className="ct-author-link" style={{ textDecoration: 'none' }}>
               <span className="ct-author" style={{ cursor: 'pointer' }}>{comment.userName || 'Ẩn danh'}</span>
             </Link>
             <span className="ct-time">{timeAgo(comment.createdAt)}</span>

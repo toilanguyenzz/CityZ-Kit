@@ -1,0 +1,191 @@
+/* ═══════════════════════════════════════════════════════════
+   REACTION BUTTON & PICKER — CityZ Kit Social
+   ═══════════════════════════════════════════════════════════ */
+
+.reaction-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Main reaction button */
+.reaction-main-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #536471;
+  position: relative;
+}
+
+.reaction-main-btn:hover {
+  background: rgba(249, 24, 128, 0.08);
+  color: #f91880;
+}
+
+.reaction-main-btn.reacted {
+  color: #f91880;
+}
+
+.reaction-main-btn[data-reaction="fire"] { color: #ff6b35; }
+.reaction-main-btn[data-reaction="haha"] { color: #fbbf24; }
+.reaction-main-btn[data-reaction="wow"] { color: #fbbf24; }
+.reaction-main-btn[data-reaction="sad"] { color: #fbbf24; }
+.reaction-main-btn[data-reaction="angry"] { color: #ef4444; }
+
+.reaction-main-emoji {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.reaction-animate .reaction-main-emoji {
+  animation: reactionPop 0.4s ease;
+}
+
+@keyframes reactionPop {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.5); }
+  60% { transform: scale(0.85); }
+  100% { transform: scale(1); }
+}
+
+/* Reaction Summary */
+.reaction-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  cursor: pointer;
+}
+
+.reaction-summary-emoji {
+  font-size: 0.82rem;
+  line-height: 1;
+  margin-left: -2px;
+}
+
+.reaction-summary-emoji:first-child {
+  margin-left: 0;
+}
+
+.reaction-summary-count {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #536471;
+  margin-left: 4px;
+}
+
+/* Reaction Picker Popup */
+.reaction-picker {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  background: #fff;
+  border-radius: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  z-index: 50;
+  animation: pickerIn 0.2s ease;
+  white-space: nowrap;
+}
+
+@keyframes pickerIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.reaction-picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  animation: pickerItemIn 0.25s ease both;
+}
+
+@keyframes pickerItemIn {
+  from {
+    opacity: 0;
+    transform: scale(0) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.reaction-picker-item:hover {
+  background: #f3f4f6;
+  transform: scale(1.25) translateY(-4px);
+}
+
+.reaction-picker-active {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.reaction-picker-emoji {
+  font-size: 1.5rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.reaction-picker-item:hover .reaction-picker-emoji {
+  transform: scale(1.1);
+}
+
+.reaction-picker-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #6b7280;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.reaction-picker-item:hover .reaction-picker-label {
+  opacity: 1;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .reaction-picker {
+    left: 0;
+    transform: translateX(0);
+  }
+
+  @keyframes pickerIn {
+    from {
+      opacity: 0;
+      transform: translateX(0) translateY(8px) scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0) translateY(0) scale(1);
+    }
+  }
+
+  .reaction-picker-emoji {
+    font-size: 1.3rem;
+  }
+}

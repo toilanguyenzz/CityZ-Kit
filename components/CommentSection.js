@@ -143,7 +143,7 @@ function SingleReview({ review, locationId, onRefresh }) {
     <div className="border-b pb-4 last:border-0 pt-3">
       <div className="flex justify-between items-start mb-2">
         <div className="flex items-center gap-3">
-          <Link href={`/profile?uid=${review.userId}`}>
+          <Link href={`/profile/${review.userId}`}>
             {userProfile?.avatarUrl ? (
               <img 
                 src={userProfile.avatarUrl} 
@@ -157,7 +157,7 @@ function SingleReview({ review, locationId, onRefresh }) {
             )}
           </Link>
           <div>
-            <Link href={`/profile?uid=${review.userId}`} className="font-semibold text-gray-900 hover:underline hover:text-blue-600 transition-colors block leading-tight">
+            <Link href={`/profile/${review.userId}`} className="font-semibold text-gray-900 hover:underline hover:text-blue-600 transition-colors block leading-tight">
               {review.userName}
             </Link>
             <div className="flex items-center mt-1">

@@ -116,7 +116,7 @@ export default function LocationCard({ location, averageRating }) {
                 e.preventDefault();
                 e.stopPropagation();
                 if (location.createdBy) {
-                  router.push(`/profile?uid=${location.createdBy}`);
+                  router.push(`/profile/${location.createdBy}`);
                 }
               }}
               className="flex items-center gap-1.5 max-w-[45%] cursor-pointer group/creator hover:opacity-80 transition-opacity"
