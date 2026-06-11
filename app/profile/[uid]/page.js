@@ -213,30 +213,39 @@ export default function PublicProfile() {
                   </div>
                 </div>
 
-                {/* Name + Follow Button */}
-                <div className="pf-name-row" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <h1 className="pf-name">{displayName}</h1>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <FollowButton
-                      currentUser={user}
-                      targetUserId={profileUid}
-                      currentUserName={user?.displayName || user?.email?.split('@')[0] || ''}
-                      currentUserAvatar={null}
-                      size="md"
-                    />
-                    <MessageButton
-                      currentUser={user}
-                      targetUserId={profileUid}
-                      targetUserName={displayName}
-                      size="md"
-                    />
-                    <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 600 }}>
-                      <strong style={{ color: '#111827' }}>{followCounts.followerCount}</strong> người theo dõi
+                {/* Name + Follow/Message Buttons + Followers Count */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+                  
+                  {/* Name and Action Buttons Row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+                    <h1 className="pf-name" style={{ margin: 0 }}>{displayName}</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <FollowButton
+                        currentUser={user}
+                        targetUserId={profileUid}
+                        currentUserName={user?.displayName || user?.email?.split('@')[0] || ''}
+                        currentUserAvatar={null}
+                        size="md"
+                      />
+                      <MessageButton
+                        currentUser={user}
+                        targetUserId={profileUid}
+                        targetUserName={displayName}
+                        size="md"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Followers / Following Stats Row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+                    <span style={{ fontSize: '0.9rem', color: '#4b5563' }}>
+                      <strong style={{ color: '#111827', fontSize: '1rem', fontWeight: 700 }}>{followCounts.followerCount}</strong> người theo dõi
                     </span>
-                    <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 600 }}>
-                      <strong style={{ color: '#111827' }}>{followCounts.followingCount}</strong> đang theo dõi
+                    <span style={{ fontSize: '0.9rem', color: '#4b5563' }}>
+                      <strong style={{ color: '#111827', fontSize: '1rem', fontWeight: 700 }}>{followCounts.followingCount}</strong> đang theo dõi
                     </span>
                   </div>
+
                 </div>
               </div>
 
