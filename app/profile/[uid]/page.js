@@ -25,6 +25,7 @@ import TasteDNA from '@/components/TasteDNA';
 import SharedVibes from '@/components/SharedVibes';
 import MilestoneTimeline from '@/components/MilestoneTimeline';
 import FollowButton from '@/components/FollowButton';
+import MessageButton from '@/components/MessageButton';
 import toast from 'react-hot-toast';
 
 const ALL_BADGES = [
@@ -221,6 +222,12 @@ export default function PublicProfile() {
                       targetUserId={profileUid}
                       currentUserName={user?.displayName || user?.email?.split('@')[0] || ''}
                       currentUserAvatar={null}
+                      size="md"
+                    />
+                    <MessageButton
+                      currentUser={user}
+                      targetUserId={profileUid}
+                      targetUserName={displayName}
                       size="md"
                     />
                     <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 600 }}>

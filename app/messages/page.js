@@ -12,6 +12,7 @@ const TYPES = {
   study_buddy: { label: 'Tìm bạn cùng học', icon: '📚', gradient: 'from-blue-400 to-indigo-500' },
   hobby: { label: 'Tìm bạn cùng sở thích', icon: '🎯', gradient: 'from-purple-400 to-pink-500' },
   marketplace: { label: 'Mua bán sản phẩm', icon: '🛍️', gradient: 'from-orange-400 to-red-500' },
+  direct: { label: 'Trò chuyện trực tiếp', icon: '💬', gradient: 'from-teal-400 to-cyan-500' },
 };
 
 function timeAgo(timestamp) {
@@ -60,6 +61,9 @@ export default function GlobalConversationsPage() {
     if (statusFilter !== 'all' && c.status !== statusFilter) return false;
     
     // 2. Type Filter
+    if (typeFilter === 'direct') {
+      return c.requestType === 'direct';
+    }
     if (typeFilter === 'buddy') {
       return ['roommate', 'study_buddy', 'hobby'].includes(c.requestType);
     }
@@ -93,6 +97,7 @@ export default function GlobalConversationsPage() {
           <div className="flex gap-2 mb-4 bg-white p-1 rounded-xl border border-gray-100 shadow-sm">
             {[
               { key: 'all', label: 'Tất cả', emoji: '💬' },
+              { key: 'direct', label: 'Trực tiếp', emoji: '💌' },
               { key: 'buddy', label: 'Tìm bạn đồng hành', emoji: '🤝' },
               { key: 'market', label: 'Chợ đồ cũ', emoji: '🛍️' },
             ].map(tf => (
@@ -217,9 +222,11 @@ export default function GlobalConversationsPage() {
                             {typeInfo.icon} {conv.requestTitle}
                           </span>
                           <span className={`text-[9px] px-1 py-0.2 rounded font-bold uppercase ${
-                            conv.requestType === 'marketplace' ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'
+                            conv.requestType === 'marketplace' ? 'bg-orange-50 text-orange-600' :
+                            conv.requestType === 'direct' ? 'bg-teal-50 text-teal-600' : 'bg-blue-50 text-blue-600'
                           }`}>
-                            {conv.requestType === 'marketplace' ? 'Chợ đồ cũ' : 'Tìm Bạn'}
+                            {conv.requestType === 'marketplace' ? 'Chợ đồ cũ' :
+                             conv.requestType === 'direct' ? 'Trực tiếp' : 'Tìm Bạn'}
                           </span>
                         </div>
                         <p className={`text-sm truncate ${unread > 0 ? 'text-gray-800 font-semibold' : 'text-gray-500'}`}>

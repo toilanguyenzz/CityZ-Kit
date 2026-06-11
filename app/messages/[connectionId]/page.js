@@ -15,6 +15,7 @@ const TYPES = {
   study_buddy: { label: 'Tìm bạn cùng học', icon: '📚', color: 'bg-blue-100 text-blue-700' },
   hobby: { label: 'Tìm bạn cùng sở thích', icon: '🎯', color: 'bg-purple-100 text-purple-700' },
   marketplace: { label: 'Mua bán sản phẩm', icon: '🛍️', color: 'bg-orange-100 text-orange-700' },
+  direct: { label: 'Trò chuyện trực tiếp', icon: '💬', color: 'bg-teal-100 text-teal-700' },
 };
 
 function formatTime(timestamp) {
