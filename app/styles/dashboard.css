@@ -952,3 +952,93 @@
   }
 }
 
+/* ── Tabs & Sidebar Visual Upgrades ──────────────────── */
+.db-tabs-container {
+  display: flex;
+  background: rgba(241, 245, 249, 0.85);
+  padding: 4px;
+  border-radius: 1rem;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  gap: 4px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  max-width: fit-content;
+}
+
+.db-tab-btn {
+  padding: 0.6rem 1.25rem;
+  border-radius: 0.75rem;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.db-tab-btn:hover {
+  color: #1e293b;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.db-tab-btn--active {
+  background: #ffffff;
+  color: #4f46e5;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+/* Sidebar sticky top alignment */
+@media (min-width: 1024px) {
+  .lg\:col-span-1 {
+    position: sticky;
+    top: 80px;
+    height: max-content;
+  }
+}
+
+/* Glassmorphism sidebar containers */
+.lg\:col-span-1 > div {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(241, 245, 249, 0.8);
+  box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.03), 0 8px 10px -6px rgba(79, 70, 229, 0.03);
+}
+
+/* Taste DNA embedded wrapper custom styles to override full profile style */
+.lg\:col-span-1 .taste-dna-wrap {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.lg\:col-span-1 .taste-dna-content {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+.lg\:col-span-1 .taste-dna-title-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.lg\:col-span-1 .taste-dna-personality {
+  font-size: 0.95rem !important;
+  background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  font-weight: 800 !important;
+}
+
+.lg\:col-span-1 .taste-dna-svg {
+  filter: drop-shadow(0 4px 12px rgba(99, 102, 241, 0.08));
+}
+

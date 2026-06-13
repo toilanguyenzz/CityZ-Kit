@@ -1,6 +1,7 @@
 'use client';
 
 import '@/app/styles/dashboard.css';
+import '@/app/styles/blog.css';
 import Navbar from '@/components/Navbar';
 import LocationCard from '@/components/LocationCard';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -11,11 +12,14 @@ import { db, auth, onAuthStateChanged } from '@/lib/firebase';
 import { getUserStats, calculateXPFromStats, getLevelFromXP, computeTasteDNA, updateUserProfile } from '@/lib/firestore';
 import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
+import TasteDNA from '@/components/TasteDNA';
+import ThreadCard from '@/components/ThreadCard';
 
 const LocketCameraModal = dynamic(() => import('@/components/LocketCameraModal'), { ssr: false });
 const ProductTour = dynamic(() => import('@/components/ProductTour'), { ssr: false });
 const ParticleBackground = dynamic(() => import('@/components/ParticleBackground'), { ssr: false });
 const AnimatedCounter = dynamic(() => import('@/components/AnimatedCounter'), { ssr: false });
+const SafetyMap = dynamic(() => import('@/components/SafetyMap'), { ssr: false });
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -93,6 +97,16 @@ export default function Dashboard() {
   const [tasteDNA, setTasteDNA] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // New tab and feed states
+  const [activeTab, setActiveTab] = useState('places');
+  const [posts, setPosts] = useState([]);
+  const [warningZones, setWarningZones] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [zonesLoading, setZonesLoading] = useState(true);
+  const [userLocations, setUserLocations] = useState([]);
+  const [userPosts, setUserPosts] = useState([]);
+  const [userReviews, setUserReviews] = useState([]);
+
   // Onboarding states
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [obStep, setObStep] = useState(0); // 0: Welcome, 1: Uni, 2: District, 3: Budget, 4: Food, 5: Finish
@@ -155,6 +169,39 @@ export default function Dashboard() {
     if (locations.length > 0) fetchTaste(currentUser.uid);
   }, [currentUser, locations]);
 
+  useEffect(() => {
+    fetchPosts();
+    fetchWarningZones();
+  }, []);
+
+  const fetchPosts = async () => {
+    setPostsLoading(true);
+    try {
+      const q = query(
+        collection(db, 'posts'),
+        orderBy('createdAt', 'desc')
+      );
+      const snap = await getDocs(q);
+      setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.status === 'approved' || !p.status));
+    } catch (err) {
+      console.error('Lỗi khi tải bài viết:', err);
+    } finally {
+      setPostsLoading(false);
+    }
+  };
+
+  const fetchWarningZones = async () => {
+    setZonesLoading(true);
+    try {
+      const snap = await getDocs(query(collection(db, 'warningZones'), orderBy('createdAt', 'desc')));
+      setWarningZones(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error('Lỗi khi tải cảnh báo:', err);
+    } finally {
+      setZonesLoading(false);
+    }
+  };
+
   const fetchLocations = async () => {
     try {
       const snap = await getDocs(query(collection(db, 'locations'), orderBy('createdAt', 'desc')));
@@ -181,12 +228,15 @@ export default function Dashboard() {
         getDocs(query(collection(db, 'posts'), where('userId', '==', uid))),
         getDocs(query(collection(db, 'reviews'), where('userId', '==', uid))),
       ]);
-      setTasteDNA(computeTasteDNA(
-        l.docs.map(d => ({ id: d.id, ...d.data() })),
-        p.docs.map(d => ({ id: d.id, ...d.data() })),
-        r.docs.map(d => ({ id: d.id, ...d.data() })),
-        locations
-      ));
+      const lData = l.docs.map(d => ({ id: d.id, ...d.data() }));
+      const pData = p.docs.map(d => ({ id: d.id, ...d.data() }));
+      const rData = r.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      setUserLocations(lData);
+      setUserPosts(pData);
+      setUserReviews(rData);
+
+      setTasteDNA(computeTasteDNA(lData, pData, rData, locations));
     } catch (e) { console.error(e); }
   };
 
@@ -263,7 +313,16 @@ export default function Dashboard() {
   };
 
   const personalizedRecs = useMemo(() => {
-    if (!userData || !userData.onboarded || !userData.targetDistrict || locations.length === 0) return [];
+    if (locations.length === 0) return [];
+    
+    // Fallback if not onboarded: HCMC highest rated spots
+    if (!userData || !userData.onboarded || !userData.targetDistrict) {
+      return locations
+        .filter(l => l.status === 'approved' || !l.status)
+        .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
+        .slice(0, 4);
+    }
+
     const dist = userData.targetDistrict || '';
     const foods = userData.foodPreferences || [];
     
@@ -397,239 +456,369 @@ export default function Dashboard() {
               <span className="cmd-greeting-name">{firstName}</span>!
             </p>
             <p className="cmd-greeting-sub">Hôm nay bạn muốn khám phá gì?</p>
-
-            <div className="cmd-actions">
-              {QUICK_ACTIONS.map((a, i) =>
-                a.href ? (
-                  <Link key={i} href={a.href} className="cmd-action">
-                    <span className="cmd-action-emoji">{a.emoji}</span>
-                    {a.label}
-                  </Link>
-                ) : (
-                  <button key={i} onClick={() => handleQuickAction(a)} className="cmd-action">
-                    <span className="cmd-action-emoji">{a.emoji}</span>
-                    {a.label}
-                  </button>
-                )
-              )}
-            </div>
           </div>
         </div>
 
-        {/* ═══ 2. STATS ═══ */}
-        <div className="cmd-stats db-fade-in db-fade-in-1">
-          <div className="max-w-6xl mx-auto px-4 py-2">
-            <div className="cmd-stats-row">
-              {totalActivity > 0 ? (
-                <>
-                  {levelInfo && (
-                    <div className="cmd-chip cmd-chip--level">
-                      <span className="cmd-chip-icon">{levelInfo.icon}</span>
-                      <span className="cmd-chip-val">Lv.<AnimatedCounter target={levelInfo.level} duration={800} /></span>
-                      <span className="cmd-chip-lbl">{levelInfo.name}</span>
-                      <div className="cmd-lvl-bar"><div className="cmd-lvl-fill" style={{ width: `${levelInfo.progress}%` }} /></div>
-                    </div>
-                  )}
-                  <Link href="/profile" className="cmd-chip">
-                    <span className="cmd-chip-icon">🏆</span>
-                    <span className="cmd-chip-val"><AnimatedCounter target={badgeCount} duration={900} /></span>
-                    <span className="cmd-chip-lbl">badges</span>
-                  </Link>
-                  <div className="cmd-chip">
-                    <span className="cmd-chip-icon">⭐</span>
-                    <span className="cmd-chip-val"><AnimatedCounter target={userStats.reviewCount} duration={1000} /></span>
-                    <span className="cmd-chip-lbl">reviews</span>
-                  </div>
-                  <div className="cmd-chip">
-                    <span className="cmd-chip-icon">📍</span>
-                    <span className="cmd-chip-val"><AnimatedCounter target={userStats.locationCount} duration={1100} /></span>
-                    <span className="cmd-chip-lbl">địa điểm</span>
-                  </div>
-                  <div className="cmd-chip">
-                    <span className="cmd-chip-icon">📝</span>
-                    <span className="cmd-chip-val"><AnimatedCounter target={userStats.postCount} duration={1200} /></span>
-                    <span className="cmd-chip-lbl">bài viết</span>
-                  </div>
-                  {tasteDNA?.total > 0 && (
-                    <Link href="/profile" className="cmd-chip cmd-chip--taste">
-                      <span className="cmd-chip-icon">🧬</span>
-                      <span className="cmd-chip-val">{tasteDNA.personalityTitle}</span>
-                    </Link>
-                  )}
-                </>
-              ) : (
-                <Link href="/add-location" className="cmd-chip cmd-chip--cta">
-                  <span className="cmd-chip-icon">🎯</span>
-                  <span className="cmd-chip-val">Bắt đầu hành trình — thêm địa điểm đầu tiên!</span>
-                  <span style={{ fontSize: '0.7rem', color: '#3b82f6' }}>→</span>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ═══ GỢI Ý CÁ NHÂN HÓA ONBOARDING ═══ */}
-        {userData?.onboarded && personalizedRecs.length > 0 && (
-          <div className="cmd-personalized-section py-5 border-b border-gray-100/90 db-fade-in db-fade-in-2">
-            <div className="max-w-6xl mx-auto px-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="personal-rec-badge">✨ Dành riêng cho bạn</span>
-                  <span className="text-xs text-gray-500 font-medium">Đề xuất dựa trên trường & quận bạn chọn</span>
-                </div>
-                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                  {userData.university} · {userData.targetDistrict}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {personalizedRecs.map(loc => (
-                  <LocationCard key={loc.id} location={loc} averageRating={getAvgRating(loc.reviews)} />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ═══ 3. STORIES ═══ */}
-        <div className="bg-white border-b border-gray-100/90 shadow-sm db-fade-in db-fade-in-2 relative z-20">
-          <div className="max-w-6xl mx-auto px-4 py-3">
-            <div className="cmd-header">
-              <span className="cmd-title">⚡ Khoảnh khắc Sinh viên
-                <span className="flex items-center gap-1 bg-rose-50 text-rose-600 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border border-rose-100 ml-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 live-dot-ping"></span>Live
-                </span>
-              </span>
-              <Link href="/shorts" className="cmd-link">Xem tất cả →</Link>
-            </div>
-            <div className="stories-strip flex gap-3.5 overflow-x-auto pb-1 pt-0.5">
-              <button onClick={() => setShowCameraModal(true)} className="flex flex-col items-center gap-1.5 flex-shrink-0 story-add-button group">
-                <div className="relative w-16 h-16 rounded-full story-add-gradient flex items-center justify-center story-add-ring">
-                  <span className="text-2xl camera-emoji">📸</span>
-                  <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black border-2 border-white shadow-md transition-transform group-hover:scale-110">+</div>
-                </div>
-                <span className="text-[10px] font-bold text-gray-500 group-hover:text-indigo-600 transition-colors">Chụp ngay</span>
-              </button>
-              {locketCheckIns.length === 0 ? (
-                <div className="flex items-center text-gray-400 text-xs italic px-4">Chưa có check-in nào 🎉</div>
-              ) : locketCheckIns.map(loc => {
-                const avatar = loc.createdByAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(loc.createdByName || 'U')}&background=6366f1&color=fff&size=64`;
-                return (
-                  <Link key={loc.id} href={`/shorts?activeId=${loc.id}`} className="flex flex-col items-center gap-1.5 flex-shrink-0 story-item">
-                    <div className="relative w-16 h-16 rounded-full p-0.5 story-neon-ring">
-                      <div className="w-full h-full rounded-full overflow-hidden border-2 border-white bg-gray-50">
-                        <img src={loc.imageUrl} alt={loc.name} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border-2 border-white overflow-hidden bg-white shadow-md">
-                        <img src={avatar} alt="" className="w-full h-full object-cover" />
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-600 max-w-[68px] truncate text-center">{loc.name}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* ═══ 4. TRENDING — Clean numbered list ═══ */}
-        {trendingItems.length > 0 && (
-          <div className="cmd-trending db-fade-in db-fade-in-3">
-            <div className="max-w-6xl mx-auto px-4 py-3">
-              <div className="cmd-header">
-                <span className="cmd-title">🔥 Trending hôm nay</span>
-              </div>
-              <div className="cmd-trend-list">
-                {trendingItems.map((item, i) => (
-                  <Link key={i} href={item.href} className="cmd-trend-item">
-                    <span className={`cmd-trend-num ${i === 0 ? 'cmd-trend-num--hot' : i === 1 ? 'cmd-trend-num--warm' : ''}`}>
-                      {String(i + 1).padStart(2, '0')}
+        {/* Main 2-Column Layout Container */}
+        <div className="max-w-6xl mx-auto px-4 py-6 relative z-20">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* LEFT COLUMN: Main content & tabs (lg:col-span-2) */}
+            <div className="lg:col-span-2 space-y-6">
+              
+              {/* STORIES / LOCKET QUICK CHECK-IN */}
+              <div className="bg-white/80 backdrop-blur border border-gray-100/60 rounded-2xl p-4 shadow-sm">
+                <div className="cmd-header mb-3">
+                  <span className="cmd-title">⚡ Khoảnh khắc Sinh viên
+                    <span className="flex items-center gap-1 bg-rose-50 text-rose-600 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border border-rose-100 ml-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 live-dot-ping"></span>Live
                     </span>
-                    <span className={`cmd-trend-dot cmd-trend-dot--${item.type}`} />
-                    <div className="cmd-trend-body">
-                      <div className="cmd-trend-title">{item.title}</div>
-                      <div className="cmd-trend-meta">{item.meta}</div>
+                  </span>
+                  <Link href="/shorts" className="cmd-link">Xem tất cả →</Link>
+                </div>
+                <div className="stories-strip flex gap-3.5 overflow-x-auto pb-1 pt-0.5">
+                  <button onClick={() => setShowCameraModal(true)} className="flex flex-col items-center gap-1.5 flex-shrink-0 story-add-button group">
+                    <div className="relative w-16 h-16 rounded-full story-add-gradient flex items-center justify-center story-add-ring">
+                      <span className="text-2xl camera-emoji">📸</span>
+                      <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black border-2 border-white shadow-md transition-transform group-hover:scale-110">+</div>
                     </div>
-                    <span className={`cmd-trend-tag cmd-trend-tag--${item.type}`}>{item.tag}</span>
-                    <span className="cmd-trend-arrow">›</span>
-                  </Link>
-                ))}
+                    <span className="text-[10px] font-bold text-gray-500 group-hover:text-indigo-600 transition-colors">Chụp ngay</span>
+                  </button>
+                  {locketCheckIns.length === 0 ? (
+                    <div className="flex items-center text-gray-400 text-xs italic px-4">Chưa có check-in nào 🎉</div>
+                  ) : locketCheckIns.map(loc => {
+                    const avatar = loc.createdByAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(loc.createdByName || 'U')}&background=6366f1&color=fff&size=64`;
+                    return (
+                      <Link key={loc.id} href={`/shorts?activeId=${loc.id}`} className="flex flex-col items-center gap-1.5 flex-shrink-0 story-item">
+                        <div className="relative w-16 h-16 rounded-full p-0.5 story-neon-ring">
+                          <div className="w-full h-full rounded-full overflow-hidden border-2 border-white bg-gray-50">
+                            <img src={loc.imageUrl} alt={loc.name} className="w-full h-full object-cover" />
+                          </div>
+                          <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border-2 border-white overflow-hidden bg-white shadow-md">
+                            <img src={avatar} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-gray-600 max-w-[68px] truncate text-center">{loc.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* ═══ 5. SEARCH + FILTERS ═══ */}
-        <div ref={gridRef} className="db-sticky-toolbar bg-white/95 border-b border-gray-100/80 db-fade-in db-fade-in-4">
-          <div className="max-w-6xl mx-auto px-4 py-3">
-            <div className="mb-2.5">
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input type="text" className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all" placeholder="Tìm quán ăn, cafe, nhà trọ..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="flex gap-2 overflow-x-auto pb-2 mb-2.5" style={{ scrollbarWidth: 'none' }}>
-              {[
-                { val: districtFilter, set: setDistrictFilter, opts: [['All','📍 Tất cả quận'],['Quận 1','Q.1'],['Quận 2','Q.2'],['Quận 3','Q.3'],['Quận 4','Q.4'],['Quận 5','Q.5'],['Quận 6','Q.6'],['Quận 7','Q.7'],['Quận 8','Q.8'],['Quận 9','Q.9'],['Quận 10','Q.10'],['Quận 11','Q.11'],['Quận 12','Q.12'],['Bình Thạnh','B.Thạnh'],['Gò Vấp','G.Vấp'],['Phú Nhuận','P.Nhuận'],['Tân Bình','T.Bình'],['Tân Phú','T.Phú'],['Bình Tân','B.Tân'],['Thủ Đức','T.Đức'],['Bình Chánh','B.Chánh'],['Hóc Môn','H.Môn'],['Củ Chi','C.Chi'],['Nhà Bè','N.Bè'],['Cần Giờ','C.Giờ']] },
-                { val: ratingFilter, set: setRatingFilter, opts: [['All','⭐ Sao'],['4.5','4.5+'],['4.0','4.0+'],['3.0','3.0+']] },
-                { val: videoFilter, set: setVideoFilter, opts: [['All','🎞️ Tất cả'],['video','🎬 Video']] },
-                { val: sortBy, set: setSortBy, opts: [['newest','🕐 Mới nhất'],['rating','⭐ Rating'],['reviews','💬 Reviews']] },
-              ].map((sel, i) => (
-                <select key={i} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-xs font-semibold text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all appearance-none flex-shrink-0" value={sel.val} onChange={e => sel.set(e.target.value)}
-                  style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat', backgroundSize: '12px', paddingRight: '26px' }}>
-                  {sel.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-              ))}
-            </div>
-
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
-              {categories.map(cat => (
-                <button key={cat.key} onClick={() => setFilter(cat.key)}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 border ${
-                    filter === cat.key
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
-                  }`}>
-                  <span className="text-sm">{cat.emoji}</span>{cat.label}
+              {/* TAB SWITCHER */}
+              <div className="db-tabs-container">
+                <button 
+                  onClick={() => setActiveTab('places')}
+                  className={`db-tab-btn ${activeTab === 'places' ? 'db-tab-btn--active' : ''}`}
+                >
+                  📍 Khám phá
                 </button>
-              ))}
+                <button 
+                  onClick={() => setActiveTab('feed')}
+                  className={`db-tab-btn ${activeTab === 'feed' ? 'db-tab-btn--active' : ''}`}
+                >
+                  💬 Diễn đàn
+                </button>
+                <button 
+                  onClick={() => setActiveTab('map')}
+                  className={`db-tab-btn ${activeTab === 'map' ? 'db-tab-btn--active' : ''}`}
+                >
+                  🛰️ Bản đồ an toàn
+                </button>
+              </div>
+
+              {/* TAB CONTENT: PLACES */}
+              {activeTab === 'places' && (
+                <div className="space-y-6">
+                  {/* SEARCH + FILTERS */}
+                  <div className="bg-white/80 backdrop-blur border border-gray-100/60 rounded-2xl p-4 shadow-sm space-y-3">
+                    <div className="relative">
+                      <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <input type="text" className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all" placeholder="Tìm quán ăn, cafe, nhà trọ..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                    </div>
+
+                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                      {[
+                        { val: districtFilter, set: setDistrictFilter, opts: [['All','📍 Tất cả quận'],['Quận 1','Q.1'],['Quận 2','Q.2'],['Quận 3','Q.3'],['Quận 4','Q.4'],['Quận 5','Q.5'],['Quận 6','Q.6'],['Quận 7','Q.7'],['Quận 8','Q.8'],['Quận 9','Q.9'],['Quận 10','Q.10'],['Quận 11','Q.11'],['Quận 12','Q.12'],['Bình Thạnh','B.Thạnh'],['Gò Vấp','G.Vấp'],['Phú Nhuận','P.Nhuận'],['Tân Bình','T.Bình'],['Tân Phú','T.Phú'],['Bình Tân','B.Tân'],['Thủ Đức','T.Đức'],['Bình Chánh','B.Chánh'],['Hóc Môn','H.Môn'],['Củ Chi','C.Chi'],['Nhà Bè','N.Bè'],['Cần Giờ','C.Giờ']] },
+                        { val: ratingFilter, set: setRatingFilter, opts: [['All','⭐ Sao'],['4.5','4.5+'],['4.0','4.0+'],['3.0','3.0+']] },
+                        { val: videoFilter, set: setVideoFilter, opts: [['All','🎞️ Tất cả'],['video','🎬 Video']] },
+                        { val: sortBy, set: setSortBy, opts: [['newest','🕐 Mới nhất'],['rating','⭐ Rating'],['reviews','💬 Reviews']] },
+                      ].map((sel, i) => (
+                        <select key={i} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-xs font-semibold text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all appearance-none flex-shrink-0" value={sel.val} onChange={e => sel.set(e.target.value)}
+                          style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat', backgroundSize: '12px', paddingRight: '26px' }}>
+                          {sel.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-1.5 overflow-x-auto pt-1 pb-0.5" style={{ scrollbarWidth: 'none' }}>
+                      {categories.map(cat => (
+                        <button key={cat.key} onClick={() => setFilter(cat.key)}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 border ${
+                            filter === cat.key
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200'
+                              : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                          }`}>
+                          <span className="text-sm">{cat.emoji}</span>{cat.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* PERSONALIZED RECS */}
+                  <div className="bg-white/80 backdrop-blur border border-gray-100/60 rounded-2xl p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className="personal-rec-badge">✨ Gợi ý cho bạn</span>
+                        <span className="text-[10px] text-gray-400 font-semibold tracking-wide">
+                          {userData?.onboarded ? 'Dựa trên trường & quận bạn chọn' : 'Điểm chất lượng khuyên dùng'}
+                        </span>
+                      </div>
+                      {userData?.onboarded ? (
+                        <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">
+                          {userData.university} · {userData.targetDistrict}
+                        </span>
+                      ) : (
+                        <button 
+                          onClick={() => setShowOnboarding(true)} 
+                          className="text-[11px] font-bold text-indigo-600 hover:underline bg-transparent border-none cursor-pointer"
+                        >
+                          Thiết lập gu ngay →
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {personalizedRecs.map(loc => (
+                        <LocationCard key={loc.id} location={loc} averageRating={getAvgRating(loc.reviews)} />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* MAIN PLACES GRID */}
+                  <div className="bg-white/80 backdrop-blur border border-gray-100/60 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-gray-800">📍 Khám phá TP.HCM</p>
+                        <span className="cmd-verified">✓ Verified</span>
+                        <span className="text-xs text-gray-400 font-medium">
+                          · {processed.length} địa điểm
+                        </span>
+                      </div>
+                      {filter !== 'All' && (
+                        <button onClick={() => setFilter('All')} className="text-xs text-indigo-600 font-semibold hover:text-indigo-800 transition-colors">Xóa lọc ✕</button>
+                      )}
+                    </div>
+
+                    {processed.length === 0 ? (
+                      <div className="text-center py-16">
+                        <div className="text-5xl mb-4">{searchQuery.trim() ? '🔍' : '📍'}</div>
+                        <h3 className="text-lg font-bold text-gray-700 mb-1">{searchQuery.trim() ? 'Không tìm thấy kết quả' : 'Chưa có địa điểm nào'}</h3>
+                        <p className="text-sm text-gray-400 mb-4">{searchQuery.trim() ? 'Thử thay đổi từ khóa' : 'Hãy là người đầu tiên!'}</p>
+                        {!searchQuery.trim() && (
+                          <Link href="/add-location" className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors shadow-sm">➕ Thêm địa điểm</Link>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                        {processed.map(loc => <LocationCard key={loc.id} location={loc} averageRating={getAvgRating(loc.reviews)} />)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB CONTENT: DISCUSSION/FEED */}
+              {activeTab === 'feed' && (
+                <div className="bg-white/80 backdrop-blur border border-gray-100/60 rounded-2xl p-5 shadow-sm space-y-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-sm font-bold text-gray-800">💬 Diễn đàn thảo luận sinh viên</h3>
+                    <Link href="/blog/create" className="text-xs font-bold text-indigo-600 hover:underline">
+                      ✍️ Viết bài mới
+                    </Link>
+                  </div>
+                  {postsLoading ? (
+                    <div className="flex justify-center py-10">
+                      <div className="db-spinner"></div>
+                    </div>
+                  ) : posts.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400">
+                      <p className="text-4xl mb-2">💬</p>
+                      <p className="text-sm font-medium">Chưa có bài viết nào trên diễn đàn.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {posts.slice(0, 15).map(post => (
+                        <ThreadCard key={post.id} post={post} onVoteUpdate={fetchPosts} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB CONTENT: SAFETY MAP */}
+              {activeTab === 'map' && (
+                <div className="bg-white/80 backdrop-blur border border-gray-100/60 rounded-2xl p-5 shadow-sm space-y-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-800">🛰️ Bản đồ cảnh báo an toàn sinh tồn</h3>
+                    <p className="text-xs text-gray-500 mt-1">Các điểm nóng lừa đảo thuê trọ, dàn cảnh, trộm cắp được sinh viên xác thực.</p>
+                  </div>
+                  {zonesLoading ? (
+                    <div className="flex justify-center py-10">
+                      <div className="db-spinner"></div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl overflow-hidden border border-gray-100 shadow-inner">
+                      <SafetyMap zones={warningZones} mode="view" />
+                    </div>
+                  )}
+                  <div className="p-3.5 bg-amber-50 border border-amber-100 rounded-xl text-xs text-amber-800 leading-relaxed">
+                    💡 <strong>Cảnh giác:</strong> Bạn phát hiện điểm lừa đảo hoặc nguy hiểm khác quanh trường? Hãy chuyển đến mục <Link href="/safety" className="font-bold underline text-amber-900">An toàn</Link> để báo cáo và bảo vệ cộng đồng nhé!
+                  </div>
+                </div>
+              )}
+
+            </div>
+            
+            {/* RIGHT COLUMN: Sidebar widgets (lg:col-span-1) */}
+            <div className="lg:col-span-1 space-y-6">
+              
+              {/* WIDGET 1: USER STATS & LEVEL */}
+              <div className="bg-white/80 backdrop-blur border border-gray-100/60 rounded-2xl p-5 shadow-sm space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full overflow-hidden bg-indigo-50 border-2 border-indigo-100 flex items-center justify-center text-lg shadow-sm">
+                    {userData?.avatarUrl ? (
+                      <img src={userData.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span>🎓</span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-bold text-gray-800 truncate">{userData?.name || 'Sinh viên ẩn danh'}</h4>
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">{userData?.university || 'Chưa cập nhật trường'}</p>
+                  </div>
+                </div>
+
+                {/* Level info */}
+                {userStats && levelInfo ? (
+                  <div className="p-3 bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-100 rounded-xl space-y-2">
+                    <div className="flex justify-between items-center text-xs font-bold text-amber-800">
+                      <span>{levelInfo.icon} Cấp độ {levelInfo.level}</span>
+                      <span>{levelInfo.name}</span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-200/60 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" style={{ width: `${levelInfo.progress}%` }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-amber-700/80 font-medium">
+                      <span>{userStats.xp || 0} XP</span>
+                      <span>Tiến trình: {levelInfo.progress}%</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-2 text-xs text-gray-400 italic">Đang tải thông số cấp độ...</div>
+                )}
+
+                {/* Stats grid */}
+                {userStats && (
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="p-2 bg-gray-50 border border-gray-100 rounded-xl">
+                      <span className="block text-[10px] text-gray-400 font-medium mb-0.5">Reviews</span>
+                      <span className="text-sm font-extrabold text-gray-700">{userStats.reviewCount || 0}</span>
+                    </div>
+                    <div className="p-2 bg-gray-50 border border-gray-100 rounded-xl">
+                      <span className="block text-[10px] text-gray-400 font-medium mb-0.5">Địa điểm</span>
+                      <span className="text-sm font-extrabold text-gray-700">{userStats.locationCount || 0}</span>
+                    </div>
+                    <div className="p-2 bg-gray-50 border border-gray-100 rounded-xl">
+                      <span className="block text-[10px] text-gray-400 font-medium mb-0.5">Bài viết</span>
+                      <span className="text-sm font-extrabold text-gray-700">{userStats.postCount || 0}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* WIDGET 2: SPOTIFY-WRAPPED STYLE TASTE DNA */}
+              <div className="bg-white/80 backdrop-blur border border-gray-100/60 rounded-2xl p-5 shadow-sm space-y-4 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full filter blur-xl pointer-events-none" />
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">🧬 Gu ẩm thực & cá tính</h4>
+                  {tasteDNA && tasteDNA.total > 0 && (
+                    <button 
+                      onClick={() => {
+                        const shareText = `🧬 Mình vừa khám phá ra Cá Tính Ẩm Thực của mình tại TP.HCM: "${tasteDNA.personalityTitle}". Khám phá cẩm nang sinh tồn sinh viên và vẽ Taste DNA của bạn tại CityZ Kit!`;
+                        navigator.clipboard.writeText(shareText);
+                        toast.success('Đã copy gu cá tính để chia sẻ! 🧬');
+                      }}
+                      className="text-[10px] font-bold text-white bg-gradient-to-r from-indigo-500 to-indigo-600 px-2.5 py-1 rounded-full border-none shadow-sm hover:scale-105 transition-transform cursor-pointer"
+                    >
+                      Chia sẻ Gu
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex justify-center py-2 bg-gray-50/50 rounded-xl border border-gray-100">
+                  <TasteDNA 
+                    locations={userLocations} 
+                    posts={userPosts} 
+                    reviews={userReviews} 
+                    allLocations={locations} 
+                    compact={true} 
+                  />
+                </div>
+              </div>
+
+              {/* WIDGET 3: QUICK ACTIONS */}
+              <div className="bg-white/80 backdrop-blur border border-gray-100/60 rounded-2xl p-5 shadow-sm space-y-3">
+                <h4 className="text-sm font-bold text-gray-800">⚡ Tiện ích nhanh</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {QUICK_ACTIONS.map((a, i) => (
+                    a.href ? (
+                      <Link key={i} href={a.href} className="flex items-center gap-2 p-2.5 bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-100 rounded-xl transition-all no-underline text-inherit group">
+                        <span className="text-lg group-hover:scale-110 transition-transform">{a.emoji}</span>
+                        <span className="text-xs font-semibold text-gray-700">{a.label}</span>
+                      </Link>
+                    ) : (
+                      <button key={i} onClick={() => handleQuickAction(a)} className="flex items-center gap-2 p-2.5 bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-100 rounded-xl transition-all text-left border-none cursor-pointer group w-full">
+                        <span className="text-lg group-hover:scale-110 transition-transform">{a.emoji}</span>
+                        <span className="text-xs font-semibold text-gray-700">{a.label}</span>
+                      </button>
+                    )
+                  ))}
+                </div>
+              </div>
+
+              {/* WIDGET 4: TWITTER-STYLE TRENDING */}
+              {trendingItems.length > 0 && (
+                <div className="bg-white/80 backdrop-blur border border-gray-100/60 rounded-2xl p-5 shadow-sm space-y-3">
+                  <h4 className="text-sm font-bold text-gray-800">🔥 Xu hướng hôm nay</h4>
+                  <div className="space-y-2">
+                    {trendingItems.map((item, i) => (
+                      <Link key={i} href={item.href} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded-xl transition-colors no-underline text-inherit group">
+                        <span className={`text-xs font-black w-5 text-center mt-0.5 ${i === 0 ? 'text-rose-500' : i === 1 ? 'text-orange-500' : 'text-gray-300'}`}>
+                          {String(i + 1).padStart(2, '0')}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-gray-700 group-hover:text-indigo-600 transition-colors truncate">{item.title}</p>
+                          <span className="text-[10px] text-gray-400 font-medium">{item.meta}</span>
+                        </div>
+                        <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md flex-shrink-0 ${
+                          item.type === 'post' ? 'bg-blue-50 text-blue-600' :
+                          item.type === 'safety' ? 'bg-amber-50 text-amber-600' :
+                          item.type === 'buddy' ? 'bg-emerald-50 text-emerald-600' :
+                          'bg-purple-50 text-purple-600'
+                        }`}>
+                          {item.tag}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         </div>
-
-        {/* ═══ 6. GRID ═══ */}
-        <main className="max-w-6xl mx-auto px-4 pt-5 pb-24 db-parallax-grid">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-bold text-gray-800">📍 Student&apos;s Choice</p>
-              <span className="cmd-verified">✓ Verified</span>
-              <span className="text-xs text-gray-400 font-medium">
-                · {processed.length} địa điểm
-                {searchQuery.trim() && <> cho &ldquo;{searchQuery}&rdquo;</>}
-              </span>
-            </div>
-            {filter !== 'All' && (
-              <button onClick={() => setFilter('All')} className="text-xs text-indigo-600 font-semibold hover:text-indigo-800 transition-colors">Xóa filter ✕</button>
-            )}
-          </div>
-
-          {processed.length === 0 ? (
-            <div className="text-center py-16 db-fade-in">
-              <div className="text-5xl mb-4">{searchQuery.trim() ? '🔍' : '📍'}</div>
-              <h3 className="text-lg font-bold text-gray-700 mb-1">{searchQuery.trim() ? 'Không tìm thấy kết quả' : 'Chưa có địa điểm nào'}</h3>
-              <p className="text-sm text-gray-400 mb-4">{searchQuery.trim() ? 'Thử thay đổi từ khóa' : 'Hãy là người đầu tiên!'}</p>
-              {!searchQuery.trim() && (
-                <Link href="/add-location" className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors shadow-sm">➕ Thêm địa điểm</Link>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 db-fade-in db-fade-in-5">
-              {processed.map(loc => <LocationCard key={loc.id} location={loc} averageRating={getAvgRating(loc.reviews)} />)}
-            </div>
-          )}
-        </main>
 
         {/* FAB */}
         <Link href="/add-location"
