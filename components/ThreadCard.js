@@ -39,14 +39,14 @@ function formatCount(num) {
 }
 
 const CATEGORY_MAP = {
-  housing: { label: 'Review nhà trọ', emoji: '🏠', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.25)', color: '#34d399' },
-  food: { label: 'Review ăn uống', emoji: '🍜', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.25)', color: '#f87171' },
-  academic: { label: 'Hỏi bài', emoji: '📚', bg: 'rgba(139, 92, 246, 0.12)', border: 'rgba(139, 92, 246, 0.25)', color: '#c084fc' },
-  general: { label: 'Tổng hợp', emoji: '💬', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.25)', color: '#94a3b8' },
-  social: { label: 'Xã hội', emoji: '🎉', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.25)', color: '#f472b6' },
-  safety: { label: 'Cảnh báo', emoji: '⚠️', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)', color: '#fbbf24' },
-  events: { label: 'Sự kiện', emoji: '📅', bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.25)', color: '#60a5fa' },
-  feedback: { label: 'Góp ý', emoji: '💡', bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(6, 182, 212, 0.25)', color: '#22d3ee' },
+  housing: { label: 'Review nhà trọ', emoji: '🏠', bg: 'rgba(5, 150, 105, 0.08)', border: 'rgba(5, 150, 105, 0.15)', color: '#059669' },
+  food: { label: 'Review ăn uống', emoji: '🍜', bg: 'rgba(220, 38, 38, 0.08)', border: 'rgba(220, 38, 38, 0.15)', color: '#dc2626' },
+  academic: { label: 'Hỏi bài', emoji: '📚', bg: 'rgba(124, 58, 237, 0.08)', border: 'rgba(124, 58, 237, 0.15)', color: '#7c3aed' },
+  general: { label: 'Tổng hợp', emoji: '💬', bg: 'rgba(71, 85, 105, 0.08)', border: 'rgba(71, 85, 105, 0.15)', color: '#475569' },
+  social: { label: 'Xã hội', emoji: '🎉', bg: 'rgba(219, 39, 119, 0.08)', border: 'rgba(219, 39, 119, 0.15)', color: '#db2777' },
+  safety: { label: 'Cảnh báo', emoji: '⚠️', bg: 'rgba(180, 83, 9, 0.08)', border: 'rgba(180, 83, 9, 0.15)', color: '#b45309' },
+  events: { label: 'Sự kiện', emoji: '📅', bg: 'rgba(37, 99, 235, 0.08)', border: 'rgba(37, 99, 235, 0.15)', color: '#2563eb' },
+  feedback: { label: 'Góp ý', emoji: '💡', bg: 'rgba(8, 145, 178, 0.08)', border: 'rgba(8, 145, 178, 0.15)', color: '#0891b2' },
 };
 
 export default function ThreadCard({ post, onVoteUpdate }) {

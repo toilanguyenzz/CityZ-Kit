@@ -99,11 +99,11 @@ const compressImage = (file) => {
 };
 
 const CATEGORY_MAP = {
-  housing: { label: 'Nhà trọ', emoji: '🏠', color: '#3b82f6' },
-  food: { label: 'Ẩm thực', emoji: '🍜', color: '#ef4444' },
-  academic: { label: 'Học tập', emoji: '📚', color: '#8b5cf6' },
-  general: { label: 'Tổng hợp', emoji: '💬', color: '#6b7280' },
-  social: { label: 'Xã hội', emoji: '🎉', color: '#f59e0b' },
+  housing: { label: 'Nhà trọ', emoji: '🏠', color: '#059669' },
+  food: { label: 'Ẩm thực', emoji: '🍜', color: '#dc2626' },
+  academic: { label: 'Học tập', emoji: '📚', color: '#7c3aed' },
+  general: { label: 'Tổng hợp', emoji: '💬', color: '#475569' },
+  social: { label: 'Xã hội', emoji: '🎉', color: '#db2777' },
 };
 
 function timeAgo(dateInput) {
@@ -404,7 +404,7 @@ export default function PostDetail() {
         <Navbar />
         <main style={{ maxWidth: '600px', margin: '0 auto', borderLeft: '1px solid var(--blog-divider)', borderRight: '1px solid var(--blog-divider)', minHeight: '100vh' }}>
           {/* Back */}
-          <div style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '1.5rem', position: 'sticky', top: '64px', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 20, borderBottom: '1px solid var(--blog-divider)' }}>
+          <div style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '1.5rem', position: 'sticky', top: '64px', background: 'rgba(248, 250, 252, 0.85)', backdropFilter: 'blur(12px)', zIndex: 20, borderBottom: '1px solid var(--blog-divider)' }}>
             <button onClick={() => router.back()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--blog-text-primary)', fontSize: '1.25rem', padding: '0.25rem', borderRadius: '50%', display: 'flex' }}>
               ←
             </button>

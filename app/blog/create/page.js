@@ -569,7 +569,7 @@ export default function CreatePost() {
                         background: 'var(--blog-card-bg)',
                         border: '1px solid var(--blog-divider)',
                         borderRadius: '0.5rem',
-                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.12)',
                         zIndex: 100,
                         width: '200px',
                         maxHeight: '150px',
@@ -595,7 +595,7 @@ export default function CreatePost() {
                               fontFamily: 'inherit',
                               transition: 'background 0.15s'
                             }}
-                            onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                            onMouseEnter={(e) => e.target.style.background = 'rgba(15,23,42,0.05)'}
                             onMouseLeave={(e) => e.target.style.background = 'none'}
                           >
                             {autocompleteQuery.charAt(0)}{sug}
