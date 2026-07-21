@@ -37,6 +37,14 @@ export default function AdminPage() {
     }
   }, [roleLoading, isAdmin]);
 
+  // Protect SuperAdmin tab & auto-reset if non-superadmin
+  useEffect(() => {
+    if (!isSuperAdmin && activeTab === 'users') {
+      setActiveTab('locations');
+    }
+  }, [isSuperAdmin, activeTab]);
+
+
   const fetchOverviewStats = async () => {
     try {
       const stats = await getAdminOverviewStats();
@@ -604,13 +612,14 @@ export default function AdminPage() {
                               )}
                             </div>
                             <div className="admin-author-meta">
-                              {authorProfile?.email && (
+                              {isSuperAdmin && authorProfile?.email && (
                                 <span className="admin-author-email">📧 {authorProfile.email}</span>
                               )}
                               <span className="admin-author-role">
-                                🔑 Quyền: {authorProfile?.role === 'admin' ? 'Quản trị viên' : 'Sinh viên'}
+                                🔑 Quyền: {authorProfile?.role === 'admin' ? (authorProfile?.adminLevel === 1 ? 'Super Admin' : 'Admin') : 'Sinh viên'}
                               </span>
                             </div>
+
                           </div>
                         </div>
                       )}
