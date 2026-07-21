@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import useUserRole from '@/lib/useUserRole';
-import { getPendingLocations, getPendingPosts, getPendingBuddyRequests, moderateItem, getUserProfile, getOnlineUsers, getUserCounts } from '@/lib/firestore';
+import { getPendingLocations, getPendingPosts, getPendingBuddyRequests, moderateItem, getUserProfile, getOnlineUsers, getUserCounts, getAdminOverviewStats } from '@/lib/firestore';
 import toast from 'react-hot-toast';
 
 export default function AdminPage() {
@@ -19,14 +19,34 @@ export default function AdminPage() {
   const [pendingBuddyRequests, setPendingBuddyRequests] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [userCounts, setUserCounts] = useState({ totalUsers: 0, onlineCount: 0 });
+  const [overviewStats, setOverviewStats] = useState({
+    totalUsers: 0,
+    onlineCount: 0,
+    totalPosts: 0,
+    totalReviews: 0,
+    totalLocations: 0,
+    totalVisits: 0,
+  });
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!roleLoading && isAdmin) {
       fetchPendingItems();
+      fetchOverviewStats();
     }
   }, [roleLoading, isAdmin]);
+
+  const fetchOverviewStats = async () => {
+    try {
+      const stats = await getAdminOverviewStats();
+      setOverviewStats(stats);
+      setUserCounts({ totalUsers: stats.totalUsers, onlineCount: stats.onlineCount });
+    } catch (err) {
+      console.error('Error fetching admin overview stats:', err);
+    }
+  };
+
 
   // Auto-refresh online users every 30 seconds when tab is active
   useEffect(() => {
@@ -238,22 +258,67 @@ export default function AdminPage() {
                   <span>🛡️</span> Trang Quản trị
                 </h1>
                 <p className="admin-subtitle">
-                  Kiểm duyệt nội dung từ cộng đồng sinh viên
+                  Thống kê toàn hệ thống & Kiểm duyệt nội dung sinh viên
                 </p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
                 <span style={{ background: adminLevel === 1 ? 'linear-gradient(135deg, #f59e0b, #ef4444)' : '#8b5cf6', color: 'white', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 700 }}>
                   {adminLevel === 1 ? '⭐ Super Admin' : '🛡️ Admin'}
                 </span>
-                {isSuperAdmin && (
-                  <span style={{ color: '#c4b5fd', fontSize: '12px' }}>
-                    👥 {userCounts.onlineCount} online / {userCounts.totalUsers} users
-                  </span>
-                )}
+                <button
+                  onClick={() => { fetchOverviewStats(); fetchPendingItems(); }}
+                  style={{ background: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255,255,255,0.3)', color: 'white', padding: '3px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  🔄 Cập nhật chỉ số
+                </button>
+              </div>
+            </div>
+
+            {/* Overview KPI Stats Grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+              gap: '12px',
+              marginTop: '20px'
+            }}>
+              {/* Total Reviews Card */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.12)', backdropFilter: 'blur(10px)', borderRadius: '14px', padding: '14px 16px', border: '1px solid rgba(255, 255, 255, 0.18)' }}>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#c4b5fd', fontWeight: 700 }}>⭐ Đánh Giá</div>
+                <div style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>{overviewStats.totalReviews}</div>
+                <div style={{ fontSize: '11px', color: '#a7f3d0' }}>tổng bài review</div>
+              </div>
+
+              {/* Total Users Card */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.12)', backdropFilter: 'blur(10px)', borderRadius: '14px', padding: '14px 16px', border: '1px solid rgba(255, 255, 255, 0.18)' }}>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#c4b5fd', fontWeight: 700 }}>👥 Người Dùng</div>
+                <div style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>{overviewStats.totalUsers}</div>
+                <div style={{ fontSize: '11px', color: '#a7f3d0' }}>🟢 {overviewStats.onlineCount} online</div>
+              </div>
+
+              {/* Total Site Visits Card */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.12)', backdropFilter: 'blur(10px)', borderRadius: '14px', padding: '14px 16px', border: '1px solid rgba(255, 255, 255, 0.18)' }}>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#c4b5fd', fontWeight: 700 }}>👀 Lượt Truy Cập</div>
+                <div style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>{overviewStats.totalVisits}</div>
+                <div style={{ fontSize: '11px', color: '#93c5fd' }}>lượt ghé thăm site</div>
+              </div>
+
+              {/* Total Posts Card */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.12)', backdropFilter: 'blur(10px)', borderRadius: '14px', padding: '14px 16px', border: '1px solid rgba(255, 255, 255, 0.18)' }}>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#c4b5fd', fontWeight: 700 }}>📝 Bài Viết</div>
+                <div style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>{overviewStats.totalPosts}</div>
+                <div style={{ fontSize: '11px', color: '#fde047' }}>bài đăng diễn đàn</div>
+              </div>
+
+              {/* Total Locations Card */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.12)', backdropFilter: 'blur(10px)', borderRadius: '14px', padding: '14px 16px', border: '1px solid rgba(255, 255, 255, 0.18)' }}>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#c4b5fd', fontWeight: 700 }}>📍 Địa Điểm</div>
+                <div style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>{overviewStats.totalLocations}</div>
+                <div style={{ fontSize: '11px', color: '#cbd5e1' }}>địa điểm trên bản đồ</div>
               </div>
             </div>
           </div>
         </section>
+
 
         {/* Tabs */}
         <div className="admin-tabs">

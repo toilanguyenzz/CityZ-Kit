@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { auth, db, onAuthStateChanged } from '@/lib/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { recordSiteVisit } from '@/lib/firestore';
 
 /**
  * PresenceTracker — Component vô hình theo dõi trạng thái online
@@ -14,8 +15,15 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
  */
 export default function PresenceTracker() {
   useEffect(() => {
+    // Ghi nhận lượt truy cập site (mỗi phiên truy cập 1 lần)
+    if (typeof window !== 'undefined' && !sessionStorage.getItem('cityz_visited')) {
+      sessionStorage.setItem('cityz_visited', 'true');
+      recordSiteVisit();
+    }
+
     let intervalId = null;
     let currentUserId = null;
+
 
     const updatePresence = async (uid) => {
       try {
